@@ -8,6 +8,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import gc
 from pathlib import Path
 
 from playwright.sync_api import sync_playwright
@@ -169,72 +170,12 @@ def hash_frame(content: bytes) -> str:
     return hashlib.sha1(content).hexdigest()
 
 
-def run_ffmpeg(ffmpeg_exe: str, args: list[str]) -> None:
-    result = subprocess.run(
-        [ffmpeg_exe, *args],
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.PIPE,
-        text=True,
-        check=False,
-    )
-    if result.returncode != 0:
-        raise RuntimeError(result.stderr.strip() or f"ffmpeg exited with code {result.returncode}")
-
-
-def capture_frames(page, frame_rate: int, max_duration: float, min_duration: float, settle_window: float, temp_dir: str):
-    frame_total = int(math.ceil(max_duration * frame_rate)) + 2
-    frame_times: list[float] = []
-    last_signature = ""
-    last_change_time = 0.0
-
-    for index in range(frame_total):
-      t = round(index / frame_rate, 4)
-      page.evaluate(
-          """seconds => {
-              if (typeof window.__code2videoSetTime === 'function') {
-                  window.__code2videoSetTime(seconds);
-              }
-          }""",
-          t,
-      )
-      content = page.screenshot(type="png")
-      signature = hash_frame(content)
-      if not last_signature or signature != last_signature:
-          last_signature = signature
-          last_change_time = t
-
-      frame_path = Path(temp_dir) / f"frame{index:05d}.png"
-      frame_path.write_bytes(content)
-      frame_times.append(t)
-
-      meta = page.evaluate(
-          """() => (
-              typeof window.__code2videoCaptureMeta === 'function'
-                  ? window.__code2videoCaptureMeta()
-                  : { activeAnimations: 0, hasInfiniteAnimation: false }
-          )"""
-      )
-      idle_for = t - last_change_time
-      settled = t >= min_duration and idle_for >= settle_window and meta["activeAnimations"] == 0
-      if settled:
-          return frame_times, False
-
-    return frame_times, True
-
-
-def main() -> int:
-    if len(sys.argv) != 3:
-        print("Usage: python playwright_render.py <input.json> <output.mp4>", file=sys.stderr)
-        return 1
-
-    input_path = Path(sys.argv[1])
-    output_path = Path(sys.argv[2])
-    ffmpeg_exe = os.environ.get("FFMPEG_EXE")
+def render_payload(payload: dict, output_path: str | Path, ffmpeg_exe: str | None = None) -> dict:
+    ffmpeg_exe = ffmpeg_exe or os.environ.get("FFMPEG_EXE")
     if not ffmpeg_exe:
-        print("FFMPEG_EXE environment variable is required.", file=sys.stderr)
-        return 1
+        raise RuntimeError("FFMPEG_EXE environment variable is required.")
 
-    payload = json.loads(input_path.read_text(encoding="utf-8"))
+    output_path = Path(output_path)
     code = payload["code"]
     width = int(payload["width"])
     height = int(payload["height"])
@@ -244,12 +185,43 @@ def main() -> int:
     min_duration = float(payload.get("minDuration", 0.35))
     settle_window = float(payload.get("settleWindow", 0.45))
 
-    temp_dir = tempfile.mkdtemp(prefix="code2video-playwright-")
+    # Memory Optimization: Start FFmpeg with a pipe
+    ffmpeg_cmd = [
+        ffmpeg_exe,
+        "-y",
+        "-f", "image2pipe",
+        "-vcodec", "png",
+        "-r", str(frame_rate),
+        "-i", "-", # read from stdin
+        "-c:v", "libx264",
+        "-pix_fmt", "yuv420p",
+        "-preset", "faster",
+        "-b:v", bitrate,
+        "-maxrate", bitrate,
+        "-bufsize", bitrate,
+        str(output_path),
+    ]
+
+    ffmpeg_proc = subprocess.Popen(ffmpeg_cmd, stdin=subprocess.PIPE, stderr=subprocess.PIPE)
+
+    frame_total = int(math.ceil(max_duration * frame_rate)) + 2
+    frame_times: list[float] = []
+    last_signature = ""
+    last_change_time = 0.0
+    capped = True
+
     try:
         with sync_playwright() as playwright:
+            # Memory Optimization: Add flags to Chromium
             browser = playwright.chromium.launch(
                 headless=True,
-                args=["--disable-dev-shm-usage", "--hide-scrollbars", "--mute-audio"],
+                args=[
+                    "--disable-dev-shm-usage",
+                    "--hide-scrollbars",
+                    "--mute-audio",
+                    "--disable-gpu",
+                    "--js-flags=--max-old-space-size=256", # Limit V8 heap
+                ],
             )
             try:
                 context = browser.new_context(
@@ -271,45 +243,62 @@ def main() -> int:
                     }"""
                 )
 
-                frame_times, capped = capture_frames(
-                    page,
-                    frame_rate=frame_rate,
-                    max_duration=max_duration,
-                    min_duration=min_duration,
-                    settle_window=settle_window,
-                    temp_dir=temp_dir,
-                )
+                for index in range(frame_total):
+                  t = round(index / frame_rate, 4)
+                  page.evaluate("s => { if (window.__code2videoSetTime) window.__code2videoSetTime(s); }", t)
+                  
+                  content = page.screenshot(type="png")
+                  signature = hash_frame(content)
+                  
+                  if not last_signature or signature != last_signature:
+                      last_signature = signature
+                      last_change_time = t
+
+                  # Write directly to FFmpeg pipe
+                  ffmpeg_proc.stdin.write(content)
+                  frame_times.append(t)
+
+                  meta = page.evaluate("() => (window.__code2videoCaptureMeta ? window.__code2videoCaptureMeta() : { activeAnimations: 0 })")
+                  idle_for = t - last_change_time
+                  if t >= min_duration and idle_for >= settle_window and meta["activeAnimations"] == 0:
+                      capped = False
+                      break
             finally:
                 browser.close()
+                gc.collect() # Immediate cleanup
 
-        run_ffmpeg(
-            ffmpeg_exe,
-            [
-                "-y",
-                "-framerate", str(frame_rate),
-                "-i", str(Path(temp_dir) / "frame%05d.png"),
-                "-c:v", "libx264",
-                "-pix_fmt", "yuv420p",
-                "-preset", "fast",
-                "-b:v", bitrate,
-                "-maxrate", bitrate,
-                "-bufsize", bitrate,
-                str(output_path),
-            ],
-        )
-        print(
-            json.dumps(
-                {
-                    "duration": frame_times[-1] if frame_times else 0,
-                    "frameCount": len(frame_times),
-                    "capped": capped,
-                }
-            ),
-            file=sys.stderr,
-        )
+        # Close FFmpeg pipe to finish encoding
+        ffmpeg_proc.stdin.close()
+        stdout, stderr = ffmpeg_proc.communicate()
+        if ffmpeg_proc.returncode != 0:
+            raise RuntimeError(stderr.decode().strip())
+
+        return {
+            "duration": frame_times[-1] if frame_times else 0,
+            "frameCount": len(frame_times),
+            "capped": capped,
+        }
+    except Exception as e:
+        if ffmpeg_proc.poll() is None:
+            ffmpeg_proc.kill()
+        raise e
+
+
+def main() -> int:
+    if len(sys.argv) != 3:
+        print("Usage: python playwright_render.py <input.json> <output.mp4>", file=sys.stderr)
+        return 1
+
+    input_path = Path(sys.argv[1])
+    output_path = Path(sys.argv[2])
+    try:
+        payload = json.loads(input_path.read_text(encoding="utf-8"))
+        result = render_payload(payload, output_path)
+        print(json.dumps(result), file=sys.stderr)
         return 0
-    finally:
-        shutil.rmtree(temp_dir, ignore_errors=True)
+    except Exception as exc:
+        print(str(exc), file=sys.stderr)
+        return 1
 
 
 if __name__ == "__main__":

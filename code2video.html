@@ -646,6 +646,10 @@ function buildApiUrl(path) {
   return API_BASE ? `${API_BASE}${relative}` : relative;
 }
 
+function isDesktopShell() {
+  return Boolean(window.pywebview && window.pywebview.api && typeof window.pywebview.api.save_video === 'function');
+}
+
 function createBackendError(code, message, details = null) {
   const error = new Error(message);
   error.code = code;
@@ -904,6 +908,43 @@ function downloadVideo() {
   showDownloadPanel(resultVideoUrl, resultVideoFilename);
 }
 
+function blobToBase64(blob) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = String(reader.result || '');
+      const commaIndex = result.indexOf(',');
+      resolve(commaIndex >= 0 ? result.slice(commaIndex + 1) : result);
+    };
+    reader.onerror = () => reject(reader.error || new Error('Failed to read file'));
+    reader.readAsDataURL(blob);
+  });
+}
+
+async function saveVideoFromDesktopShell(filename) {
+  if (!resultVideoUrl || !isDesktopShell()) return false;
+
+  const response = await fetch(resultVideoUrl);
+  const blob = await response.blob();
+  const base64Data = await blobToBase64(blob);
+  const result = await window.pywebview.api.save_video(filename, base64Data);
+
+  if (!result || !result.saved) {
+    setStatus('Save cancelled', '');
+    return false;
+  }
+
+  clearResultVideo();
+  document.getElementById('btnDownload').disabled = true;
+  document.getElementById('btnDownload').classList.remove('blink');
+  setStatus(`Saved to ${result.path}`, 'ok');
+  
+  // Show a clear success message to the user
+  alert(`✨ Success!\n\nYour video has been saved to:\n${result.path}`);
+  
+  return true;
+}
+
 function showDownloadPanel(url, filename) {
   const old = document.getElementById('dl-panel');
   if (old) old.remove();
@@ -926,28 +967,49 @@ function showDownloadPanel(url, filename) {
   previewEl.autoplay = true;
   previewEl.loop = true;
 
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = filename;
-  a.style.cssText = `
+  const saveBtn = document.createElement(isDesktopShell() ? 'button' : 'a');
+  saveBtn.style.cssText = `
     display:inline-block; padding:14px 40px;
     background:#c8ff00; color:#000;
     font-family:'IBM Plex Mono',monospace;
     font-size:0.85rem; font-weight:900;
     letter-spacing:3px; text-decoration:none;
     text-transform:uppercase;
+    border:none;
+    cursor:pointer;
     animation: dlblink 0.5s ease-in-out infinite alternate;
   `;
-  a.textContent = '↓ CLICK TO DOWNLOAD .MP4';
-  a.addEventListener('click', () => {
-    setStatus('Download started...', 'busy');
-    setTimeout(() => {
-      clearResultVideo();
-      document.getElementById('btnDownload').disabled = true;
-      document.getElementById('btnDownload').classList.remove('blink');
-      setStatus('Downloaded render cleared', 'ok');
-    }, 1500);
-  }, { once: true });
+  saveBtn.textContent = isDesktopShell() ? '↓ CHOOSE SAVE LOCATION' : '↓ CLICK TO DOWNLOAD .MP4';
+
+  if (saveBtn.tagName === 'A') {
+    saveBtn.href = url;
+    saveBtn.download = filename;
+    saveBtn.addEventListener('click', () => {
+      setStatus('Download started...', 'busy');
+      setTimeout(() => {
+        clearResultVideo();
+        document.getElementById('btnDownload').disabled = true;
+        document.getElementById('btnDownload').classList.remove('blink');
+        setStatus('Downloaded render cleared', 'ok');
+      }, 1500);
+    }, { once: true });
+  } else {
+    saveBtn.addEventListener('click', async () => {
+      saveBtn.disabled = true;
+      saveBtn.style.opacity = '0.7';
+      setStatus('Choose where to save the video...', 'busy');
+      try {
+        const saved = await saveVideoFromDesktopShell(filename);
+        if (saved) panel.remove();
+      } catch (error) {
+        console.error(error);
+        setStatus('ERROR: Could not save video', 'err');
+      } finally {
+        saveBtn.disabled = false;
+        saveBtn.style.opacity = '1';
+      }
+    });
+  }
 
   const close = document.createElement('button');
   close.textContent = '✕ close';
@@ -961,7 +1023,7 @@ function showDownloadPanel(url, filename) {
   info.textContent = 'TEMPORARY RENDER · NOT SAVED ON BACKEND · MP4';
 
   panel.appendChild(previewEl);
-  panel.appendChild(a);
+  panel.appendChild(saveBtn);
   panel.appendChild(info);
   panel.appendChild(close);
   document.body.appendChild(panel);
