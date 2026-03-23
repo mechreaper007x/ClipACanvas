@@ -6,3 +6,6 @@ renders/
 *.log
 conductor/
 .github/
+
+.vercel
+.deploy-vercel/

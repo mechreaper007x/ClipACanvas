@@ -12,3 +12,5 @@ services:
         value: "1"
       - key: CODE2VIDEO_CORS_ORIGIN
         value: "*"
+      - key: PLAYWRIGHT_BROWSERS_PATH
+        value: "0"
