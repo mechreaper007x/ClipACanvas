@@ -541,6 +541,10 @@ const CAPTURE_SETTINGS = Object.freeze({
   settleWindow: 0.45,
   maxDuration: 12
 });
+const BACKEND_WAKE_TIMEOUT_MS = 65000;
+const BACKEND_POLL_INTERVAL_MS = 4000;
+const HEALTHCHECK_TIMEOUT_MS = 12000;
+const RENDER_REQUEST_TIMEOUT_MS = 300000;
 const API_BASE = resolveApiBase();
 
 // ── STATUS ──────────────────────────────────────────────
@@ -587,8 +591,12 @@ function clearResultVideo() {
 
 async function storeRenderResult(response, ext) {
   if (!response.ok) {
-    const message = await response.text();
-    throw new Error(message || 'Backend rendering failed');
+    const message = (await response.text()).trim();
+    const fallback = `Backend returned ${response.status}`;
+    throw createBackendError('backend_http', message || fallback, {
+      status: response.status,
+      body: message
+    });
   }
 
   const blob = await response.blob();
@@ -637,13 +645,112 @@ function buildApiUrl(path) {
   return API_BASE ? `${API_BASE}${relative}` : relative;
 }
 
+function createBackendError(code, message, details = null) {
+  const error = new Error(message);
+  error.code = code;
+  error.details = details;
+  return error;
+}
+
+function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+async function fetchWithTimeout(url, options = {}, timeoutMs = 30000) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    return await fetch(url, { ...options, signal: controller.signal });
+  } catch (error) {
+    if (error && error.name === 'AbortError') {
+      throw createBackendError('timeout', 'Request timed out');
+    }
+    throw error;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+function summarizeBackendMessage(message) {
+  const text = String(message || '').trim();
+  if (!text) return 'Backend rendering failed';
+
+  const firstLine = text.split('\n').find(Boolean) || text;
+  if (/Traceback|File "/.test(firstLine)) return 'Backend rendering failed';
+  if (firstLine.length > 160) return `${firstLine.slice(0, 157)}...`;
+  return firstLine;
+}
+
+async function ensureBackendReady() {
+  if (!API_BASE) return;
+
+  const deadline = Date.now() + BACKEND_WAKE_TIMEOUT_MS;
+  let lastError = null;
+
+  while (Date.now() < deadline) {
+    try {
+      const response = await fetchWithTimeout(buildApiUrl('/health'), {
+        method: 'GET',
+        cache: 'no-store'
+      }, HEALTHCHECK_TIMEOUT_MS);
+
+      if (response.ok) return;
+
+      const body = (await response.text()).trim();
+      throw createBackendError('backend_http', `Backend health check failed (${response.status})`, {
+        status: response.status,
+        body
+      });
+    } catch (error) {
+      lastError = error;
+
+      if (error && error.code === 'backend_http') throw error;
+
+      const remainingMs = deadline - Date.now();
+      if (remainingMs <= 0) break;
+
+      setStatus('Waking backend...', 'busy');
+      setProgress(6, 'WAKING BACKEND...', `up to ${Math.ceil(remainingMs / 1000)}s`);
+      await sleep(Math.min(BACKEND_POLL_INTERVAL_MS, remainingMs));
+    }
+  }
+
+  if (lastError && lastError.code === 'timeout') {
+    throw createBackendError('backend_sleep', 'Render backend is waking up on Render. Retry in about 30-60 seconds.');
+  }
+
+  if (lastError instanceof TypeError) {
+    throw createBackendError('backend_network', 'Browser could not reach the backend. Check the Render URL or CORS settings.');
+  }
+
+  throw lastError || createBackendError('backend_unavailable', 'Backend is unavailable right now.');
+}
+
 function explainBackendError(error) {
+  if (error && error.code === 'backend_sleep') {
+    return 'Backend is waking up on Render. Wait 30-60s, then retry.';
+  }
+
+  if (error && error.code === 'timeout') {
+    return 'Render timed out. Try a smaller resolution or a shorter animation.';
+  }
+
+  if (error && error.code === 'backend_network') {
+    if (API_BASE) return `Browser could not reach backend at ${API_BASE}`;
+    return 'Browser could not reach backend render service';
+  }
+
+  if (error && error.code === 'backend_http') {
+    return summarizeBackendMessage(error.message);
+  }
+
   const message = error instanceof Error ? error.message : String(error);
   if (/Failed to fetch|NetworkError|Load failed/i.test(message)) {
-    if (API_BASE) return `Cannot reach backend at ${API_BASE}`;
-    return 'Cannot reach backend render service';
+    if (API_BASE) return `Browser could not reach backend at ${API_BASE}`;
+    return 'Browser could not reach backend render service';
   }
-  return message;
+  return summarizeBackendMessage(message);
 }
 
 // ── PREVIEW ──────────────────────────────────────────────
@@ -722,11 +829,12 @@ async function startConvert() {
   document.getElementById('btnDownload').classList.remove('blink');
   clearResultVideo();
 
-  setStatus('Rendering...', 'busy');
-  setProgress(4, 'RENDERING...');
+  setStatus('Checking backend...', 'busy');
+  setProgress(2, 'CHECKING BACKEND...');
   updateTimingSummary(`Backend Chromium is rendering at ${CAPTURE_SETTINGS.frameRate} FPS and will return a final MP4.`);
 
   try {
+    await ensureBackendReady();
     await renderWithPlaywrightBackend(code);
     document.getElementById('btnDownload').disabled = false;
     document.getElementById('btnDownload').classList.add('blink');
@@ -764,7 +872,7 @@ async function renderWithPlaywrightBackend(code) {
   }, 500);
 
   try {
-    const response = await fetch(buildApiUrl('/render'), {
+    const response = await fetchWithTimeout(buildApiUrl('/render'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -777,7 +885,7 @@ async function renderWithPlaywrightBackend(code) {
         minDuration: CAPTURE_SETTINGS.minDuration,
         settleWindow: CAPTURE_SETTINGS.settleWindow
       })
-    });
+    }, RENDER_REQUEST_TIMEOUT_MS);
 
     await storeRenderResult(response, OUTPUT_FORMAT);
     setProgress(100, 'DONE');
