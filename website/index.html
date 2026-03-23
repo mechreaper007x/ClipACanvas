@@ -65,11 +65,19 @@
                 <div class="sidebar-action">Render MP4</div>
               </aside>
               <div class="stage-preview">
-                <!-- Replace this block with your demo video later -->
-                <div class="video-placeholder">
-                  <div class="video-badge">DROP DEMO VIDEO HERE</div>
-                  <p>Add your motion render clip later.</p>
-                  <span>Suggested: 20-30 second muted loop of editor + final export.</span>
+                <div class="demo-video-shell">
+                  <video
+                    class="demo-video"
+                    autoplay
+                    muted
+                    loop
+                    playsinline
+                    preload="metadata"
+                    controls
+                  >
+                    <source src="./demo-video.mp4" type="video/mp4">
+                    Your browser does not support the demo video.
+                  </video>
                 </div>
                 <div class="stage-caption">
                   <strong>Preview surface</strong>
@@ -182,16 +190,16 @@
         <div class="download-grid">
           <article class="download-card">
             <h3>Windows build</h3>
-            <p>Point this button to your packaged installer or portable zip when you publish the release.</p>
-            <a class="button button-primary" href="#">Attach Windows download link</a>
+            <p>Download the packaged Windows installer directly from the GitHub release.</p>
+            <a class="button button-primary" href="https://github.com/mechreaper007x/code2video-renderer/releases/download/v1.0.0/CODE2VIDEO-Setup.exe">Download for Windows</a>
           </article>
           <article class="download-card accent">
             <h3>macOS build</h3>
-            <p>Use the GitHub Actions build path or attach your signed `.app` release once you have a Mac build pipeline running.</p>
-            <a class="button button-secondary" href="#">Attach macOS download link</a>
+            <p>Download the packaged macOS app archive from the same release. Current state: beta build.</p>
+            <a class="button button-secondary" href="https://github.com/mechreaper007x/code2video-renderer/releases/download/v1.0.0/CODE2VIDEO-macos.zip">Download for macOS</a>
           </article>
         </div>
-        <p class="downloads-note">When you are ready, replace the placeholder buttons and the hero video block with your real release links and demo footage.</p>
+        <p class="downloads-note">Release assets are hosted through GitHub Releases so the website can link to stable desktop downloads.</p>
       </section>
     </main>
 
