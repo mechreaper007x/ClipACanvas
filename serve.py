@@ -11,6 +11,7 @@ import time
 import json
 import webbrowser
 import subprocess
+import sys
 import tempfile
 from pathlib import Path
 from http.server import HTTPServer, SimpleHTTPRequestHandler
@@ -71,10 +72,11 @@ class CODE2VIDEOHandler(SimpleHTTPRequestHandler):
     def _handle_render(self):
         content_length = int(self.headers['Content-Length'])
         payload = json.loads(self.rfile.read(content_length).decode('utf-8'))
-        renderer_script = Path(__file__).with_name('playwright_render.mjs')
+        python_renderer = Path(__file__).with_name('playwright_render.py')
+        node_renderer = Path(__file__).with_name('playwright_render.mjs')
 
-        if not renderer_script.exists():
-            self._send_text_error('Playwright renderer script is missing.', 500)
+        if not python_renderer.exists() and not node_renderer.exists():
+            self._send_text_error('No Playwright renderer script is available.', 500)
             return
 
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -86,29 +88,41 @@ class CODE2VIDEOHandler(SimpleHTTPRequestHandler):
 
             env = os.environ.copy()
             env['FFMPEG_EXE'] = FFMPEG_EXE
-            cmd = ['node', str(renderer_script), input_path, out_filepath]
+            commands = []
+            if python_renderer.exists():
+                commands.append([sys.executable, str(python_renderer), input_path, out_filepath])
+            if node_renderer.exists():
+                commands.append(['node', str(node_renderer), input_path, out_filepath])
 
-            try:
-                result = subprocess.run(
-                    cmd,
-                    cwd=Path(__file__).parent,
-                    env=env,
-                    capture_output=True,
-                    text=True,
-                    timeout=600
-                )
-            except FileNotFoundError:
-                self._send_text_error('Node.js is required for Playwright rendering.', 500)
-                return
-            except subprocess.TimeoutExpired:
-                self._send_text_error('Playwright render timed out.', 504)
-                return
+            result = None
+            render_errors = []
+            for cmd in commands:
+                try:
+                    result = subprocess.run(
+                        cmd,
+                        cwd=Path(__file__).parent,
+                        env=env,
+                        capture_output=True,
+                        text=True,
+                        timeout=600
+                    )
+                except FileNotFoundError:
+                    render_errors.append(f'Missing runtime for command: {" ".join(cmd[:2])}')
+                    continue
+                except subprocess.TimeoutExpired:
+                    self._send_text_error('Playwright render timed out.', 504)
+                    return
 
-            if result.stderr.strip():
-                print(result.stderr.strip())
+                if result.stderr.strip():
+                    print(result.stderr.strip())
 
-            if result.returncode != 0 or not os.path.exists(out_filepath):
-                message = result.stderr.strip() or 'Playwright rendering failed.'
+                if result.returncode == 0 and os.path.exists(out_filepath):
+                    break
+
+                render_errors.append(result.stderr.strip() or f'Renderer failed for command: {" ".join(cmd[:2])}')
+
+            if not result or result.returncode != 0 or not os.path.exists(out_filepath):
+                message = '\n'.join(err for err in render_errors if err) or 'Playwright rendering failed.'
                 self._send_text_error(message, 500)
                 return
 
