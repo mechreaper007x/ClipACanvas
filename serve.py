@@ -14,16 +14,9 @@ import subprocess
 import sys
 import tempfile
 import threading
+import platform
 from pathlib import Path
 from http.server import ThreadingHTTPServer, SimpleHTTPRequestHandler
-
-try:
-    import imageio_ffmpeg
-    FFMPEG_EXE = imageio_ffmpeg.get_ffmpeg_exe()
-except ImportError:
-    print("ERROR: imageio-ffmpeg is required.")
-    print("Please run: pip install imageio-ffmpeg")
-    exit(1)
 
 ALLOWED_ORIGINS = [origin.strip() for origin in os.environ.get("CODE2VIDEO_CORS_ORIGIN", "*").split(",") if origin.strip()]
 
@@ -35,6 +28,29 @@ def resolve_app_dir() -> Path:
 
 
 APP_DIR = resolve_app_dir()
+IS_WINDOWS = platform.system() == "Windows"
+FFMPEG_NAME = "ffmpeg.exe" if IS_WINDOWS else "ffmpeg"
+
+
+def resolve_ffmpeg_exe() -> str:
+    env_ffmpeg = os.environ.get("FFMPEG_EXE")
+    if env_ffmpeg:
+        return env_ffmpeg
+
+    bundled_ffmpeg = APP_DIR / "bin" / FFMPEG_NAME
+    if bundled_ffmpeg.exists():
+        return str(bundled_ffmpeg)
+
+    try:
+        import imageio_ffmpeg
+        return imageio_ffmpeg.get_ffmpeg_exe()
+    except ImportError:
+        print("ERROR: imageio-ffmpeg is required.")
+        print("Please run: pip install imageio-ffmpeg")
+        raise SystemExit(1)
+
+
+FFMPEG_EXE = resolve_ffmpeg_exe()
 
 
 class CODE2VIDEOServer(ThreadingHTTPServer):
@@ -122,13 +138,13 @@ class CODE2VIDEOHandler(SimpleHTTPRequestHandler):
             out_filepath = os.path.join(tmpdir, 'output.mp4')
 
             env = os.environ.copy()
-            env['FFMPEG_EXE'] = FFMPEG_EXE
+            env['FFMPEG_EXE'] = resolve_ffmpeg_exe()
             result = None
             render_errors = []
 
             try:
                 import playwright_render
-                result_payload = playwright_render.render_payload(payload, out_filepath, ffmpeg_exe=FFMPEG_EXE)
+                result_payload = playwright_render.render_payload(payload, out_filepath, ffmpeg_exe=env['FFMPEG_EXE'])
                 result = subprocess.CompletedProcess(args=['python', 'playwright_render'], returncode=0, stderr=json.dumps(result_payload))
             except Exception as exc:
                 render_errors.append(str(exc).strip() or 'Python renderer failed.')

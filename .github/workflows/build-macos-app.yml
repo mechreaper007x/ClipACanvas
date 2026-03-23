@@ -1,0 +1,56 @@
+name: Build macOS App
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/build-macos-app.yml"
+      - "build_mac_app.py"
+      - "build_mac_safe.command"
+      - "desktop_app.py"
+      - "desktop_requirements.txt"
+      - "serve.py"
+      - "playwright_render.py"
+      - "code2video.html"
+      - "assets/**"
+      - "requirements.txt"
+
+jobs:
+  build-macos:
+    runs-on: macos-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt
+          python -m pip install -r desktop_requirements.txt
+
+      - name: Install Playwright Chromium
+        run: python -m playwright install chromium
+
+      - name: Build macOS app
+        run: python build_mac_app.py
+
+      - name: Remove macOS quarantine flag
+        run: xattr -dr com.apple.quarantine dist/CODE2VIDEO.app || true
+
+      - name: Upload macOS app artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: CODE2VIDEO-macos
+          path: |
+            dist/CODE2VIDEO-macos.zip
+            dist/CODE2VIDEO.app
+          if-no-files-found: error

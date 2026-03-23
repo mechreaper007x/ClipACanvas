@@ -11,6 +11,7 @@ ENTRY_POINT = "desktop_app.py"
 DIST_DIR = Path("dist")
 BUILD_DIR = Path("build")
 BIN_DIR = Path("bin")
+ICON_FILE = Path("assets") / "code2video.ico"
 
 IS_WINDOWS = platform.system() == "Windows"
 FFMPEG_NAME = "ffmpeg.exe" if IS_WINDOWS else "ffmpeg"
@@ -27,6 +28,11 @@ def run_command(cmd, msg):
         sys.exit(1)
 
 def main():
+    if not IS_WINDOWS:
+        print("build_desktop.py is for Windows packaging.")
+        print("Use build_mac_app.py on macOS instead.")
+        sys.exit(1)
+
     # 1. Clean up old builds
     if DIST_DIR.exists(): shutil.rmtree(DIST_DIR)
     if BUILD_DIR.exists(): shutil.rmtree(BUILD_DIR)
@@ -49,6 +55,7 @@ def main():
     print("[*] Installing/Locating Chromium...")
     # Set a local path for browsers so we know where they are
     local_browsers = BIN_DIR / "browsers"
+    local_browsers.mkdir(parents=True, exist_ok=True)
     os.environ["PLAYWRIGHT_BROWSERS_PATH"] = str(local_browsers)
     
     # Run playwright install to ensure we have the binary locally for this platform
@@ -59,7 +66,9 @@ def main():
     sep = ";" if IS_WINDOWS else ":"
     
     pyinstaller_cmd = [
-        "pyinstaller",
+        sys.executable,
+        "-m",
+        "PyInstaller",
         "--noconfirm",
         "--onedir", # Using onedir for better stability with large browser binaries
         "--windowed",
@@ -73,6 +82,9 @@ def main():
         ENTRY_POINT
     ]
 
+    if ICON_FILE.exists():
+        pyinstaller_cmd.extend(["--icon", str(ICON_FILE)])
+
     # macOS specific: Add icon and bundle identifier if needed
     if not IS_WINDOWS:
         pyinstaller_cmd.extend([
@@ -82,12 +94,16 @@ def main():
     print("[*] Running PyInstaller...")
     subprocess.run(pyinstaller_cmd, check=True)
 
+    archive_base = DIST_DIR / f"{APP_NAME}-windows"
+    shutil.make_archive(str(archive_base), "zip", root_dir=DIST_DIR, base_dir=APP_NAME)
+
     print("\n" + "="*40)
-    print(f"🎉 SUCCESS! {APP_NAME} is ready.")
+    print(f"SUCCESS! {APP_NAME} is ready.")
     if IS_WINDOWS:
-        print(f"📂 Location: {DIST_DIR / APP_NAME / (APP_NAME + '.exe')}")
+        print(f"Location: {DIST_DIR / APP_NAME / (APP_NAME + '.exe')}")
+        print(f"Zip: {archive_base}.zip")
     else:
-        print(f"📂 Location: {DIST_DIR / (APP_NAME + '.app')}")
+        print(f"Location: {DIST_DIR / (APP_NAME + '.app')}")
     print("="*40)
 
 if __name__ == "__main__":

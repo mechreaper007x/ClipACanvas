@@ -1,32 +1,31 @@
-# CODE2VIDEO ⚡
+# CODE2VIDEO
 
-**CODE2VIDEO** is a high-performance, memory-efficient rendering engine designed to turn HTML/CSS/JS animations into high-quality MP4 videos. 
+**CODE2VIDEO** turns HTML/CSS/JS animations into MP4 videos through a local desktop app.
 
-Built with **Playwright (Chromium)** and **FFmpeg**, it provides a seamless "code-to-video" pipeline that works directly through memory pipes, making it up to **50% faster** than traditional disk-based rendering methods.
-
----
-
-## ✨ Key Features
-
-- **🚀 Speed-First Architecture:** Uses an `image2pipe` stream from Chromium directly into FFmpeg. No intermediate PNG files are ever written to your disk.
-- **🧠 Lean Memory Mode:** Custom Chromium flags and explicit Garbage Collection (GC) keep peak RAM usage under 1.3 GB even during 1080p renders.
-- **🎨 Pixel-Perfect Output:** Renders exactly what you see in the browser using the Chromium engine.
-- **📱 Vertical Video Support:** Optimized for 9:16 reels, shorts, and TikTok content with built-in presets (540p, 720p, 1080p).
-- **🖥️ Desktop Shell:** Includes a `pywebview` wrapper for a native desktop experience with a "Choose Save Location" file dialog.
+It uses **Playwright (Chromium)** for rendering and **FFmpeg** for encoding, so users get browser-accurate output without depending on any hosted backend.
 
 ---
 
-## 🏗️ Technical Stack
+## Key Features
+
+- **Desktop-first workflow:** Launch as a native desktop app through `pywebview`.
+- **Bundled renderer stack:** Desktop builds ship with Chromium and FFmpeg.
+- **Pixel-accurate output:** Final video is rendered in Chromium, not from a DOM screenshot hack.
+- **Save anywhere:** Desktop mode opens a native "Save As" dialog for the finished MP4.
+
+---
+
+## Technical Stack
 
 - **Frontend:** HTML5, CSS3, Vanilla JS (for the UI)
-- **Backend:** Python (Flask/WSGI)
+- **Backend:** Python HTTP server
 - **Rendering Engine:** Playwright (Chromium)
 - **Video Encoder:** FFmpeg (`libx264`)
 - **Desktop Wrapper:** `pywebview` (Native OS WebView)
 
 ---
 
-## ⚙️ Installation
+## Installation
 
 ### 1. Clone & Dependencies
 ```bash
@@ -43,36 +42,71 @@ playwright install chromium
 
 ---
 
-## 🚀 Usage
+## Usage
 
 ### Desktop Mode (Recommended)
-Launch the standalone desktop application:
+Launch the local desktop application:
 ```bash
 launch_desktop.bat
 # or
 python desktop_app.py
 ```
 
-### Web Mode
-Run the server and access via `http://localhost:5000`:
+On macOS:
 ```bash
-python server.py
+chmod +x launch_desktop.command
+./launch_desktop.command
 ```
 
+### Build a Windows Distributable Folder
+```bash
+python build_desktop.py
+```
+
+Output:
+- `dist/CODE2VIDEO/CODE2VIDEO.exe`
+- `dist/CODE2VIDEO-windows.zip`
+
+### Build a Windows Installer
+```bash
+python build_installer.py
+```
+
+Output:
+- `dist/CODE2VIDEO-Setup.exe`
+
+### Build a macOS App
+Run this on a Mac:
+```bash
+python3 build_mac_app.py
+```
+
+Output:
+- `dist/CODE2VIDEO.app`
+- `dist/CODE2VIDEO-macos.zip`
+
+### One-File macOS Build
+If you want a single safe helper file on Mac:
+```bash
+chmod +x build_mac_safe.command
+./build_mac_safe.command
+```
+
+### Build macOS on GitHub
+This repo now includes a GitHub Actions workflow at `.github/workflows/build-macos-app.yml`.
+
+You can trigger it from the GitHub Actions tab with `Build macOS App`, or let it run on pushes to `main` when the Mac build files change. The workflow uploads:
+- `dist/CODE2VIDEO-macos.zip`
+- `dist/CODE2VIDEO.app`
+
+## Notes
+
+- The packaged app must keep the full `CODE2VIDEO` folder together with `_internal`.
+- The installer is the easier option for non-technical users.
+- macOS packaging must be built on macOS; it cannot be cross-compiled from Windows.
+- Development can still run locally with `python desktop_app.py`.
+
 ---
 
-## 🛠️ How it Works (Optimization Details)
-
-Traditional rendering usually follows this slow path:
-`Browser -> Save PNG to Disk -> Wait -> Read PNG from Disk -> FFmpeg -> Video`
-
-**CODE2VIDEO** uses a high-speed "Lean Mode" pipeline:
-1. **Chromium** takes a frame screenshot in memory.
-2. The pixel data is **piped directly** to FFmpeg's `stdin`.
-3. **FFmpeg** encodes the frame while the next one is being captured.
-4. **Memory Guard:** Chromium's JS engine is capped at 256MB, and `gc.collect()` forces immediate RAM release after the render.
-
----
-
-## 📄 License
-MIT · Built with ❤️ for the AI Creative Community.
+## License
+MIT. Built for the AI Creative Community.
