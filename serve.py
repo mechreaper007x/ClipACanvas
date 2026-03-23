@@ -53,6 +53,8 @@ class CODE2VIDEOHandler(SimpleHTTPRequestHandler):
             self.send_header('Location', '/code2video.html')
             self.end_headers()
             return
+        if self.path == '/api/config.js':
+            return self._send_runtime_config()
         if self.path == '/health':
             return self._send_json({'ok': True})
         return super().do_GET()
@@ -143,6 +145,15 @@ class CODE2VIDEOHandler(SimpleHTTPRequestHandler):
         self.send_header('Content-Length', str(len(data)))
         self.end_headers()
         self.wfile.write(data)
+
+    def _send_runtime_config(self):
+        api_base = os.environ.get("CODE2VIDEO_API_BASE", "").rstrip("/")
+        payload = f"window.CODE2VIDEO_API_BASE = {json.dumps(api_base)};\n".encode("utf-8")
+        self.send_response(200)
+        self.send_header("Content-Type", "application/javascript; charset=utf-8")
+        self.send_header("Content-Length", str(len(payload)))
+        self.end_headers()
+        self.wfile.write(payload)
 
     def _cors_origin(self):
         request_origin = self.headers.get("Origin")

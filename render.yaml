@@ -1,0 +1,14 @@
+services:
+  - type: web
+    name: code2video-backend
+    runtime: docker
+    plan: free
+    region: oregon
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: CODE2VIDEO_NO_BROWSER
+        value: "1"
+      - key: CODE2VIDEO_CORS_ORIGIN
+        value: "*"
