@@ -13,6 +13,7 @@ import webbrowser
 import subprocess
 import sys
 import tempfile
+import threading
 from pathlib import Path
 from http.server import ThreadingHTTPServer, SimpleHTTPRequestHandler
 
@@ -27,11 +28,23 @@ except ImportError:
 ALLOWED_ORIGINS = [origin.strip() for origin in os.environ.get("CODE2VIDEO_CORS_ORIGIN", "*").split(",") if origin.strip()]
 
 
+def resolve_app_dir() -> Path:
+    if getattr(sys, "frozen", False) and hasattr(sys, "_MEIPASS"):
+        return Path(sys._MEIPASS)
+    return Path(__file__).resolve().parent
+
+
+APP_DIR = resolve_app_dir()
+
+
 class CODE2VIDEOServer(ThreadingHTTPServer):
     daemon_threads = True
     allow_reuse_address = True
 
 class CODE2VIDEOHandler(SimpleHTTPRequestHandler):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, directory=str(APP_DIR), **kwargs)
+
     def end_headers(self):
         self.send_header("Cache-Control", "no-cache, no-store, must-revalidate")
         self.send_header("Pragma", "no-cache")
@@ -89,35 +102,51 @@ class CODE2VIDEOHandler(SimpleHTTPRequestHandler):
     def _handle_render(self):
         content_length = int(self.headers['Content-Length'])
         payload = json.loads(self.rfile.read(content_length).decode('utf-8'))
-        python_renderer = Path(__file__).with_name('playwright_render.py')
-        node_renderer = Path(__file__).with_name('playwright_render.mjs')
+        node_renderer = APP_DIR / 'playwright_render.mjs'
 
-        if not python_renderer.exists() and not node_renderer.exists():
+        if not node_renderer.exists():
+            node_renderer = None
+
+        if node_renderer is None:
+            try:
+                import playwright_render  # noqa: F401
+            except Exception:
+                self._send_text_error('No Playwright renderer script is available.', 500)
+                return
+
+        if node_renderer is None and 'playwright_render' not in sys.modules:
             self._send_text_error('No Playwright renderer script is available.', 500)
             return
 
         with tempfile.TemporaryDirectory() as tmpdir:
-            input_path = os.path.join(tmpdir, 'render-input.json')
             out_filepath = os.path.join(tmpdir, 'output.mp4')
-
-            with open(input_path, 'w', encoding='utf-8') as f:
-                json.dump(payload, f)
 
             env = os.environ.copy()
             env['FFMPEG_EXE'] = FFMPEG_EXE
-            commands = []
-            if python_renderer.exists():
-                commands.append([sys.executable, str(python_renderer), input_path, out_filepath])
-            if node_renderer.exists():
-                commands.append(['node', str(node_renderer), input_path, out_filepath])
-
             result = None
             render_errors = []
-            for cmd in commands:
+
+            try:
+                import playwright_render
+                result_payload = playwright_render.render_payload(payload, out_filepath, ffmpeg_exe=FFMPEG_EXE)
+                result = subprocess.CompletedProcess(args=['python', 'playwright_render'], returncode=0, stderr=json.dumps(result_payload))
+            except Exception as exc:
+                render_errors.append(str(exc).strip() or 'Python renderer failed.')
+
+            fallback_commands = []
+            if node_renderer is not None:
+                input_path = os.path.join(tmpdir, 'render-input.json')
+                with open(input_path, 'w', encoding='utf-8') as f:
+                    json.dump(payload, f)
+                fallback_commands.append(['node', str(node_renderer), input_path, out_filepath])
+
+            for cmd in fallback_commands:
+                if result and result.returncode == 0 and os.path.exists(out_filepath):
+                    break
                 try:
                     result = subprocess.run(
                         cmd,
-                        cwd=Path(__file__).parent,
+                        cwd=APP_DIR,
                         env=env,
                         capture_output=True,
                         text=True,
@@ -220,11 +249,36 @@ class CODE2VIDEOHandler(SimpleHTTPRequestHandler):
         if "200 -" in fmt % args: return 
         print(f"  {self.address_string()} -> {fmt % args}")
 
-if __name__ == "__main__":
+
+def build_server(host: str = "0.0.0.0", port: int = 3000) -> CODE2VIDEOServer:
+    return CODE2VIDEOServer((host, port), CODE2VIDEOHandler)
+
+
+def server_url(server: CODE2VIDEOServer, public_host: str | None = None) -> str:
+    bound_host, bound_port = server.server_address[:2]
+    host = public_host or bound_host
+    if host in ("0.0.0.0", "::"):
+        host = "127.0.0.1"
+    return f"http://{host}:{bound_port}"
+
+
+def start_server(host: str = "127.0.0.1", port: int = 0) -> tuple[CODE2VIDEOServer, threading.Thread]:
+    server = build_server(host=host, port=port)
+    thread = threading.Thread(target=server.serve_forever, name="code2video-server", daemon=True)
+    thread.start()
+    return server, thread
+
+
+def stop_server(server: CODE2VIDEOServer) -> None:
+    server.shutdown()
+    server.server_close()
+
+
+def main() -> int:
     port = int(os.environ.get("PORT", "3000"))
     host = os.environ.get("HOST", "0.0.0.0")
-    server = CODE2VIDEOServer((host, port), CODE2VIDEOHandler)
-    url = f"http://localhost:{port}"
+    server = build_server(host=host, port=port)
+    url = server_url(server)
     
     print(f"\n  CODE2VIDEO ENGINE ACTIVE (Backend FFmpeg Mode)")
     print(f"  ----------------------------------------------")
@@ -238,3 +292,9 @@ if __name__ == "__main__":
         server.serve_forever()
     except KeyboardInterrupt:
         print("\n  Server stopped.")
+    finally:
+        server.server_close()
+    return 0
+
+if __name__ == "__main__":
+    raise SystemExit(main())
