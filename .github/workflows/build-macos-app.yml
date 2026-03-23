@@ -45,7 +45,7 @@ jobs:
         run: xattr -dr com.apple.quarantine dist/CODE2VIDEO.app || true
 
       - name: Upload macOS app artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: CODE2VIDEO-macos
           path: |
