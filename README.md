@@ -4,6 +4,10 @@
 
 It uses **Playwright (Chromium)** for rendering and **FFmpeg** for encoding, so users get browser-accurate output without depending on any hosted backend.
 
+Website: https://code2video.vercel.app
+
+Downloads: https://github.com/mechreaper007x/code2video-renderer/releases/tag/v1.0.0
+
 ---
 
 ## Key Features
