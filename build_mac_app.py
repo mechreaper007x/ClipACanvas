@@ -90,9 +90,25 @@ def copy_runtime_assets(app_bundle: Path) -> None:
         shutil.rmtree(bundled_bin_dir)
     shutil.copytree(BIN_DIR, bundled_bin_dir)
 
+    frameworks_dir = app_bundle / "Contents" / "Frameworks"
+    frameworks_bin_dir = frameworks_dir / "bin"
+    if frameworks_dir.exists() and not frameworks_bin_dir.exists():
+        os.symlink("../Resources/bin", frameworks_bin_dir)
+
     ffmpeg_path = bundled_bin_dir / "ffmpeg"
     if ffmpeg_path.exists():
         os.chmod(ffmpeg_path, 0o755)
+
+
+def re_sign_app_bundle(app_bundle: Path) -> None:
+    codesign = shutil.which("codesign")
+    if not codesign:
+        return
+
+    run_command(
+        [codesign, "--force", "--deep", "--sign", "-", str(app_bundle)],
+        "Re-signing macOS app bundle",
+    )
 
 
 def main() -> int:
@@ -159,6 +175,7 @@ def main() -> int:
 
     print("[*] Copying runtime assets into app bundle...")
     copy_runtime_assets(app_bundle)
+    re_sign_app_bundle(app_bundle)
 
     archive_base = DIST_DIR / f"{APP_NAME}-macos"
     shutil.make_archive(str(archive_base), "zip", root_dir=DIST_DIR, base_dir=f"{APP_NAME}.app")

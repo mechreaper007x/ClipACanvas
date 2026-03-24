@@ -21,10 +21,30 @@ from http.server import ThreadingHTTPServer, SimpleHTTPRequestHandler
 ALLOWED_ORIGINS = [origin.strip() for origin in os.environ.get("CODE2VIDEO_CORS_ORIGIN", "*").split(",") if origin.strip()]
 
 
+def app_dir_candidates() -> list[Path]:
+    candidates: list[Path] = []
+
+    if getattr(sys, "frozen", False):
+        if hasattr(sys, "_MEIPASS"):
+            candidates.append(Path(sys._MEIPASS))
+
+        executable_path = Path(sys.executable).resolve()
+        contents_dir = executable_path.parent.parent
+        candidates.extend([
+            contents_dir / "Resources",
+            contents_dir / "Frameworks",
+            executable_path.parent,
+        ])
+
+    candidates.append(Path(__file__).resolve().parent)
+    return candidates
+
+
 def resolve_app_dir() -> Path:
-    if getattr(sys, "frozen", False) and hasattr(sys, "_MEIPASS"):
-        return Path(sys._MEIPASS)
-    return Path(__file__).resolve().parent
+    for candidate in app_dir_candidates():
+        if (candidate / "code2video.html").exists():
+            return candidate
+    return app_dir_candidates()[0]
 
 
 APP_DIR = resolve_app_dir()
@@ -37,9 +57,10 @@ def resolve_ffmpeg_exe() -> str:
     if env_ffmpeg:
         return env_ffmpeg
 
-    bundled_ffmpeg = APP_DIR / "bin" / FFMPEG_NAME
-    if bundled_ffmpeg.exists():
-        return str(bundled_ffmpeg)
+    for candidate_dir in app_dir_candidates():
+        bundled_ffmpeg = candidate_dir / "bin" / FFMPEG_NAME
+        if bundled_ffmpeg.exists():
+            return str(bundled_ffmpeg)
 
     try:
         import imageio_ffmpeg

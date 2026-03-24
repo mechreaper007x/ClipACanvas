@@ -11,13 +11,32 @@ from serve import server_url, start_server, stop_server
 IS_WINDOWS = platform.system() == "Windows"
 FFMPEG_NAME = "ffmpeg.exe" if IS_WINDOWS else "ffmpeg"
 
+def _resource_candidates(relative_path: str) -> list[Path]:
+    relative = Path(relative_path)
+    candidates: list[Path] = []
+
+    if getattr(sys, "frozen", False):
+        if hasattr(sys, "_MEIPASS"):
+            candidates.append(Path(sys._MEIPASS) / relative)
+
+        executable_path = Path(sys.executable).resolve()
+        contents_dir = executable_path.parent.parent
+        candidates.extend([
+            contents_dir / "Resources" / relative,
+            contents_dir / "Frameworks" / relative,
+            executable_path.parent / relative,
+        ])
+
+    candidates.append(Path(__file__).resolve().parent / relative)
+    return candidates
+
+
 def resolve_resource_path(relative_path: str) -> Path:
-    """Get absolute path to resource, works for dev and for PyInstaller"""
-    if getattr(sys, "frozen", False) and hasattr(sys, "_MEIPASS"):
-        # PyInstaller creates a temp folder and stores path in _MEIPASS
-        # For macOS .app, _MEIPASS points to Contents/Resources
-        return Path(sys._MEIPASS) / relative_path
-    return Path(__file__).resolve().parent / relative_path
+    """Get absolute path to resource, works for dev and packaged app bundles."""
+    for candidate in _resource_candidates(relative_path):
+        if candidate.exists():
+            return candidate
+    return _resource_candidates(relative_path)[0]
 
 
 class DesktopApi:
