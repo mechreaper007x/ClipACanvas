@@ -40,22 +40,17 @@ def resolve_resource_path(relative_path: str) -> Path:
 
 
 class DesktopApi:
-    def __init__(self):
-        self.window = None
-
-    def bind_window(self, window) -> None:
-        self.window = window
-
     def save_video(self, filename: str, base64_data: str):
-        if self.window is None:
-            raise RuntimeError("Desktop window is not ready.")
-
         try:
             import webview
         except ImportError as exc:
             raise RuntimeError("pywebview is not available.") from exc
 
-        selected = self.window.create_file_dialog(
+        window = webview.windows[0] if getattr(webview, "windows", None) else None
+        if window is None:
+            raise RuntimeError("Desktop window is not ready.")
+
+        selected = window.create_file_dialog(
             webview.SAVE_DIALOG,
             save_filename=filename,
             file_types=("MP4 video (*.mp4)", "All files (*.*)"),
@@ -118,7 +113,6 @@ def main() -> int:
         min_size=(1100, 720),
         text_select=True,
     )
-    api.bind_window(window)
 
     try:
         window.events.closed += shutdown

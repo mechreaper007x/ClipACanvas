@@ -118,9 +118,35 @@ main {
   font-size: 0.58rem;
   color: var(--dim);
   line-height: 1.7;
+  display: grid;
+  gap: 10px;
 }
 
 .ai-hint strong { color: var(--go); }
+.ai-hint em {
+  color: var(--ink);
+  font-style: normal;
+}
+
+.prompt-card {
+  border: 1px solid var(--line);
+  background: rgba(255,255,255,0.02);
+  padding: 10px 12px;
+}
+
+.prompt-card strong {
+  display: block;
+  margin-bottom: 4px;
+}
+
+.prompt-card ul {
+  margin: 6px 0 0 16px;
+  padding: 0;
+}
+
+.prompt-card li {
+  margin-bottom: 4px;
+}
 
 /* ── RIGHT: CONTROL PANEL ── */
 .ctrl-panel {
@@ -161,9 +187,10 @@ main {
 }
 
 .setting-row .val {
-  font-size: 0.65rem;
+  font-size: 0.58rem;
   color: var(--go);
-  width: 40px;
+  min-width: 40px;
+  width: auto;
   text-align: right;
 }
 
@@ -452,7 +479,25 @@ requestAnimationFrame(draw);
 </body>
 </html>"></textarea>
     <div class="ai-hint">
-      <strong>AI Prompt tip:</strong> Tell ChatGPT/Gemini — <em>"Create a canvas animation in a single HTML file. Use requestAnimationFrame. Canvas size 540×960."</em><br>
+      <strong>Prompting Tips</strong>
+      <div class="prompt-card">
+        <strong>Fastest exports</strong>
+        <em>Tell ChatGPT/Gemini: "Create a single self-contained HTML file with a 540x960 canvas animation. Use requestAnimationFrame. No external libraries, no imports, no remote assets."</em>
+      </div>
+      <div class="prompt-card">
+        <strong>DOM / SVG prompts</strong>
+        <em>Tell ChatGPT/Gemini: "Create a single HTML file with inline CSS and JS only. Keep the animation readable in 4 to 8 seconds. Use simple transforms, opacity, and SVG paths. Avoid heavy blur stacks and huge filter effects."</em>
+      </div>
+      <div class="prompt-card">
+        <strong>Important constraints</strong>
+        <ul>
+          <li>Use one HTML file only.</li>
+          <li>Inline all CSS and JavaScript.</li>
+          <li>Do not use React, Vite, modules, or npm packages.</li>
+          <li>Do not fetch fonts, images, videos, or API data.</li>
+          <li>For best speed, prefer canvas over deep DOM trees.</li>
+        </ul>
+      </div>
     </div>
   </div>
 
@@ -467,6 +512,17 @@ requestAnimationFrame(draw);
         <span class="val" id="timingMode">AUTO</span>
       </div>
       <div class="timing-summary" id="timingSummary">Auto capture samples at 60 FPS and stops when motion settles.</div>
+
+      <div class="setting-row" style="margin-top:10px">
+        <label>Clip Length</label>
+      </div>
+      <select id="clipLength" onchange="updateTimingSummary()">
+        <option value="auto" selected>Auto</option>
+        <option value="4">4 seconds</option>
+        <option value="6">6 seconds</option>
+        <option value="8">8 seconds</option>
+        <option value="12">12 seconds</option>
+      </select>
 
       <div class="setting-row" style="margin-top:10px">
         <label>Resolution</label>
@@ -527,7 +583,7 @@ requestAnimationFrame(draw);
 
 <footer>
   <span>backend chromium + ffmpeg · temporary export</span>
-  <span>code2video · beta</span>
+  <span>code2video · beta · signed by savyasachi mishra</span>
 </footer>
 
 <script src="/api/config.js"></script>
@@ -536,16 +592,27 @@ let resultVideoUrl = null;
 let resultVideoFilename = '';
 const OUTPUT_FORMAT = 'mp4';
 
-const CAPTURE_SETTINGS = Object.freeze({
-  frameRate: 60,
+const BASE_CAPTURE_SETTINGS = Object.freeze({
   minDuration: 0.35,
-  settleWindow: 0.45,
-  maxDuration: 12
+  settleWindow: 0.45
+});
+const CANVAS_CAPTURE_SETTINGS = Object.freeze({
+  contentMode: 'canvas',
+  frameRate: 60,
+  maxDuration: 12,
+  requestTimeoutMs: 300000,
+  label: 'Canvas'
+});
+const DOM_CAPTURE_SETTINGS = Object.freeze({
+  contentMode: 'dom',
+  frameRate: 30,
+  maxDuration: 6,
+  requestTimeoutMs: 90000,
+  label: 'DOM/SVG'
 });
 const BACKEND_WAKE_TIMEOUT_MS = 65000;
 const BACKEND_POLL_INTERVAL_MS = 4000;
 const HEALTHCHECK_TIMEOUT_MS = 12000;
-const RENDER_REQUEST_TIMEOUT_MS = 300000;
 const API_BASE = resolveApiBase();
 
 // ── STATUS ──────────────────────────────────────────────
@@ -610,6 +677,23 @@ function setTimingSummary(message) {
   document.getElementById('timingSummary').textContent = message;
 }
 
+function getClipLengthOverrideSeconds() {
+  const raw = document.getElementById('clipLength')?.value || 'auto';
+  if (raw === 'auto') return null;
+  const seconds = Number(raw);
+  return Number.isFinite(seconds) && seconds > 0 ? seconds : null;
+}
+
+function updateTimingModeBadge(settings) {
+  const el = document.getElementById('timingMode');
+  if (!el) return;
+  if (settings.clipLengthMode === 'manual') {
+    el.textContent = `MANUAL / ${Math.round(settings.maxDuration)}S`;
+    return;
+  }
+  el.textContent = settings.contentMode === 'canvas' ? 'AUTO / CANVAS' : 'AUTO / DOM-SVG';
+}
+
 function formatTimelineTime(seconds) {
   const safe = Math.max(0, Number(seconds) || 0);
   if (safe >= 60) {
@@ -626,8 +710,18 @@ function updateTimingSummary(message = '') {
     return;
   }
 
+  const settings = getCaptureSettings(document.getElementById('codeInput')?.value || '');
+  updateTimingModeBadge(settings);
   const backendLabel = API_BASE ? ` via ${new URL(API_BASE, window.location.href).host}` : '';
-  setTimingSummary(`Backend Chromium renders at ${CAPTURE_SETTINGS.frameRate} FPS${backendLabel}. Max ${formatTimelineTime(CAPTURE_SETTINGS.maxDuration)}.`);
+  if (settings.clipLengthMode === 'manual') {
+    setTimingSummary(`Manual mode: ${settings.label} renders at ${settings.frameRate} FPS${backendLabel} for ${formatTimelineTime(settings.maxDuration)}.`);
+    return;
+  }
+  if (settings.contentMode === 'canvas') {
+    setTimingSummary(`Auto mode: ${settings.label} renders at ${settings.frameRate} FPS${backendLabel}. Max ${formatTimelineTime(settings.maxDuration)}.`);
+    return;
+  }
+  setTimingSummary(`Auto mode: ${settings.label} renders at ${settings.frameRate} FPS${backendLabel}. Looping animations export a short clip, up to ${formatTimelineTime(settings.maxDuration)}.`);
 }
 
 function resolveApiBase() {
@@ -828,6 +922,7 @@ queuePreviewScale();
 async function startConvert() {
   const code = document.getElementById('codeInput').value.trim();
   if (!code) { setStatus('bhai code paste karo pehle', 'err'); return; }
+  const settings = getCaptureSettings(code);
 
   document.getElementById('btnConvert').disabled = true;
   document.getElementById('btnDownload').disabled = true;
@@ -836,11 +931,17 @@ async function startConvert() {
 
   setStatus('Checking backend...', 'busy');
   setProgress(2, 'CHECKING BACKEND...');
-  updateTimingSummary(`Backend Chromium is rendering at ${CAPTURE_SETTINGS.frameRate} FPS and will return a final MP4.`);
+  if (settings.clipLengthMode === 'manual') {
+    updateTimingSummary(`Manual mode is rendering ${settings.label} at ${settings.frameRate} FPS for ${formatTimelineTime(settings.maxDuration)}.`);
+  } else if (settings.contentMode === 'canvas') {
+    updateTimingSummary(`Canvas mode is rendering at ${settings.frameRate} FPS and can run up to ${formatTimelineTime(settings.maxDuration)}.`);
+  } else {
+    updateTimingSummary(`DOM/SVG mode is rendering at ${settings.frameRate} FPS and will export a short clip instead of chasing infinite loops.`);
+  }
 
   try {
     await ensureBackendReady();
-    await renderWithPlaywrightBackend(code);
+    await renderWithPlaywrightBackend(code, settings);
     document.getElementById('btnDownload').disabled = false;
     document.getElementById('btnDownload').classList.add('blink');
     downloadVideo(); 
@@ -861,11 +962,40 @@ function getDimensions() {
   return { width: w, height: h };
 }
 
-async function renderWithPlaywrightBackend(code) {
+function detectRenderMode(code) {
+  const text = String(code || '');
+  if (/<canvas\b/i.test(text) || /getContext\s*\(\s*['"](2d|webgl|webgl2)['"]\s*\)/i.test(text) || /OffscreenCanvas\b/i.test(text)) {
+    return 'canvas';
+  }
+  return 'dom';
+}
+
+function getCaptureSettings(code) {
+  const mode = detectRenderMode(code);
+  const profile = mode === 'canvas' ? CANVAS_CAPTURE_SETTINGS : DOM_CAPTURE_SETTINGS;
+  const settings = { ...BASE_CAPTURE_SETTINGS, ...profile, clipLengthMode: 'auto' };
+  const clipLengthOverride = getClipLengthOverrideSeconds();
+
+  if (clipLengthOverride === null) {
+    return settings;
+  }
+
+  const overrideSeconds = Math.max(settings.minDuration, clipLengthOverride);
+  settings.maxDuration = overrideSeconds;
+  settings.minDuration = overrideSeconds;
+  settings.clipLengthMode = 'manual';
+  settings.requestTimeoutMs = Math.max(settings.requestTimeoutMs, Math.round(overrideSeconds * 25000));
+  return settings;
+}
+
+async function renderWithPlaywrightBackend(code, settings) {
   const bitrate = document.getElementById('bitrate').value;
   const { width, height } = getDimensions();
   const startedAt = Date.now();
-  const expectedSeconds = Math.max(12, Math.round((width * height) / (1280 * 720) * 18));
+  const density = (width * height) / (1280 * 720);
+  const expectedSeconds = settings.contentMode === 'canvas'
+    ? Math.max(12, Math.round(density * 18))
+    : Math.max(8, Math.round(density * 8));
 
   setStatus('Rendering...', 'busy');
 
@@ -885,17 +1015,22 @@ async function renderWithPlaywrightBackend(code) {
         width,
         height,
         bitrate,
-        frameRate: CAPTURE_SETTINGS.frameRate,
-        maxDuration: CAPTURE_SETTINGS.maxDuration,
-        minDuration: CAPTURE_SETTINGS.minDuration,
-        settleWindow: CAPTURE_SETTINGS.settleWindow
+        contentMode: settings.contentMode,
+        frameRate: settings.frameRate,
+        maxDuration: settings.maxDuration,
+        minDuration: settings.minDuration,
+        settleWindow: settings.settleWindow
       })
-    }, RENDER_REQUEST_TIMEOUT_MS);
+    }, settings.requestTimeoutMs);
 
     await storeRenderResult(response, OUTPUT_FORMAT);
     setProgress(100, 'DONE');
     setStatus('✓ Video ready', 'ok');
-    updateTimingSummary(`Backend Chromium rendered ${width}x${height} at ${CAPTURE_SETTINGS.frameRate} FPS.`);
+    if (settings.clipLengthMode === 'manual') {
+      updateTimingSummary(`Rendered ${width}x${height} in ${settings.label} mode at ${settings.frameRate} FPS for ${formatTimelineTime(settings.maxDuration)}.`);
+    } else {
+      updateTimingSummary(`Rendered ${width}x${height} in ${settings.label} mode at ${settings.frameRate} FPS.`);
+    }
   } finally {
     clearInterval(progressTimer);
   }

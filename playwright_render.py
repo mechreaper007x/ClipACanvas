@@ -140,26 +140,38 @@ CONTROL_SCRIPT = r"""
     const animations = document.getAnimations ? document.getAnimations({ subtree: true }) : [];
     let activeAnimations = 0;
     let hasInfiniteAnimation = false;
+    let suggestedDurationMs = 0;
 
     animations.forEach(anim => {
       try {
         const timing = anim.effect && typeof anim.effect.getComputedTiming === 'function'
           ? anim.effect.getComputedTiming()
           : null;
+        const rawTiming = anim.effect && typeof anim.effect.getTiming === 'function'
+          ? anim.effect.getTiming()
+          : null;
         if (!timing) return;
 
+        const delay = Math.max(0, Number(rawTiming && rawTiming.delay) || 0);
+        const endDelay = Math.max(0, Number(rawTiming && rawTiming.endDelay) || 0);
+        const duration = Math.max(0, Number(rawTiming && rawTiming.duration) || 0);
+        const previewLoopMs = Math.max(250, delay + duration + endDelay);
+
         if (Number.isFinite(timing.endTime)) {
+          suggestedDurationMs = Math.max(suggestedDurationMs, timing.endTime);
           if (__state.timeMs < timing.endTime) activeAnimations++;
         } else {
           activeAnimations++;
           hasInfiniteAnimation = true;
+          suggestedDurationMs = Math.max(suggestedDurationMs, previewLoopMs);
         }
       } catch (_) {}
     });
 
     return {
       activeAnimations,
-      hasInfiniteAnimation
+      hasInfiniteAnimation,
+      suggestedDurationMs
     };
   };
 })();
@@ -180,6 +192,7 @@ def render_payload(payload: dict, output_path: str | Path, ffmpeg_exe: str | Non
     width = int(payload["width"])
     height = int(payload["height"])
     bitrate = payload.get("bitrate", "5M")
+    content_mode = payload.get("contentMode", "auto")
     frame_rate = int(payload.get("frameRate", 60))
     max_duration = float(payload.get("maxDuration", 12))
     min_duration = float(payload.get("minDuration", 0.35))
@@ -204,7 +217,6 @@ def render_payload(payload: dict, output_path: str | Path, ffmpeg_exe: str | Non
 
     ffmpeg_proc = subprocess.Popen(ffmpeg_cmd, stdin=subprocess.PIPE, stderr=subprocess.PIPE)
 
-    frame_total = int(math.ceil(max_duration * frame_rate)) + 2
     frame_times: list[float] = []
     last_signature = ""
     last_change_time = 0.0
@@ -242,6 +254,14 @@ def render_payload(payload: dict, output_path: str | Path, ffmpeg_exe: str | Non
                         } catch (_) {}
                     }"""
                 )
+                meta = page.evaluate("() => (window.__code2videoCaptureMeta ? window.__code2videoCaptureMeta() : { activeAnimations: 0, suggestedDurationMs: 0 })")
+                suggested_duration = max(min_duration, float(meta.get("suggestedDurationMs", 0) or 0) / 1000.0)
+                if content_mode != "canvas" and suggested_duration <= min_duration:
+                    suggested_duration = max(min_duration, min(max_duration, 4.0))
+                elif suggested_duration > min_duration:
+                    suggested_duration = min(max_duration, suggested_duration + 0.25)
+                target_duration = min(max_duration, max(min_duration, suggested_duration))
+                frame_total = int(math.ceil(target_duration * frame_rate)) + 2
 
                 for index in range(frame_total):
                   t = round(index / frame_rate, 4)
@@ -258,7 +278,7 @@ def render_payload(payload: dict, output_path: str | Path, ffmpeg_exe: str | Non
                   ffmpeg_proc.stdin.write(content)
                   frame_times.append(t)
 
-                  meta = page.evaluate("() => (window.__code2videoCaptureMeta ? window.__code2videoCaptureMeta() : { activeAnimations: 0 })")
+                  meta = page.evaluate("() => (window.__code2videoCaptureMeta ? window.__code2videoCaptureMeta() : { activeAnimations: 0, suggestedDurationMs: 0 })")
                   idle_for = t - last_change_time
                   if t >= min_duration and idle_for >= settle_window and meta["activeAnimations"] == 0:
                       capped = False
@@ -277,6 +297,7 @@ def render_payload(payload: dict, output_path: str | Path, ffmpeg_exe: str | Non
             "duration": frame_times[-1] if frame_times else 0,
             "frameCount": len(frame_times),
             "capped": capped,
+            "contentMode": content_mode,
         }
     except Exception as e:
         if ffmpeg_proc.poll() is None:

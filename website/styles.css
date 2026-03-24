@@ -150,6 +150,10 @@ a {
   font-size: 0.95rem;
 }
 
+.hero-note strong {
+  color: var(--text);
+}
+
 .button {
   display: inline-flex;
   align-items: center;
@@ -280,6 +284,32 @@ a {
 .download-card .button {
   width: 100%;
   margin-top: 18px;
+}
+
+.trust-note {
+  margin-top: 18px;
+  padding: 18px 20px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  background: var(--accent-soft);
+}
+
+.trust-note strong {
+  display: block;
+  margin-bottom: 8px;
+}
+
+.trust-note p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.65;
+}
+
+.trust-link {
+  display: inline-flex;
+  margin-top: 14px;
+  font-weight: 700;
+  text-decoration: none;
 }
 
 .site-footer {

@@ -10,6 +10,22 @@ Downloads: https://github.com/mechreaper007x/code2video-renderer/releases/tag/v1
 
 ---
 
+## Release Trust
+
+- Windows builds are currently unsigned, so SmartScreen or Defender reputation warnings can appear on first run.
+- Ship downloads only through GitHub Releases.
+- Generate `SHA256SUMS.txt` from the current `dist/` artifacts before publishing:
+
+```bash
+python build_release_assets.py --version v1.0.0
+```
+
+- Upload these generated files with each release:
+  - `dist/SHA256SUMS.txt`
+  - `dist/RELEASE_NOTES.md`
+
+---
+
 ## Key Features
 
 - **Desktop-first workflow:** Launch as a native desktop app through `pywebview`.
