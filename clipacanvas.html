@@ -3,8 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>CODE2VIDEO</title>
-<meta name="code2video-api-base" content="">
+<title>Clip.A.Canvas</title>
+<meta name="clipacanvas-api-base" content="">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%230a0a0a'/%3E%3Cpath d='M18 20h10v24H18zm18 0h10v10H36zm0 14h10v10H36z' fill='%23c8ff00'/%3E%3C/svg%3E">
 <style>
 @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600;700&family=Unbounded:wght@700;900&display=swap');
@@ -30,27 +30,32 @@ body {
   display: grid;
   grid-template-rows: auto 1fr auto;
 }
-
 /* ── HEADER ── */
 header {
-  padding: 20px 28px;
+  padding: 8px 28px 4px;
   border-bottom: 1px solid var(--line);
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 24px;
 }
 
 .wordmark {
-  font-family: var(--display);
-  font-size: 1.1rem;
-  font-weight: 900;
-  letter-spacing: -1px;
   display: flex;
   align-items: center;
-  gap: 10px;
+  min-width: 0;
+  flex: 1 1 auto;
 }
 
-.wordmark span { color: var(--go); }
+.wordmark-logo {
+  display: block;
+  height: clamp(122px, 11vw, 148px);
+  width: auto;
+  max-width: min(620px, 76vw);
+  object-fit: contain;
+  object-position: left center;
+  filter: drop-shadow(0 0 18px rgba(200, 255, 0, 0.18));
+}
 
 .badge {
   font-size: 0.55rem;
@@ -60,6 +65,8 @@ header {
   border: 1px solid var(--go);
   padding: 3px 8px;
   background: rgba(200,255,0,0.05);
+  flex: 0 0 auto;
+  white-space: nowrap;
 }
 
 /* ── MAIN LAYOUT ── */
@@ -432,7 +439,9 @@ footer {
 <body>
 
 <header>
-  <div class="wordmark">CODE<span>2</span>VIDEO</div>
+  <div class="wordmark">
+    <img class="wordmark-logo" src="logo_neon_overlay.png" alt="Clip.A.Canvas logo">
+  </div>
   <div class="badge">Backend Connected · Native Engine</div>
 </header>
 
@@ -583,7 +592,7 @@ requestAnimationFrame(draw);
 
 <footer>
   <span>backend chromium + ffmpeg · temporary export</span>
-  <span>code2video · beta · signed by savyasachi mishra</span>
+  <span>Clip.A.Canvas · beta · signed by savyasachi mishra</span>
 </footer>
 
 <script src="/api/config.js"></script>
@@ -605,9 +614,9 @@ const CANVAS_CAPTURE_SETTINGS = Object.freeze({
 });
 const DOM_CAPTURE_SETTINGS = Object.freeze({
   contentMode: 'dom',
-  frameRate: 30,
+  frameRate: 60,
   maxDuration: 6,
-  requestTimeoutMs: 90000,
+  requestTimeoutMs: 180000,
   label: 'DOM/SVG'
 });
 const BACKEND_WAKE_TIMEOUT_MS = 65000;
@@ -670,7 +679,7 @@ async function storeRenderResult(response, ext) {
   const blob = await response.blob();
   revokeResultVideoUrl();
   resultVideoUrl = URL.createObjectURL(blob);
-  resultVideoFilename = response.headers.get('X-Render-Filename') || `code2video_${Date.now()}.${ext}`;
+  resultVideoFilename = response.headers.get('X-Render-Filename') || `clipacanvas_${Date.now()}.${ext}`;
 }
 
 function setTimingSummary(message) {
@@ -704,6 +713,113 @@ function formatTimelineTime(seconds) {
   return `${safe.toFixed(2)}s`;
 }
 
+function parseDurationTokenSeconds(token) {
+  const match = String(token || '').trim().match(/^(-?\d*\.?\d+)(ms|s)$/i);
+  if (!match) return null;
+  const value = Number(match[1]);
+  if (!Number.isFinite(value) || value < 0) return null;
+  return match[2].toLowerCase() === 'ms' ? value / 1000 : value;
+}
+
+function parseDurationMatches(text) {
+  return [...String(text || '').matchAll(/(\d*\.?\d+)(ms|s)\b/gi)]
+    .map(match => parseDurationTokenSeconds(`${match[1]}${match[2]}`))
+    .filter(value => Number.isFinite(value) && value >= 0);
+}
+
+function detectCaptureClassifier(code, mode) {
+  const text = String(code || '');
+  if (mode === 'canvas') {
+    return { kind: 'canvas', source: 'canvas', durationSeconds: null };
+  }
+
+  const cssLoopDurations = [];
+  for (const match of text.matchAll(/animation\s*:\s*([^;{}]+);/gi)) {
+    const segments = String(match[1] || '').split(',').map(part => part.trim()).filter(Boolean);
+    for (const segment of segments) {
+      if (!/\binfinite\b/i.test(segment)) continue;
+      const durations = parseDurationMatches(segment);
+      if (!durations.length) continue;
+      const duration = durations[0];
+      const delay = durations[1] || 0;
+      cssLoopDurations.push(duration + delay);
+    }
+  }
+
+  const waapiLoopDurations = [];
+  for (const match of text.matchAll(/animate\s*\([\s\S]{0,1200}?\{[\s\S]{0,400}?duration\s*:\s*(\d*\.?\d+)[\s\S]{0,300}?iterations\s*:\s*(?:Infinity|-1|Number\.POSITIVE_INFINITY)[\s\S]{0,200}?\}/gi)) {
+    const durationMs = Number(match[1]);
+    if (Number.isFinite(durationMs) && durationMs > 0) {
+      waapiLoopDurations.push(durationMs / 1000);
+    }
+  }
+
+  const smilLoopDurations = [];
+  for (const match of text.matchAll(/<(?:animate|animateTransform|animateMotion)\b[^>]*\bdur=["']([^"']+)["'][^>]*\brepeatCount=["'](?:indefinite|Infinity)["'][^>]*>/gi)) {
+    const duration = parseDurationTokenSeconds(match[1]);
+    if (Number.isFinite(duration) && duration > 0) {
+      smilLoopDurations.push(duration);
+    }
+  }
+
+  const gsapLoopDurations = [];
+  for (const match of text.matchAll(/gsap\.\w+\([\s\S]{0,500}?duration\s*:\s*(\d*\.?\d+)[\s\S]{0,250}?repeat\s*:\s*-?1[\s\S]{0,200}?\)/gi)) {
+    const duration = Number(match[1]);
+    if (Number.isFinite(duration) && duration > 0) {
+      gsapLoopDurations.push(duration);
+    }
+  }
+
+  const explicitLoopDurations = [
+    ...cssLoopDurations.map(duration => ({ duration, source: 'CSS' })),
+    ...waapiLoopDurations.map(duration => ({ duration, source: 'WAAPI' })),
+    ...smilLoopDurations.map(duration => ({ duration, source: 'SVG' })),
+    ...gsapLoopDurations.map(duration => ({ duration, source: 'GSAP' }))
+  ];
+
+  if (explicitLoopDurations.length) {
+    const dominant = explicitLoopDurations.reduce((best, current) => current.duration > best.duration ? current : best);
+    const loopSeconds = dominant.duration;
+    const showcaseSeconds = loopSeconds >= 3
+      ? loopSeconds + 0.25
+      : (Math.ceil(4 / loopSeconds) * loopSeconds) + 0.25;
+    return {
+      kind: 'timed-loop',
+      source: dominant.source,
+      durationSeconds: Math.min(6, Math.max(0.75, showcaseSeconds))
+    };
+  }
+
+  const hasProceduralLoop =
+    /\brequestAnimationFrame\s*\(/i.test(text) ||
+    /\bsetInterval\s*\(/i.test(text) ||
+    /\bsetTimeout\s*\([\s\S]{0,250}?\bsetTimeout\s*\(/i.test(text);
+
+  if (hasProceduralLoop) {
+    return {
+      kind: 'procedural-loop',
+      source: 'script',
+      durationSeconds: 6
+    };
+  }
+
+  return { kind: 'unknown', source: 'generic', durationSeconds: null };
+}
+
+function describeAutoTiming(settings, backendLabel = '') {
+  const classifier = settings.classifier || { kind: 'unknown' };
+  if (settings.contentMode === 'canvas') {
+    return `Auto mode: ${settings.label} renders at ${settings.frameRate} FPS${backendLabel}. Max ${formatTimelineTime(settings.maxDuration)}.`;
+  }
+  if (classifier.kind === 'timed-loop' && settings.maxDuration > 0) {
+    return `Auto mode: ${settings.label} renders at ${settings.frameRate} FPS${backendLabel}. Detected a ${classifier.source} loop and will export about ${formatTimelineTime(settings.maxDuration)} automatically.`;
+  }
+  if (classifier.kind === 'procedural-loop' && settings.maxDuration > 0) {
+    return `Auto mode: ${settings.label} renders at ${settings.frameRate} FPS${backendLabel}. Detected open-ended scripted motion and will export a ${formatTimelineTime(settings.maxDuration)} highlight clip.`;
+  }
+  return `Auto mode: ${settings.label} renders at ${settings.frameRate} FPS${backendLabel}. Looping animations export a short clip, up to ${formatTimelineTime(settings.maxDuration)}.`;
+}
+
 function updateTimingSummary(message = '') {
   if (message) {
     setTimingSummary(message);
@@ -717,21 +833,17 @@ function updateTimingSummary(message = '') {
     setTimingSummary(`Manual mode: ${settings.label} renders at ${settings.frameRate} FPS${backendLabel} for ${formatTimelineTime(settings.maxDuration)}.`);
     return;
   }
-  if (settings.contentMode === 'canvas') {
-    setTimingSummary(`Auto mode: ${settings.label} renders at ${settings.frameRate} FPS${backendLabel}. Max ${formatTimelineTime(settings.maxDuration)}.`);
-    return;
-  }
-  setTimingSummary(`Auto mode: ${settings.label} renders at ${settings.frameRate} FPS${backendLabel}. Looping animations export a short clip, up to ${formatTimelineTime(settings.maxDuration)}.`);
+  setTimingSummary(describeAutoTiming(settings, backendLabel));
 }
 
 function resolveApiBase() {
-  const meta = document.querySelector('meta[name="code2video-api-base"]')?.content?.trim();
+  const meta = document.querySelector('meta[name="clipacanvas-api-base"]')?.content?.trim();
   const query = new URLSearchParams(window.location.search).get('api')?.trim();
-  const stored = window.localStorage.getItem('code2video.apiBase')?.trim();
-  const explicit = window.CODE2VIDEO_API_BASE?.trim();
+  const stored = window.localStorage.getItem('clipacanvas.apiBase')?.trim();
+  const explicit = window.CLIPACANVAS_API_BASE?.trim();
   const value = explicit || query || meta || stored || '';
 
-  if (query) window.localStorage.setItem('code2video.apiBase', query);
+  if (query) window.localStorage.setItem('clipacanvas.apiBase', query);
   return value.replace(/\/+$/, '');
 }
 
@@ -933,10 +1045,8 @@ async function startConvert() {
   setProgress(2, 'CHECKING BACKEND...');
   if (settings.clipLengthMode === 'manual') {
     updateTimingSummary(`Manual mode is rendering ${settings.label} at ${settings.frameRate} FPS for ${formatTimelineTime(settings.maxDuration)}.`);
-  } else if (settings.contentMode === 'canvas') {
-    updateTimingSummary(`Canvas mode is rendering at ${settings.frameRate} FPS and can run up to ${formatTimelineTime(settings.maxDuration)}.`);
   } else {
-    updateTimingSummary(`DOM/SVG mode is rendering at ${settings.frameRate} FPS and will export a short clip instead of chasing infinite loops.`);
+    updateTimingSummary(describeAutoTiming(settings));
   }
 
   try {
@@ -974,17 +1084,25 @@ function getCaptureSettings(code) {
   const mode = detectRenderMode(code);
   const profile = mode === 'canvas' ? CANVAS_CAPTURE_SETTINGS : DOM_CAPTURE_SETTINGS;
   const settings = { ...BASE_CAPTURE_SETTINGS, ...profile, clipLengthMode: 'auto' };
+  settings.classifier = detectCaptureClassifier(code, mode);
   const clipLengthOverride = getClipLengthOverrideSeconds();
 
-  if (clipLengthOverride === null) {
+  if (clipLengthOverride !== null) {
+    const overrideSeconds = Math.max(settings.minDuration, clipLengthOverride);
+    settings.maxDuration = overrideSeconds;
+    settings.minDuration = overrideSeconds;
+    settings.clipLengthMode = 'manual';
+    settings.requestTimeoutMs = Math.max(settings.requestTimeoutMs, Math.round(overrideSeconds * 25000));
     return settings;
   }
 
-  const overrideSeconds = Math.max(settings.minDuration, clipLengthOverride);
-  settings.maxDuration = overrideSeconds;
-  settings.minDuration = overrideSeconds;
-  settings.clipLengthMode = 'manual';
-  settings.requestTimeoutMs = Math.max(settings.requestTimeoutMs, Math.round(overrideSeconds * 25000));
+  if (Number.isFinite(settings.classifier.durationSeconds) && settings.classifier.durationSeconds > 0) {
+    const classifiedSeconds = Math.max(settings.minDuration, settings.classifier.durationSeconds);
+    settings.minDuration = classifiedSeconds;
+    settings.maxDuration = classifiedSeconds;
+    settings.requestTimeoutMs = Math.max(settings.requestTimeoutMs, Math.round(settings.maxDuration * 25000));
+  }
+
   return settings;
 }
 
@@ -995,7 +1113,7 @@ async function renderWithPlaywrightBackend(code, settings) {
   const density = (width * height) / (1280 * 720);
   const expectedSeconds = settings.contentMode === 'canvas'
     ? Math.max(12, Math.round(density * 18))
-    : Math.max(8, Math.round(density * 8));
+    : Math.max(12, Math.round(density * 14));
 
   setStatus('Rendering...', 'busy');
 
@@ -1028,6 +1146,8 @@ async function renderWithPlaywrightBackend(code, settings) {
     setStatus('✓ Video ready', 'ok');
     if (settings.clipLengthMode === 'manual') {
       updateTimingSummary(`Rendered ${width}x${height} in ${settings.label} mode at ${settings.frameRate} FPS for ${formatTimelineTime(settings.maxDuration)}.`);
+    } else if (settings.classifier && Number.isFinite(settings.classifier.durationSeconds) && settings.classifier.durationSeconds > 0) {
+      updateTimingSummary(`Rendered ${width}x${height} in ${settings.label} mode at ${settings.frameRate} FPS for ${formatTimelineTime(settings.maxDuration)} via auto classification.`);
     } else {
       updateTimingSummary(`Rendered ${width}x${height} in ${settings.label} mode at ${settings.frameRate} FPS.`);
     }

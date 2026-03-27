@@ -127,7 +127,7 @@ CONTROL_SCRIPT = r"""
 
   window.clearInterval = window.clearTimeout;
 
-  window.__code2videoSetTime = function(seconds) {
+  window.__clipacanvasSetTime = function(seconds) {
     const targetMs = Math.max(0, (Number(seconds) || 0) * 1000);
     __runDueTimers(targetMs);
     __state.timeMs = targetMs;
@@ -136,7 +136,7 @@ CONTROL_SCRIPT = r"""
     return targetMs;
   };
 
-  window.__code2videoCaptureMeta = function() {
+  window.__clipacanvasCaptureMeta = function() {
     const animations = document.getAnimations ? document.getAnimations({ subtree: true }) : [];
     let activeAnimations = 0;
     let hasInfiniteAnimation = false;
@@ -180,6 +180,25 @@ CONTROL_SCRIPT = r"""
 
 def hash_frame(content: bytes) -> str:
     return hashlib.sha1(content).hexdigest()
+
+
+def inject_control_script(code: str) -> str:
+    script_tag = f"<script>{CONTROL_SCRIPT}</script>"
+    lower = code.lower()
+
+    head_index = lower.find("<head")
+    if head_index != -1:
+        head_end = code.find(">", head_index)
+        if head_end != -1:
+            return f"{code[:head_end + 1]}{script_tag}{code[head_end + 1:]}"
+
+    html_index = lower.find("<html")
+    if html_index != -1:
+        html_end = code.find(">", html_index)
+        if html_end != -1:
+            return f"{code[:html_end + 1]}<head>{script_tag}</head>{code[html_end + 1:]}"
+
+    return f"{script_tag}{code}"
 
 
 def render_payload(payload: dict, output_path: str | Path, ffmpeg_exe: str | None = None) -> dict:
@@ -243,8 +262,7 @@ def render_payload(payload: dict, output_path: str | Path, ffmpeg_exe: str | Non
                     color_scheme="dark",
                 )
                 page = context.new_page()
-                page.add_init_script(CONTROL_SCRIPT)
-                page.set_content(code, wait_until="load")
+                page.set_content(inject_control_script(code), wait_until="load")
                 page.evaluate(
                     """async () => {
                         try {
@@ -254,10 +272,10 @@ def render_payload(payload: dict, output_path: str | Path, ffmpeg_exe: str | Non
                         } catch (_) {}
                     }"""
                 )
-                meta = page.evaluate("() => (window.__code2videoCaptureMeta ? window.__code2videoCaptureMeta() : { activeAnimations: 0, suggestedDurationMs: 0 })")
+                meta = page.evaluate("() => (window.__clipacanvasCaptureMeta ? window.__clipacanvasCaptureMeta() : { activeAnimations: 0, suggestedDurationMs: 0 })")
                 suggested_duration = max(min_duration, float(meta.get("suggestedDurationMs", 0) or 0) / 1000.0)
                 if content_mode != "canvas" and suggested_duration <= min_duration:
-                    suggested_duration = max(min_duration, min(max_duration, 4.0))
+                    suggested_duration = max(min_duration, min(max_duration, 6.0))
                 elif suggested_duration > min_duration:
                     suggested_duration = min(max_duration, suggested_duration + 0.25)
                 target_duration = min(max_duration, max(min_duration, suggested_duration))
@@ -265,7 +283,7 @@ def render_payload(payload: dict, output_path: str | Path, ffmpeg_exe: str | Non
 
                 for index in range(frame_total):
                   t = round(index / frame_rate, 4)
-                  page.evaluate("s => { if (window.__code2videoSetTime) window.__code2videoSetTime(s); }", t)
+                  page.evaluate("s => { if (window.__clipacanvasSetTime) window.__clipacanvasSetTime(s); }", t)
                   
                   content = page.screenshot(type="png")
                   signature = hash_frame(content)
@@ -278,7 +296,7 @@ def render_payload(payload: dict, output_path: str | Path, ffmpeg_exe: str | Non
                   ffmpeg_proc.stdin.write(content)
                   frame_times.append(t)
 
-                  meta = page.evaluate("() => (window.__code2videoCaptureMeta ? window.__code2videoCaptureMeta() : { activeAnimations: 0, suggestedDurationMs: 0 })")
+                  meta = page.evaluate("() => (window.__clipacanvasCaptureMeta ? window.__clipacanvasCaptureMeta() : { activeAnimations: 0, suggestedDurationMs: 0 })")
                   idle_for = t - last_change_time
                   if t >= min_duration and idle_for >= settle_window and meta["activeAnimations"] == 0:
                       capped = False

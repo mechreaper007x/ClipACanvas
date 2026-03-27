@@ -47,7 +47,7 @@ font-family:Inter,system-ui,sans-serif;color:#e5f3ff}
 @keyframes gridDrift{from{transform:perspective(900px) rotateX(72deg) translateY(18%) translateX(0)}to{transform:perspective(900px) rotateX(72deg) translateY(18%) translateX(-24px)}}
 @keyframes orbFloat{from{transform:translateY(0) translateX(0) scale(1)}to{transform:translateY(20px) translateX(24px) scale(1.12)}}
 @keyframes cardPulse{0%,100%{transform:translateX(0)}50%{transform:translateX(4px)}}
-</style></head><body><div class="grid"></div><div class="orb"></div><div class="shell"><section class="panel"><div class="kicker">Desktop Renderer</div><h1 class="title">Turn Front-End Motion Into Video</h1><p class="meta">CODE2VIDEO renders HTML, CSS, JavaScript, SVG, and canvas ideas into MP4 from a local desktop workflow.</p><div class="cards"><div class="card"><span>Chromium render path</span><span class="dot"></span></div><div class="card"><span>Editor-ready MP4 export</span><span class="dot"></span></div><div class="card"><span>Consumer-safe timings</span><span class="dot"></span></div></div></section></div></body></html>""",
+</style></head><body><div class="grid"></div><div class="orb"></div><div class="shell"><section class="panel"><div class="kicker">Desktop Renderer</div><h1 class="title">Turn Front-End Motion Into Video</h1><p class="meta">Clip.A.Canvas renders HTML, CSS, JavaScript, SVG, and canvas ideas into MP4 from a local desktop workflow.</p><div class="cards"><div class="card"><span>Chromium render path</span><span class="dot"></span></div><div class="card"><span>Editor-ready MP4 export</span><span class="dot"></span></div><div class="card"><span>Consumer-safe timings</span><span class="dot"></span></div></div></section></div></body></html>""",
     },
     {
         "name": "static_html",
@@ -190,7 +190,7 @@ def wait_for_result(page, timeout_ms: int = 180000) -> dict:
 
 def run_matrix() -> list[dict]:
     server, _thread = start_server(host="127.0.0.1", port=0)
-    url = f"{server_url(server, public_host='127.0.0.1')}/code2video.html"
+    url = f"{server_url(server, public_host='127.0.0.1')}/clipacanvas.html"
     results: list[dict] = []
     try:
         with sync_playwright() as playwright:

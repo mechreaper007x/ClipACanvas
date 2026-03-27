@@ -91,7 +91,7 @@ def main() -> int:
                 pass
     # ---------------------------------------
 
-    os.environ.setdefault("CODE2VIDEO_NO_BROWSER", "1")
+    os.environ.setdefault("CLIPACANVAS_NO_BROWSER", "1")
     server, _thread = start_server(host="127.0.0.1", port=0)
     url = server_url(server, public_host="127.0.0.1")
     stopped = False
@@ -105,8 +105,8 @@ def main() -> int:
 
     api = DesktopApi()
     window = webview.create_window(
-        "CODE2VIDEO",
-        url,
+        "Clip.A.Canvas",
+        f"{url}/clipacanvas.html",
         js_api=api,
         width=1480,
         height=960,
@@ -120,7 +120,7 @@ def main() -> int:
         pass
 
     try:
-        webview.start(debug=os.environ.get("CODE2VIDEO_DEBUG") == "1")
+        webview.start(debug=os.environ.get("CLIPACANVAS_DEBUG") == "1")
     finally:
         shutdown()
 

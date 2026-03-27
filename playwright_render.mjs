@@ -140,7 +140,7 @@ const CONTROL_SCRIPT = `
 
   window.clearInterval = window.clearTimeout;
 
-  window.__code2videoSetTime = function(seconds) {
+  window.__clipacanvasSetTime = function(seconds) {
     const targetMs = Math.max(0, (Number(seconds) || 0) * 1000);
     __runDueTimers(targetMs);
     __state.timeMs = targetMs;
@@ -149,30 +149,42 @@ const CONTROL_SCRIPT = `
     return targetMs;
   };
 
-  window.__code2videoCaptureMeta = function() {
+  window.__clipacanvasCaptureMeta = function() {
     const animations = document.getAnimations ? document.getAnimations({ subtree: true }) : [];
     let activeAnimations = 0;
     let hasInfiniteAnimation = false;
+    let suggestedDurationMs = 0;
 
     animations.forEach(anim => {
       try {
         const timing = anim.effect && typeof anim.effect.getComputedTiming === 'function'
           ? anim.effect.getComputedTiming()
           : null;
+        const rawTiming = anim.effect && typeof anim.effect.getTiming === 'function'
+          ? anim.effect.getTiming()
+          : null;
         if (!timing) return;
 
+        const delay = Math.max(0, Number(rawTiming && rawTiming.delay) || 0);
+        const endDelay = Math.max(0, Number(rawTiming && rawTiming.endDelay) || 0);
+        const duration = Math.max(0, Number(rawTiming && rawTiming.duration) || 0);
+        const previewLoopMs = Math.max(250, delay + duration + endDelay);
+
         if (Number.isFinite(timing.endTime)) {
+          suggestedDurationMs = Math.max(suggestedDurationMs, timing.endTime);
           if (__state.timeMs < timing.endTime) activeAnimations++;
         } else {
           activeAnimations++;
           hasInfiniteAnimation = true;
+          suggestedDurationMs = Math.max(suggestedDurationMs, previewLoopMs);
         }
       } catch (_) {}
     });
 
     return {
       activeAnimations,
-      hasInfiniteAnimation
+      hasInfiniteAnimation,
+      suggestedDurationMs
     };
   };
 })();
@@ -180,6 +192,41 @@ const CONTROL_SCRIPT = `
 
 function hashFrame(buffer) {
   return createHash('sha1').update(buffer).digest('hex');
+}
+
+function injectControlScript(code) {
+  const scriptTag = `<script>${CONTROL_SCRIPT}</script>`;
+  const lower = String(code).toLowerCase();
+  const headIndex = lower.indexOf('<head');
+
+  if (headIndex !== -1) {
+    const headEnd = code.indexOf('>', headIndex);
+    if (headEnd !== -1) {
+      return `${code.slice(0, headEnd + 1)}${scriptTag}${code.slice(headEnd + 1)}`;
+    }
+  }
+
+  const htmlIndex = lower.indexOf('<html');
+  if (htmlIndex !== -1) {
+    const htmlEnd = code.indexOf('>', htmlIndex);
+    if (htmlEnd !== -1) {
+      return `${code.slice(0, htmlEnd + 1)}<head>${scriptTag}</head>${code.slice(htmlEnd + 1)}`;
+    }
+  }
+
+  return `${scriptTag}${code}`;
+}
+
+function resolveTargetDuration(meta, minDuration, maxDuration, contentMode) {
+  let suggestedDuration = Math.max(minDuration, Number(meta && meta.suggestedDurationMs || 0) / 1000);
+
+  if (contentMode !== 'canvas' && suggestedDuration <= minDuration) {
+    suggestedDuration = Math.max(minDuration, Math.min(maxDuration, 6.0));
+  } else if (suggestedDuration > minDuration) {
+    suggestedDuration = Math.min(maxDuration, suggestedDuration + 0.25);
+  }
+
+  return Math.min(maxDuration, Math.max(minDuration, suggestedDuration));
 }
 
 function runFfmpeg(args) {
@@ -201,6 +248,7 @@ function runFfmpeg(args) {
 
 async function captureFrames(page, settings) {
   const {
+    contentMode,
     frameRate,
     maxDuration,
     minDuration,
@@ -212,13 +260,19 @@ async function captureFrames(page, settings) {
   let lastSignature = '';
   let lastChangeTime = 0;
   let capped = false;
-  const frameTotal = Math.ceil(maxDuration * frameRate) + 2;
+  const initialMeta = await page.evaluate(() => (
+    typeof window.__clipacanvasCaptureMeta === 'function'
+      ? window.__clipacanvasCaptureMeta()
+      : { activeAnimations: 0, hasInfiniteAnimation: false, suggestedDurationMs: 0 }
+  ));
+  const targetDuration = resolveTargetDuration(initialMeta, minDuration, maxDuration, contentMode);
+  const frameTotal = Math.ceil(targetDuration * frameRate) + 2;
 
   for (let index = 0; index < frameTotal; index++) {
     const t = Number((index / frameRate).toFixed(4));
     await page.evaluate(seconds => {
-      if (typeof window.__code2videoSetTime === 'function') {
-        window.__code2videoSetTime(seconds);
+      if (typeof window.__clipacanvasSetTime === 'function') {
+        window.__clipacanvasSetTime(seconds);
       }
     }, t);
 
@@ -234,9 +288,9 @@ async function captureFrames(page, settings) {
     frameTimes.push(t);
 
     const meta = await page.evaluate(() => (
-      typeof window.__code2videoCaptureMeta === 'function'
-        ? window.__code2videoCaptureMeta()
-        : { activeAnimations: 0, hasInfiniteAnimation: false }
+      typeof window.__clipacanvasCaptureMeta === 'function'
+        ? window.__clipacanvasCaptureMeta()
+        : { activeAnimations: 0, hasInfiniteAnimation: false, suggestedDurationMs: 0 }
     ));
 
     const idleFor = t - lastChangeTime;
@@ -257,13 +311,14 @@ async function main() {
     width,
     height,
     bitrate = '5M',
+    contentMode = 'dom',
     frameRate = 60,
     maxDuration = 12,
     minDuration = 0.35,
     settleWindow = 0.45
   } = payload;
 
-  const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'code2video-playwright-'));
+  const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'clipacanvas-playwright-'));
   let browser;
 
   try {
@@ -281,8 +336,7 @@ async function main() {
 
     const page = await context.newPage();
     page.on('pageerror', err => console.error(`[pageerror] ${err.message}`));
-    await page.addInitScript({ content: CONTROL_SCRIPT });
-    await page.setContent(code, { waitUntil: 'load' });
+    await page.setContent(injectControlScript(code), { waitUntil: 'load' });
     await page.evaluate(async () => {
       try {
         if (document.fonts && document.fonts.ready) {

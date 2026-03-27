@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-CODE2VIDEO Backend Assistant
+Clip.A.Canvas Backend Assistant
 - Serves the frontend
 - Handles Playwright + FFmpeg video rendering
 - Auto-opens the tool in your browser
@@ -18,7 +18,7 @@ import platform
 from pathlib import Path
 from http.server import ThreadingHTTPServer, SimpleHTTPRequestHandler
 
-ALLOWED_ORIGINS = [origin.strip() for origin in os.environ.get("CODE2VIDEO_CORS_ORIGIN", "*").split(",") if origin.strip()]
+ALLOWED_ORIGINS = [origin.strip() for origin in os.environ.get("CLIPACANVAS_CORS_ORIGIN", "*").split(",") if origin.strip()]
 
 
 def app_dir_candidates() -> list[Path]:
@@ -42,7 +42,7 @@ def app_dir_candidates() -> list[Path]:
 
 def resolve_app_dir() -> Path:
     for candidate in app_dir_candidates():
-        if (candidate / "code2video.html").exists():
+        if (candidate / "clipacanvas.html").exists():
             return candidate
     return app_dir_candidates()[0]
 
@@ -74,11 +74,11 @@ def resolve_ffmpeg_exe() -> str:
 FFMPEG_EXE = resolve_ffmpeg_exe()
 
 
-class CODE2VIDEOServer(ThreadingHTTPServer):
+class ClipACanvasServer(ThreadingHTTPServer):
     daemon_threads = True
     allow_reuse_address = True
 
-class CODE2VIDEOHandler(SimpleHTTPRequestHandler):
+class ClipACanvasHandler(SimpleHTTPRequestHandler):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, directory=str(APP_DIR), **kwargs)
 
@@ -107,7 +107,7 @@ class CODE2VIDEOHandler(SimpleHTTPRequestHandler):
         try:
             if self.path == '/':
                 self.send_response(301)
-                self.send_header('Location', '/code2video.html')
+                self.send_header('Location', '/clipacanvas.html')
                 self.end_headers()
                 return
             if self.path == '/api/config.js':
@@ -213,7 +213,7 @@ class CODE2VIDEOHandler(SimpleHTTPRequestHandler):
 
     def _send_file(self, filepath):
         mime = 'video/mp4'
-        filename = f'code2video_{int(time.time())}.mp4'
+        filename = f'clipacanvas_{int(time.time())}.mp4'
 
         with open(filepath, 'rb') as f:
             data = f.read()
@@ -259,8 +259,8 @@ class CODE2VIDEOHandler(SimpleHTTPRequestHandler):
             return
 
     def _send_runtime_config(self):
-        api_base = os.environ.get("CODE2VIDEO_API_BASE", "").rstrip("/")
-        payload = f"window.CODE2VIDEO_API_BASE = {json.dumps(api_base)};\n".encode("utf-8")
+        api_base = os.environ.get("CLIPACANVAS_API_BASE", "").rstrip("/")
+        payload = f"window.CLIPACANVAS_API_BASE = {json.dumps(api_base)};\n".encode("utf-8")
         self.send_response(200)
         self.send_header("Content-Type", "application/javascript; charset=utf-8")
         self.send_header("Content-Length", str(len(payload)))
@@ -287,11 +287,11 @@ class CODE2VIDEOHandler(SimpleHTTPRequestHandler):
         print(f"  {self.address_string()} -> {fmt % args}")
 
 
-def build_server(host: str = "0.0.0.0", port: int = 3000) -> CODE2VIDEOServer:
-    return CODE2VIDEOServer((host, port), CODE2VIDEOHandler)
+def build_server(host: str = "0.0.0.0", port: int = 3000) -> ClipACanvasServer:
+    return ClipACanvasServer((host, port), ClipACanvasHandler)
 
 
-def server_url(server: CODE2VIDEOServer, public_host: str | None = None) -> str:
+def server_url(server: ClipACanvasServer, public_host: str | None = None) -> str:
     bound_host, bound_port = server.server_address[:2]
     host = public_host or bound_host
     if host in ("0.0.0.0", "::"):
@@ -299,14 +299,14 @@ def server_url(server: CODE2VIDEOServer, public_host: str | None = None) -> str:
     return f"http://{host}:{bound_port}"
 
 
-def start_server(host: str = "127.0.0.1", port: int = 0) -> tuple[CODE2VIDEOServer, threading.Thread]:
+def start_server(host: str = "127.0.0.1", port: int = 0) -> tuple[ClipACanvasServer, threading.Thread]:
     server = build_server(host=host, port=port)
-    thread = threading.Thread(target=server.serve_forever, name="code2video-server", daemon=True)
+    thread = threading.Thread(target=server.serve_forever, name="clipacanvas-server", daemon=True)
     thread.start()
     return server, thread
 
 
-def stop_server(server: CODE2VIDEOServer) -> None:
+def stop_server(server: ClipACanvasServer) -> None:
     server.shutdown()
     server.server_close()
 
@@ -317,12 +317,12 @@ def main() -> int:
     server = build_server(host=host, port=port)
     url = server_url(server)
     
-    print(f"\n  CODE2VIDEO ENGINE ACTIVE (Backend FFmpeg Mode)")
+    print(f"\n  Clip.A.Canvas ENGINE ACTIVE (Backend FFmpeg Mode)")
     print(f"  ----------------------------------------------")
     print(f"  URL -> {url}")
     print(f"  Renders are streamed to the browser and discarded after response.")
     
-    if os.environ.get("CODE2VIDEO_NO_BROWSER") != "1":
+    if os.environ.get("CLIPACANVAS_NO_BROWSER") != "1":
         webbrowser.open(url)
     
     try:

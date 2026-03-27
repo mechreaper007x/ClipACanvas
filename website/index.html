@@ -3,137 +3,175 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>CODE2VIDEO | Desktop HTML-to-Video Renderer</title>
-  <meta name="description" content="Turn HTML, CSS, and JavaScript animations into polished MP4 videos with a desktop renderer powered by Chromium and FFmpeg.">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="./styles.css">
+  <meta name="description" content="Clip.A.Canvas turns HTML, CSS, and JavaScript motion into MP4 using Chromium and FFmpeg.">
+  <title>Clip.A.Canvas | Desktop HTML-to-Video Renderer</title>
+  <link rel="stylesheet" href="styles.css">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%23070a0c'/%3E%3Cpath d='M18 20h10v24H18zm18 0h10v10H36zm0 14h10v10H36z' fill='%23d7ff43'/%3E%3C/svg%3E">
 </head>
-<body>
-  <div class="site-shell">
-    <header class="site-header">
-      <a class="brand" href="#top" aria-label="CODE2VIDEO home">
-        <span class="brand-mark">C2V</span>
-        <span class="brand-name">CODE2VIDEO</span>
-      </a>
-      <nav class="site-nav" aria-label="Primary">
+<body id="top">
+  <div class="page-shell">
+    <img class="site-corner-logo" src="logo_neon_overlay.png" alt="Clip.A.Canvas logo">
+    <nav class="topbar">
+      <div class="topbar-nav">
         <a href="#features">Features</a>
         <a href="#workflow">Workflow</a>
-        <a href="#downloads">Downloads</a>
-      </nav>
-    </header>
+        <a href="#download">Download</a>
+        <a href="https://github.com/mechreaper007x/code2video-renderer">GitHub</a>
+      </div>
+    </nav>
 
-    <main id="top">
+    <main>
       <section class="hero">
         <div class="hero-copy">
-          <p class="eyebrow">Desktop HTML-to-video renderer</p>
-          <h1>Turn motion code into clean video output.</h1>
+          <p class="eyebrow">Desktop render engine for front-end motion</p>
+          <h1>Paste HTML, CSS, and JavaScript. Export a real video.</h1>
           <p class="hero-text">
-            CODE2VIDEO is a desktop app for rendering HTML, CSS, and JavaScript animations into MP4 files using Chromium and FFmpeg.
-            It is built for demos, promo clips, UI motion, social videos, and product showcases.
+            Clip.A.Canvas renders motion inside real Chromium, captures frames accurately, and encodes the result locally with FFmpeg. No cloud render farm. No screen recording workaround.
           </p>
           <div class="hero-actions">
-            <a class="button button-primary" href="https://github.com/mechreaper007x/code2video-renderer/releases/download/v1.0.0/CODE2VIDEO-Setup.exe">Download for Windows</a>
-            <a class="button button-secondary" href="https://github.com/mechreaper007x/code2video-renderer/releases/download/v1.0.0/CODE2VIDEO-windows.zip">Portable ZIP</a>
+            <a class="button button-primary" href="https://github.com/mechreaper007x/code2video-renderer/releases/download/v1.0.0/ClipACanvas-Setup.exe">Download Installer</a>
+            <a class="button button-secondary" href="https://github.com/mechreaper007x/code2video-renderer/releases/download/v1.0.0/ClipACanvas-windows.zip">Portable ZIP</a>
           </div>
-          <p class="hero-note">Windows builds are unsigned for now, so first-run trust warnings are possible. macOS downloads are currently unavailable.</p>
+          <div class="hero-signals">
+            <span>Chromium render path</span>
+            <span>HTML + SVG + canvas</span>
+            <span>Local MP4 export</span>
+          </div>
         </div>
 
-        <div class="hero-media">
-          <div class="video-card">
-            <video class="demo-video" autoplay muted loop playsinline preload="metadata" disablepictureinpicture oncontextmenu="return false;">
-              <source src="./demo-video.mp4" type="video/mp4">
-              Your browser does not support the demo video.
-            </video>
+        <div class="hero-stage">
+          <div class="stage-card">
+            <div class="demo-frame">
+              <div class="frame-bar">
+                <div class="frame-dots">
+                  <span></span>
+                  <span></span>
+                  <span></span>
+                </div>
+                <p>demo-video.mp4</p>
+              </div>
+              <video class="demo-video" autoplay loop muted playsinline>
+                <source src="demo-video.mp4" type="video/mp4">
+                Your browser does not support the video tag.
+              </video>
+            </div>
+
+            <div class="metric-grid">
+              <article class="metric-card">
+                <span class="metric-label">Input</span>
+                <strong>Paste generated snippets directly</strong>
+              </article>
+              <article class="metric-card">
+                <span class="metric-label">Render</span>
+                <strong>DOM/SVG and canvas capture in one tool</strong>
+              </article>
+              <article class="metric-card">
+                <span class="metric-label">Output</span>
+                <strong>Save an editor-ready MP4 locally</strong>
+              </article>
+            </div>
           </div>
         </div>
       </section>
 
-      <section class="summary">
-        <div class="summary-item">
-          <strong>Desktop-first</strong>
-          <span>Local rendering flow with native save dialog support.</span>
-        </div>
-        <div class="summary-item">
-          <strong>Chromium + FFmpeg</strong>
-          <span>Browser-accurate rendering with direct MP4 output.</span>
-        </div>
-        <div class="summary-item">
-          <strong>Editor-friendly</strong>
-          <span>Export files that fit normal creative workflows.</span>
-        </div>
+      <section class="signal-strip" aria-label="Product strengths">
+        <article>
+          <span class="signal-kicker">Faithful</span>
+          <strong>Rendered in Chromium, not approximated by screenshots.</strong>
+        </article>
+        <article>
+          <span class="signal-kicker">Local</span>
+          <strong>Your code stays on-device while FFmpeg handles encoding.</strong>
+        </article>
+        <article>
+          <span class="signal-kicker">Fast</span>
+          <strong>Built for quick paste-preview-export loops from AI-generated code.</strong>
+        </article>
       </section>
 
-      <section class="section" id="features">
+      <section id="features" class="section-block">
         <div class="section-heading">
-          <p class="eyebrow">Features</p>
-          <h2>Built for code-driven motion.</h2>
+          <p class="eyebrow">Why it feels different</p>
+          <h2>Made for browser motion, not generic video automation.</h2>
+          <p>
+            The product is opinionated around one job: turn front-end animation into clean video output without breaking how the browser actually behaves.
+          </p>
         </div>
-        <div class="card-grid">
-          <article class="card">
-            <h3>Desktop rendering</h3>
-            <p>The app runs locally instead of depending on a browser upload pipeline.</p>
+        <div class="feature-grid">
+          <article class="feature-card">
+            <span class="card-kicker">Render fidelity</span>
+            <h3>Browser-accurate motion</h3>
+            <p>CSS animation, transitions, WAAPI, SVG, and canvas content are captured through Chromium instead of a fake DOM snapshot pipeline.</p>
           </article>
-          <article class="card">
-            <h3>Real browser output</h3>
-            <p>Frames are rendered through Chromium before FFmpeg handles the final encode.</p>
+          <article class="feature-card">
+            <span class="card-kicker">Creator workflow</span>
+            <h3>Paste first, tweak second</h3>
+            <p>Built for quick testing of snippets from ChatGPT, Claude, Gemini, or your own editor without needing a separate video stack.</p>
           </article>
-          <article class="card">
-            <h3>Simple export flow</h3>
-            <p>Preview, render, and save directly to the location you choose.</p>
+          <article class="feature-card">
+            <span class="card-kicker">Offline export</span>
+            <h3>No upload step</h3>
+            <p>Rendering and encoding stay local, so you keep the browser result and avoid shipping source code to a hosted backend.</p>
+          </article>
+          <article class="feature-card">
+            <span class="card-kicker">Output control</span>
+            <h3>Video you can actually use</h3>
+            <p>Export MP4 files suitable for editing, posting, and iterating without relying on screen recording or timeline hacks.</p>
           </article>
         </div>
       </section>
 
-      <section class="section" id="workflow">
+      <section id="workflow" class="section-block">
         <div class="section-heading">
           <p class="eyebrow">Workflow</p>
-          <h2>Write. Preview. Render. Save.</h2>
+          <h2>Three steps from snippet to MP4.</h2>
         </div>
-        <div class="steps">
-          <article class="step">
-            <span>01</span>
-            <h3>Write the animation</h3>
-            <p>Paste or build your HTML, CSS, and JavaScript directly in the app.</p>
+        <div class="workflow-grid">
+          <article class="workflow-card">
+            <span class="step-index">01</span>
+            <h3>Drop in code</h3>
+            <p>Paste HTML, CSS, and JavaScript directly into the editor. The tool is designed around single-file front-end experiments and generated snippets.</p>
           </article>
-          <article class="step">
-            <span>02</span>
-            <h3>Check the frame</h3>
-            <p>Preview the selected ratio before committing to the export.</p>
+          <article class="workflow-card">
+            <span class="step-index">02</span>
+            <h3>Preview in a real engine</h3>
+            <p>Inspect the motion in Chromium before exporting. If the browser can render it, Clip.A.Canvas is built to capture it faithfully.</p>
           </article>
-          <article class="step">
-            <span>03</span>
-            <h3>Export the file</h3>
-            <p>Render to MP4 and save it wherever you want on disk.</p>
+          <article class="workflow-card">
+            <span class="step-index">03</span>
+            <h3>Export locally</h3>
+            <p>Render frames and encode to MP4 on-device, then save the finished file through the desktop app without a separate recording pass.</p>
           </article>
         </div>
       </section>
 
-      <section class="section downloads" id="downloads">
-        <div class="section-heading">
-          <p class="eyebrow">Downloads</p>
-          <h2>Get the desktop app.</h2>
-        </div>
-        <div class="download-grid">
-          <article class="download-card">
-            <h3>Windows</h3>
-            <p>Choose the installer for a normal setup, or grab the portable zip if you want the unpacked app folder directly.</p>
-            <a class="button button-primary" href="https://github.com/mechreaper007x/code2video-renderer/releases/download/v1.0.0/CODE2VIDEO-Setup.exe">Download installer</a>
-            <a class="button button-secondary" href="https://github.com/mechreaper007x/code2video-renderer/releases/download/v1.0.0/CODE2VIDEO-windows.zip">Download portable zip</a>
-          </article>
-        </div>
-        <div class="trust-note">
-          <strong>Download safety</strong>
-          <p>Use the official GitHub Releases page for downloads. Windows builds are unsigned right now, so verify the release checksums before sharing them widely. The live website now points to both the installer and the portable zip. macOS builds are not being offered on the website at the moment.</p>
-          <a class="trust-link" href="https://github.com/mechreaper007x/code2video-renderer/releases/tag/v1.0.0">View release and checksums</a>
+      <section id="download" class="section-block">
+        <div class="download-panel">
+          <div class="download-copy">
+            <p class="eyebrow">Download</p>
+            <h2>Get the desktop build.</h2>
+            <p>
+              Windows installer and portable ZIP are available now. macOS packaging is in progress. Release notes and SHA-256 checksums are published on GitHub.
+            </p>
+          </div>
+          <div class="download-stack">
+            <a class="button button-primary" href="https://github.com/mechreaper007x/code2video-renderer/releases/download/v1.0.0/ClipACanvas-Setup.exe">Download for Windows</a>
+            <a class="button button-secondary" href="https://github.com/mechreaper007x/code2video-renderer/releases/download/v1.0.0/ClipACanvas-windows.zip">Download Portable ZIP</a>
+            <div class="release-box">
+              <span class="release-tag">Version 1.0.0</span>
+              <a href="https://github.com/mechreaper007x/code2video-renderer/releases/tag/v1.0.0">View release and checksums</a>
+            </div>
+          </div>
         </div>
       </section>
     </main>
 
-    <footer class="site-footer">
-      <p>CODE2VIDEO</p>
-      <a href="https://github.com/mechreaper007x/code2video-renderer/releases/tag/v1.0.0">View release</a>
+    <footer class="footer">
+      <p>Clip.A.Canvas</p>
+      <div class="footer-links">
+        <a href="https://github.com/mechreaper007x/code2video-renderer">GitHub Repository</a>
+        <a href="https://github.com/mechreaper007x/code2video-renderer/releases/tag/v1.0.0">Release Notes</a>
+      </div>
     </footer>
   </div>
 </body>
