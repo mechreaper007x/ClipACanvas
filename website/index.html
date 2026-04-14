@@ -15,8 +15,9 @@
       <div class="topbar-nav">
         <a href="#features">Features</a>
         <a href="#workflow">Workflow</a>
+        <a href="#mcp">MCP</a>
         <a href="#download">Download</a>
-        <a href="https://github.com/mechreaper007x/code2video-renderer">GitHub</a>
+        <a href="https://github.com/mechreaper007x/ClipACanvas">GitHub</a>
       </div>
     </nav>
 
@@ -29,13 +30,13 @@
             Clip.A.Canvas renders motion inside real Chromium, captures frames accurately, and encodes the result locally with FFmpeg. No cloud render farm. No screen recording workaround.
           </p>
           <div class="hero-actions">
-            <a class="button button-primary" href="https://github.com/mechreaper007x/code2video-renderer/releases/download/v1.0.0/ClipACanvas-Setup.exe">Download Installer</a>
-            <a class="button button-secondary" href="https://github.com/mechreaper007x/code2video-renderer/releases/download/v1.0.0/ClipACanvas-windows.zip">Portable ZIP</a>
+            <a class="button button-primary" href="https://github.com/mechreaper007x/ClipACanvas/releases/download/v1.0.0/ClipACanvas-Setup.exe">Download Installer</a>
+            <a class="button button-secondary" href="#mcp">MCP Install</a>
           </div>
           <div class="hero-signals">
             <span>Chromium render path</span>
             <span>HTML + SVG + canvas</span>
-            <span>Local MP4 export</span>
+            <span>Desktop + MCP + TUI</span>
           </div>
         </div>
 
@@ -145,21 +146,51 @@
         </div>
       </section>
 
+      <section id="mcp" class="section-block">
+        <div class="section-heading">
+          <p class="eyebrow">MCP</p>
+          <h2>Install the render tool straight into your coding client.</h2>
+          <p>
+            The MCP package lives in this repository and can be installed directly from GitHub through `uvx`. No manual repo clone is required for normal usage.
+          </p>
+        </div>
+        <div class="install-grid">
+          <article class="workflow-card install-card">
+            <span class="step-index">Gemini</span>
+            <h3>Add it in one command</h3>
+            <pre class="command-block"><code>gemini mcp add clipacanvas -- uvx --from "clipacanvas-mcp @ git+https://github.com/mechreaper007x/ClipACanvas.git#subdirectory=mcp" clipacanvas-mcp</code></pre>
+          </article>
+          <article class="workflow-card install-card">
+            <span class="step-index">Codex</span>
+            <h3>Register the same package</h3>
+            <pre class="command-block"><code>codex mcp add clipacanvas -- uvx --from "clipacanvas-mcp @ git+https://github.com/mechreaper007x/ClipACanvas.git#subdirectory=mcp" clipacanvas-mcp</code></pre>
+          </article>
+          <article class="workflow-card install-card">
+            <span class="step-index">Claude</span>
+            <h3>Windows wrapper included</h3>
+            <pre class="command-block"><code>claude mcp add -s user clipacanvas -- cmd /c uvx --from "clipacanvas-mcp @ git+https://github.com/mechreaper007x/ClipACanvas.git#subdirectory=mcp" clipacanvas-mcp</code></pre>
+          </article>
+        </div>
+        <p class="mcp-note">
+          After future PyPI publish, these commands shorten to `uvx --from clipacanvas-mcp clipacanvas-mcp`.
+        </p>
+      </section>
+
       <section id="download" class="section-block">
         <div class="download-panel">
           <div class="download-copy">
             <p class="eyebrow">Download</p>
             <h2>Get the desktop build.</h2>
             <p>
-              Windows installer and portable ZIP are available now. macOS packaging is in progress. Release notes and SHA-256 checksums are published on GitHub.
+              Windows installer and portable ZIP are available now. macOS packaging is in progress. Release notes, SHA-256 checksums, and the MCP package source all live in the GitHub repository.
             </p>
           </div>
           <div class="download-stack">
-            <a class="button button-primary" href="https://github.com/mechreaper007x/code2video-renderer/releases/download/v1.0.0/ClipACanvas-Setup.exe">Download for Windows</a>
-            <a class="button button-secondary" href="https://github.com/mechreaper007x/code2video-renderer/releases/download/v1.0.0/ClipACanvas-windows.zip">Download Portable ZIP</a>
+            <a class="button button-primary" href="https://github.com/mechreaper007x/ClipACanvas/releases/download/v1.0.0/ClipACanvas-Setup.exe">Download for Windows</a>
+            <a class="button button-secondary" href="https://github.com/mechreaper007x/ClipACanvas/releases/download/v1.0.0/ClipACanvas-windows.zip">Download Portable ZIP</a>
             <div class="release-box">
               <span class="release-tag">Version 1.0.0</span>
-              <a href="https://github.com/mechreaper007x/code2video-renderer/releases/tag/v1.0.0">View release and checksums</a>
+              <a href="https://github.com/mechreaper007x/ClipACanvas/releases/tag/v1.0.0">View release and checksums</a>
             </div>
           </div>
         </div>
@@ -169,8 +200,9 @@
     <footer class="footer">
       <p>Clip.A.Canvas</p>
       <div class="footer-links">
-        <a href="https://github.com/mechreaper007x/code2video-renderer">GitHub Repository</a>
-        <a href="https://github.com/mechreaper007x/code2video-renderer/releases/tag/v1.0.0">Release Notes</a>
+        <a href="https://github.com/mechreaper007x/ClipACanvas">GitHub Repository</a>
+        <a href="https://github.com/mechreaper007x/ClipACanvas/tree/main/mcp">MCP Package</a>
+        <a href="https://github.com/mechreaper007x/ClipACanvas/releases/tag/v1.0.0">Release Notes</a>
       </div>
     </footer>
   </div>
