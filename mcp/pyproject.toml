@@ -1,0 +1,31 @@
+[project]
+name = "clipacanvas-mcp"
+version = "1.0.0"
+description = "Clip.A.Canvas MCP server — render HTML/CSS/JS animations to MP4 via MCP tools"
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.10"
+dependencies = [
+    "mcp[cli]>=1.0.0",
+    "imageio-ffmpeg",
+    "playwright",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest",
+    "pytest-asyncio",
+]
+
+[project.scripts]
+clipacanvas-mcp = "clipacanvas_mcp.server:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/clipacanvas_mcp"]
+
+[tool.hatch.build.targets.sdist]
+include = ["src/"]
