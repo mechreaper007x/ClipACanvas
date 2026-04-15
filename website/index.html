@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="Clip.A.Canvas turns HTML, CSS, and JavaScript motion into MP4 using Chromium and FFmpeg.">
-  <title>Clip.A.Canvas | Desktop HTML-to-Video Renderer</title>
+  <meta name="description" content="Clip.A.Canvas turns HTML, CSS, and JavaScript motion into MP4 with a desktop app, terminal TUI, and MCP server powered by Chromium and FFmpeg.">
+  <title>Clip.A.Canvas | Desktop, TUI, and MCP HTML-to-Video Renderer</title>
   <link rel="stylesheet" href="styles.css">
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%23070a0c'/%3E%3Cpath d='M18 20h10v24H18zm18 0h10v10H36zm0 14h10v10H36z' fill='%23d7ff43'/%3E%3C/svg%3E">
 </head>
@@ -15,6 +15,7 @@
       <div class="topbar-nav">
         <a href="#features">Features</a>
         <a href="#workflow">Workflow</a>
+        <a href="#tui">TUI</a>
         <a href="#mcp">MCP</a>
         <a href="#download">Download</a>
         <a href="https://github.com/mechreaper007x/ClipACanvas">GitHub</a>
@@ -31,6 +32,7 @@
           </p>
           <div class="hero-actions">
             <a class="button button-primary" href="https://github.com/mechreaper007x/ClipACanvas/releases/download/v1.0.0/ClipACanvas-Setup.exe">Download Installer</a>
+            <a class="button button-secondary" href="#tui">TUI Install</a>
             <a class="button button-secondary" href="#mcp">MCP Install</a>
           </div>
           <div class="hero-signals">
@@ -146,6 +148,48 @@
         </div>
       </section>
 
+      <section id="tui" class="section-block">
+        <div class="section-heading">
+          <p class="eyebrow">TUI</p>
+          <h2>Install the terminal client straight from GitHub.</h2>
+          <p>
+            The TUI is built for keyboard-first snippet testing: load code from the clipboard, a file, or stdin, preview it in Chromium, and render MP4 without leaving the terminal.
+          </p>
+        </div>
+        <div class="install-grid">
+          <article class="workflow-card install-card">
+            <span class="step-index">Install</span>
+            <h3>CLI from the `tui/` package</h3>
+            <pre class="command-block"><code>pipx install "git+https://github.com/mechreaper007x/ClipACanvas.git#subdirectory=tui"</code></pre>
+          </article>
+          <article class="workflow-card install-card">
+            <span class="step-index">Browser</span>
+            <h3>One-time Chromium setup</h3>
+            <pre class="command-block"><code>python -m playwright install chromium</code></pre>
+          </article>
+          <article class="workflow-card install-card">
+            <span class="step-index">Run</span>
+            <h3>Launch with preview</h3>
+            <pre class="command-block"><code>clipacanvas-tui --clipboard --preview</code></pre>
+          </article>
+        </div>
+        <div class="feature-grid detail-grid">
+          <article class="feature-card">
+            <span class="card-kicker">Inputs</span>
+            <h3>Clipboard, file, or stdin</h3>
+            <p>Use `--clipboard`, pass an HTML file path, or pipe content in when terminal paste limits get in the way of large generated snippets.</p>
+          </article>
+          <article class="feature-card">
+            <span class="card-kicker">Windows</span>
+            <h3>Protected-folder setup built in</h3>
+            <p>If Defender Controlled Folder Access blocks saves to `Documents` or `Videos`, press `F7` inside the TUI to open the allow-list helper for the active runtime.</p>
+          </article>
+        </div>
+        <p class="mcp-note">
+          Requirements: Python 3.10+, FFmpeg on your `PATH` or `CLIPACANVAS_FFMPEG_EXE`, and Playwright Chromium installed once.
+        </p>
+      </section>
+
       <section id="mcp" class="section-block">
         <div class="section-heading">
           <p class="eyebrow">MCP</p>
@@ -182,7 +226,7 @@
             <p class="eyebrow">Download</p>
             <h2>Get the desktop build.</h2>
             <p>
-              Windows installer and portable ZIP are available now. macOS packaging is in progress. Release notes, SHA-256 checksums, and the MCP package source all live in the GitHub repository.
+              Windows installer and portable ZIP are available now. macOS packaging is in progress. Release notes, SHA-256 checksums, plus the TUI and MCP package source all live in the GitHub repository.
             </p>
           </div>
           <div class="download-stack">

@@ -100,13 +100,39 @@ Notes:
 
 ## TUI
 
-The repo also includes a terminal UI package:
+The repo also ships a keyboard-first terminal client for code-first render workflows.
+
+### Direct install from GitHub
+
+Install the CLI without cloning the whole repo:
+
+```bash
+pipx install "git+https://github.com/mechreaper007x/ClipACanvas.git#subdirectory=tui"
+python -m playwright install chromium
+clipacanvas-tui --clipboard --preview
+```
+
+Requirements:
+
+- Python 3.10+
+- FFmpeg on `PATH`, or set `CLIPACANVAS_FFMPEG_EXE`
+- Playwright Chromium installed once with `python -m playwright install chromium`
+
+### Local editable install
+
+Use this path if you are developing the TUI locally:
 
 ```bash
 cd tui
 pip install -e .
+python -m playwright install chromium
 clipacanvas-tui
 ```
+
+Notes:
+
+- Load large snippets with `clipacanvas-tui path/to/snippet.html --preview` or `clipacanvas-tui --clipboard --preview`.
+- On Windows, press `F7` inside the TUI if Defender Controlled Folder Access blocks saves to protected folders such as `Documents` or `Videos`.
 
 ## Build Outputs
 
