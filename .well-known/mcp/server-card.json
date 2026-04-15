@@ -1,10 +1,12 @@
 {
-  "name": "ClipACanvas",
-  "description": "ClipACanvas transforms HTML/CSS/JS animations into MP4 videos — entirely local, no uploads, no cloud. Powered by Chromium + FFmpeg for high-quality, browser-accurate rendering. Perfect for AI agents generating video content, demos, or visual explanations on-the-fly.",
-  "version": "1.0.2",
-  "author": "mechreaper007x",
-  "repository": "https://github.com/mechreaper007x/ClipACanvas",
-  "license": "MIT",
+  "serverInfo": {
+    "name": "ClipACanvas",
+    "version": "1.0.2",
+    "description": "ClipACanvas transforms HTML/CSS/JS animations into MP4 videos — entirely local, no uploads, no cloud. Powered by Chromium + FFmpeg for high-quality, browser-accurate rendering. Perfect for AI agents generating video content, demos, or visual explanations on-the-fly."
+  },
+  "authentication": {
+    "required": false
+  },
   "tools": [
     {
       "name": "render_video",
@@ -74,10 +76,6 @@
       }
     }
   ],
-  "categories": ["video", "animation", "creativity"],
-  "keywords": ["video generation", "html to video", "animation", "mp4", "local processing", "privacy-first"],
-  "installation": {
-    "uvx": "uvx clipacanvas-mcp",
-    "pip": "pip install clipacanvas-mcp"
-  }
+  "resources": [],
+  "prompts": []
 }
