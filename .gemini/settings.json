@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "clipacanvas": {
+      "command": "python",
+      "args": [
+        "-m",
+        "clipacanvas_mcp.server"
+      ]
+    }
+  }
+}

@@ -1,0 +1,31 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:github.com)",
+      "WebSearch",
+      "WebFetch(domain:showlab.github.io)",
+      "Bash(python -m py_compile mcp/src/clipacanvas_mcp/server.py mcp/src/clipacanvas_mcp/config.py mcp/src/clipacanvas_mcp/render_tool.py tui/src/clipacanvas_tui/app.py tui/src/clipacanvas_tui/screens/editor.py)",
+      "Bash(python -c ':*)",
+      "Bash(timeout 3 python -c ':*)",
+      "Bash(echo \"Exit: $?\")",
+      "Bash(uvx --from clipacanvas-mcp clipacanvas-mcp --version)",
+      "Bash(python -m uv --version)",
+      "Bash(pipx --version)",
+      "Bash(pip show:*)",
+      "Bash(python -c \"import clipacanvas_mcp; print\\(clipacanvas_mcp.__file__\\)\")",
+      "Bash(python:*)",
+      "Bash(pip install:*)",
+      "Bash(where clippp:*)",
+      "Bash(where clipmcp:*)",
+      "Bash(uv:*)",
+      "Bash(clippp --help)",
+      "Bash(clipmcp --help)",
+      "Bash(clipmcp)",
+      "Bash(twine upload:*)",
+      "WebFetch(domain:google-gemini.github.io)",
+      "Bash(gh api:*)",
+      "Bash(gh auth:*)",
+      "Bash(gh repo:*)"
+    ]
+  }
+}
