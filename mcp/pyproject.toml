@@ -1,6 +1,6 @@
 [project]
 name = "clipacanvas-mcp"
-version = "1.0.0"
+version = "1.0.2"
 description = "Clip.A.Canvas MCP server — render HTML/CSS/JS animations to MP4 via MCP tools"
 readme = "README.md"
 license = "MIT"
@@ -18,7 +18,7 @@ dev = [
 ]
 
 [project.scripts]
-clipmcp = "clipacanvas_mcp.server:main"
+clipacanvas-mcp = "clipacanvas_mcp.server:main"
 
 [build-system]
 requires = ["hatchling"]

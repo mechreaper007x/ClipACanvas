@@ -1,11 +1,13 @@
 # Clip.A.Canvas MCP Server
 
-A universal MCP (Model Context Protocol) server that exposes Clip.A.Canvas HTML-to-video rendering as an MCP tool. Works with any STDIO-based MCP client.
+A universal MCP (Model Context Protocol) server that exposes Clip.A.Canvas HTML-to-video rendering as an MCP tool. Works with Claude Desktop, ChatGPT, Gemini CLI, Claude Code, and any STDIO/HTTPS-based MCP client.
+
+<!-- mcp-name: io.github.mechreaper007x/clipacanvas -->
 
 ## Features
 
 - **Universal MCP tool** — `render_video` and `render_video_to_file` exposed via the MCP protocol
-- **Works everywhere** — Claude Desktop, Codex, Gemini CLI, Qwen Coder, and any MCP-compatible AI coding tool
+- **Works everywhere** — Claude Desktop, ChatGPT, Gemini CLI, Claude Code, and more
 - **Local rendering** — no upload, no cloud; Chromium + FFmpeg run on your machine
 - **Base64 or file output** — return video as base64 string or save directly to a path
 
@@ -13,16 +15,11 @@ A universal MCP (Model Context Protocol) server that exposes Clip.A.Canvas HTML-
 
 ### One-command MCP install
 
-After publishing to PyPI:
-
 ```bash
 # Gemini CLI
 gemini mcp add clipacanvas -- uvx clipacanvas-mcp
 
-# Codex CLI
-codex mcp add clipacanvas -- uvx clipacanvas-mcp
-
-# Claude Code on Windows
+# Claude Code
 claude mcp add -s user clipacanvas -- cmd /c uvx clipacanvas-mcp
 ```
 
@@ -31,17 +28,8 @@ claude mcp add -s user clipacanvas -- cmd /c uvx clipacanvas-mcp
 ```bash
 pip install clipacanvas-mcp
 # or
-uv tool install clipacanvas-mcp  # gives 'clipmcp' command
+uv tool install clipacanvas-mcp  # gives 'clipacanvas-mcp' command
 ```
-
-### From source (editable)
-
-```bash
-cd code2video/mcp
-pip install -e .
-```
-
-`uvx` handles the Python package environment. On first render, the MCP package will also install Playwright Chromium automatically if it is missing.
 
 ## Configuration
 
@@ -60,6 +48,7 @@ Environment variables (all optional):
 ## MCP Tools
 
 ### `render_video`
+*Read-only hint: No* | *Destructive hint: No*
 
 Render HTML/CSS/JS to MP4, returned as base64.
 
@@ -79,6 +68,7 @@ Render HTML/CSS/JS to MP4, returned as base64.
 **Returns:** Text content with video metadata and base64-encoded MP4 data.
 
 ### `render_video_to_file`
+*Read-only hint: No* | *Destructive hint: Yes (overwrites file)*
 
 Same as above but saves the MP4 directly to `output_path`.
 
@@ -93,109 +83,40 @@ Same as above but saves the MP4 directly to `output_path`.
 }
 ```
 
-## Usage in AI Coding Tools
-
-### Claude Code
-
-For this local repo checkout:
-
-```bash
-cd code2video/mcp
-pip install -e .
-claude mcp add -s local clipacanvas -- cmd /c python -m clipacanvas_mcp.server
-```
-
-The `cmd /c` wrapper is useful on Windows because Claude Code's MCP health check can fail to resolve the same Python command that works in an interactive PowerShell session.
+## Usage in AI Clients
 
 ### Claude Desktop
-
-Add to your Claude Desktop config file:
-
-**macOS:** `~/Library/Application Support/Claude/claude_desktop_config.json`
-**Windows:** `%APPDATA%\Claude\claude_desktop_config.json`
-
-```json
-{
-  "mcpServers": {
-    "clipacanvas": {
-      "command": "python",
-      "args": ["-m", "clipacanvas_mcp.server"]
-    }
-  }
-}
-```
-
-Then restart Claude Desktop. The `render_video` and `render_video_to_file` tools will appear in the tool list.
-
-### Codex CLI
-
-For this local repo checkout:
-
-```bash
-cd code2video/mcp
-pip install -e .
-codex mcp add clipacanvas -- python -m clipacanvas_mcp.server
-```
-
-### Gemini CLI (Google)
-
-For this local repo checkout, install the server in editable mode first:
-
-```bash
-cd code2video/mcp
-pip install -e .
-gemini mcp add clipacanvas -- python -m clipacanvas_mcp.server
-```
-
-Use the `uvx` command only after `clipacanvas-mcp` is published to a package index and `uvx` is installed:
-
-```bash
-gemini mcp add clipacanvas -- uvx --from clipacanvas-mcp clipacanvas-mcp
-```
-
-### Qwen Coder (Alibaba)
-
-Add to Qwen Coder's MCP configuration:
-
+Add to your `claude_desktop_config.json`:
 ```json
 {
   "mcpServers": {
     "clipacanvas": {
       "command": "uvx",
-      "args": ["--from", "clipacanvas-mcp", "clipacanvas-mcp"]
+      "args": ["clipacanvas-mcp"]
     }
   }
 }
 ```
 
-### Any STDIO MCP Client
+### ChatGPT (via Bridge)
+To use this local tool with ChatGPT, you can use an MCP-to-HTTPS bridge (like `mcp-proxy`) or host it on a public URL. ChatGPT currently requires an HTTPS endpoint for official "App" integrations.
 
-```bash
-# Direct run
-uvx --from clipacanvas-mcp clipacanvas-mcp
+### Other Clients (Codex, Qwen Coder, etc.)
+Since this is a standard STDIO-based server, it works with any client that supports MCP. Use `uvx clipacanvas-mcp` or `python -m clipacanvas_mcp.server` as the launch command.
 
-# Or after pip install
-clipacanvas-mcp
-```
+## Privacy Policy
 
-## Testing the Server Manually
-
-```bash
-# Start the server
-python -m clipacanvas_mcp.server
-
-# Send initialize
-echo '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"test","version":"1.0"}}}' | clipacanvas-mcp
-
-# List tools
-echo '{"jsonrpc":"2.0","id":2,"method":"tools/list","params":{}}' | clipacanvas-mcp
-```
+**Clip.A.Canvas** is a local-first application.
+- **Data Collection**: No user data, code snippets, or rendered videos are ever uploaded to any server.
+- **Processing**: All HTML/CSS/JS rendering happens inside a local Chromium instance on your machine.
+- **Storage**: Rendered MP4 files are saved only to the directory you specify.
+- **Third-party Services**: None.
 
 ## Requirements
 
 - Python 3.10+
 - FFmpeg (installed system-wide, via `imageio-ffmpeg`, or set `CLIPACANVAS_FFMPEG_EXE`)
-- Playwright Chromium: installed automatically on first render if missing; run `python -m playwright install chromium` manually only if you want to preinstall it
+- Playwright Chromium: installed automatically on first render if missing.
 
 ## License
 
