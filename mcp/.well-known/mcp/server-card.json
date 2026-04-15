@@ -1,0 +1,56 @@
+{
+  "mcpVersion": "1.0.0",
+  "name": "clipacanvas",
+  "version": "1.0.2",
+  "description": "Render HTML/CSS/JS animations to MP4 video locally via MCP tools.",
+  "author": "mechreaper007x",
+  "repository": "https://github.com/mechreaper007x/ClipACanvas",
+  "license": "MIT",
+  "instructions": "Install via uvx: uvx clipacanvas-mcp. Requires Python 3.10+, FFmpeg, and Playwright Chromium.",
+  "configSchema": {
+    "type": "object",
+    "properties": {
+      "CLIPACANVAS_FFMPEG_EXE": {
+        "type": "string",
+        "description": "Optional: Path to a specific FFmpeg executable."
+      },
+      "CLIPACANVAS_MAX_DURATION": {
+        "type": "string",
+        "description": "Optional: Maximum render duration in seconds (default: 12).",
+        "default": "12"
+      }
+    }
+  },
+  "tools": [
+    {
+      "name": "render_video",
+      "description": "Render HTML/CSS/JS to MP4, returned as base64.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "code": { "type": "string", "description": "HTML/CSS/JS code to render" },
+          "width": { "type": "number", "default": 540 },
+          "height": { "type": "number", "default": 960 },
+          "bitrate": { "type": "string", "default": "5M" },
+          "frame_rate": { "type": "number", "default": 60 },
+          "max_duration": { "type": "number", "default": 12 }
+        },
+        "required": ["code"]
+      }
+    },
+    {
+      "name": "render_video_to_file",
+      "description": "Render HTML/CSS/JS to MP4 and save directly to a local file path.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "code": { "type": "string", "description": "HTML/CSS/JS code to render" },
+          "output_path": { "type": "string", "description": "Absolute path for the MP4 output" },
+          "width": { "type": "number", "default": 540 },
+          "height": { "type": "number", "default": 960 }
+        },
+        "required": ["code", "output_path"]
+      }
+    }
+  ]
+}
