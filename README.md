@@ -4,6 +4,10 @@
   <img src="logo_neon_preview-removebg-preview.png" alt="Clip.A.Canvas logo" width="720">
 </p>
 
+<!-- description:start -->
+**Clip.A.Canvas** transforms HTML/CSS/JS animations into MP4 videos — entirely local, no uploads, no cloud. Powered by Chromium + FFmpeg for high-quality, browser-accurate rendering. Perfect for AI agents generating video content, demos, or visual explanations on-the-fly.
+<!-- description:end -->
+
 **Clip.A.Canvas** is a local browser-motion-to-video toolkit.
 
 It includes:
