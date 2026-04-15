@@ -1,56 +1,83 @@
 {
-  "mcpVersion": "1.0.0",
-  "name": "clipacanvas",
+  "name": "ClipACanvas",
+  "description": "ClipACanvas transforms HTML/CSS/JS animations into MP4 videos — entirely local, no uploads, no cloud. Powered by Chromium + FFmpeg for high-quality, browser-accurate rendering. Perfect for AI agents generating video content, demos, or visual explanations on-the-fly.",
   "version": "1.0.2",
-  "description": "Render HTML/CSS/JS animations to MP4 video locally via MCP tools.",
   "author": "mechreaper007x",
   "repository": "https://github.com/mechreaper007x/ClipACanvas",
   "license": "MIT",
-  "instructions": "Install via uvx: uvx clipacanvas-mcp. Requires Python 3.10+, FFmpeg, and Playwright Chromium.",
-  "configSchema": {
-    "type": "object",
-    "properties": {
-      "CLIPACANVAS_FFMPEG_EXE": {
-        "type": "string",
-        "description": "Optional: Path to a specific FFmpeg executable."
-      },
-      "CLIPACANVAS_MAX_DURATION": {
-        "type": "string",
-        "description": "Optional: Maximum render duration in seconds (default: 12).",
-        "default": "12"
-      }
-    }
-  },
   "tools": [
     {
       "name": "render_video",
-      "description": "Render HTML/CSS/JS to MP4, returned as base64.",
-      "parameters": {
+      "description": "Render HTML/CSS/JS code to MP4 video, returned as base64-encoded string. Uses Chromium for browser capture and FFmpeg for encoding.",
+      "inputSchema": {
         "type": "object",
         "properties": {
-          "code": { "type": "string", "description": "HTML/CSS/JS code to render" },
-          "width": { "type": "number", "default": 540 },
-          "height": { "type": "number", "default": 960 },
-          "bitrate": { "type": "string", "default": "5M" },
-          "frame_rate": { "type": "number", "default": 60 },
-          "max_duration": { "type": "number", "default": 12 }
+          "code": {
+            "type": "string",
+            "description": "Complete HTML document with CSS and JS to render"
+          },
+          "width": {
+            "type": "number",
+            "description": "Video width in pixels",
+            "default": 540
+          },
+          "height": {
+            "type": "number",
+            "description": "Video height in pixels",
+            "default": 960
+          },
+          "bitrate": {
+            "type": "string",
+            "description": "FFmpeg bitrate (e.g., '5M')",
+            "default": "5M"
+          },
+          "frame_rate": {
+            "type": "number",
+            "description": "Frame rate for capture and encoding",
+            "default": 60
+          },
+          "max_duration": {
+            "type": "number",
+            "description": "Maximum render duration in seconds",
+            "default": 12
+          }
         },
         "required": ["code"]
       }
     },
     {
       "name": "render_video_to_file",
-      "description": "Render HTML/CSS/JS to MP4 and save directly to a local file path.",
-      "parameters": {
+      "description": "Same as render_video but saves the MP4 directly to a local file path instead of returning base64.",
+      "inputSchema": {
         "type": "object",
         "properties": {
-          "code": { "type": "string", "description": "HTML/CSS/JS code to render" },
-          "output_path": { "type": "string", "description": "Absolute path for the MP4 output" },
-          "width": { "type": "number", "default": 540 },
-          "height": { "type": "number", "default": 960 }
+          "code": {
+            "type": "string",
+            "description": "Complete HTML document with CSS and JS to render"
+          },
+          "output_path": {
+            "type": "string",
+            "description": "Absolute file path where the MP4 will be saved"
+          },
+          "width": {
+            "type": "number",
+            "description": "Video width in pixels",
+            "default": 540
+          },
+          "height": {
+            "type": "number",
+            "description": "Video height in pixels",
+            "default": 960
+          }
         },
         "required": ["code", "output_path"]
       }
     }
-  ]
+  ],
+  "categories": ["video", "animation", "creativity"],
+  "keywords": ["video generation", "html to video", "animation", "mp4", "local processing", "privacy-first"],
+  "installation": {
+    "uvx": "uvx clipacanvas-mcp",
+    "pip": "pip install clipacanvas-mcp"
+  }
 }
