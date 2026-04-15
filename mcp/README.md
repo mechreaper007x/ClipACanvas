@@ -11,27 +11,27 @@ A universal MCP (Model Context Protocol) server that exposes Clip.A.Canvas HTML-
 
 ## Installation
 
-### Public one-command MCP install
+### One-command MCP install
 
-After this `mcp/` package is pushed to GitHub, users can add it directly from the repo without cloning `Clip.A.Canvas`:
+After publishing to PyPI:
 
 ```bash
-gemini mcp add clipacanvas -- uvx --from "clipacanvas-mcp @ git+https://github.com/mechreaper007x/ClipACanvas.git#subdirectory=mcp" clipacanvas-mcp
-codex mcp add clipacanvas -- uvx --from "clipacanvas-mcp @ git+https://github.com/mechreaper007x/ClipACanvas.git#subdirectory=mcp" clipacanvas-mcp
+# Gemini CLI
+gemini mcp add clipacanvas -- uvx clipacanvas-mcp
+
+# Codex CLI
+codex mcp add clipacanvas -- uvx clipacanvas-mcp
+
+# Claude Code on Windows
+claude mcp add -s user clipacanvas -- cmd /c uvx clipacanvas-mcp
 ```
 
-Claude Code on Windows may need the same `cmd /c` wrapper used during local testing:
+### From PyPI
 
 ```bash
-claude mcp add -s user clipacanvas -- cmd /c uvx --from "clipacanvas-mcp @ git+https://github.com/mechreaper007x/ClipACanvas.git#subdirectory=mcp" clipacanvas-mcp
-```
-
-After publishing to PyPI, the shorter form works:
-
-```bash
-gemini mcp add clipacanvas -- uvx --from clipacanvas-mcp clipacanvas-mcp
-codex mcp add clipacanvas -- uvx --from clipacanvas-mcp clipacanvas-mcp
-claude mcp add -s user clipacanvas -- cmd /c uvx --from clipacanvas-mcp clipacanvas-mcp
+pip install clipacanvas-mcp
+# or
+uv tool install clipacanvas-mcp  # gives 'clipmcp' command
 ```
 
 ### From source (editable)
@@ -39,14 +39,6 @@ claude mcp add -s user clipacanvas -- cmd /c uvx --from clipacanvas-mcp clipacan
 ```bash
 cd code2video/mcp
 pip install -e .
-```
-
-### As a distributable package
-
-```bash
-pip install clipacanvas-mcp
-# or
-uvx --from clipacanvas-mcp clipacanvas-mcp
 ```
 
 `uvx` handles the Python package environment. On first render, the MCP package will also install Playwright Chromium automatically if it is missing.

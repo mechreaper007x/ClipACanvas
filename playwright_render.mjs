@@ -15,6 +15,7 @@ try {
 }
 
 const [, , inputPath, outputPath] = process.argv;
+const HARD_MAX_DURATION_SECONDS = 60;
 
 if (!inputPath || !outputPath) {
   console.error('Usage: node playwright_render.mjs <input.json> <output.mp4>');
@@ -317,6 +318,14 @@ async function main() {
     minDuration = 0.35,
     settleWindow = 0.45
   } = payload;
+  const safeMaxDuration = Math.min(
+    HARD_MAX_DURATION_SECONDS,
+    Math.max(0.35, Number(maxDuration) || 12)
+  );
+  const safeMinDuration = Math.min(
+    safeMaxDuration,
+    Math.max(0, Number(minDuration) || 0.35)
+  );
 
   const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'clipacanvas-playwright-'));
   let browser;
@@ -347,8 +356,8 @@ async function main() {
 
     const capture = await captureFrames(page, {
       frameRate,
-      maxDuration,
-      minDuration,
+      maxDuration: safeMaxDuration,
+      minDuration: safeMinDuration,
       settleWindow,
       tempDir
     });

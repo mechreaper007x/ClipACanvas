@@ -531,7 +531,23 @@ requestAnimationFrame(draw);
         <option value="6">6 seconds</option>
         <option value="8">8 seconds</option>
         <option value="12">12 seconds</option>
+        <option value="custom">Custom</option>
       </select>
+      <input
+        id="customClipLength"
+        type="number"
+        min="0.5"
+        max="60"
+        step="0.25"
+        value="15"
+        placeholder="Custom seconds"
+        onfocus="activateCustomClipLength()"
+        oninput="activateCustomClipLength(); updateTimingSummary()"
+        style="margin-top:8px"
+      />
+      <div class="setting-row" style="margin-top:6px">
+        <small style="color:var(--muted)">Manual custom duration supports 0.5 to 60 seconds. Auto mode stays capped for safety.</small>
+      </div>
 
       <div class="setting-row" style="margin-top:10px">
         <label>Resolution</label>
@@ -605,6 +621,7 @@ const BASE_CAPTURE_SETTINGS = Object.freeze({
   minDuration: 0.35,
   settleWindow: 0.45
 });
+const HARD_MAX_DURATION_SECONDS = 60;
 const CANVAS_CAPTURE_SETTINGS = Object.freeze({
   contentMode: 'canvas',
   frameRate: 60,
@@ -689,15 +706,52 @@ function setTimingSummary(message) {
 function getClipLengthOverrideSeconds() {
   const raw = document.getElementById('clipLength')?.value || 'auto';
   if (raw === 'auto') return null;
+  if (raw === 'custom') {
+    const customRaw = document.getElementById('customClipLength')?.value || '';
+    const customSeconds = Number(customRaw);
+    return Number.isFinite(customSeconds) && customSeconds > 0
+      ? Math.min(HARD_MAX_DURATION_SECONDS, Math.max(0.5, customSeconds))
+      : null;
+  }
   const seconds = Number(raw);
-  return Number.isFinite(seconds) && seconds > 0 ? seconds : null;
+  return Number.isFinite(seconds) && seconds > 0
+    ? Math.min(HARD_MAX_DURATION_SECONDS, Math.max(0.5, seconds))
+    : null;
+}
+
+function getClipLengthValidationError() {
+  const raw = document.getElementById('clipLength')?.value || 'auto';
+  if (raw !== 'custom') return '';
+  const customRaw = document.getElementById('customClipLength')?.value || '';
+  const customSeconds = Number(customRaw);
+  if (!Number.isFinite(customSeconds) || customSeconds <= 0) {
+    return 'Enter a custom clip length before rendering.';
+  }
+  if (customSeconds < 0.5 || customSeconds > HARD_MAX_DURATION_SECONDS) {
+    return `Custom clip length must be between ${formatTimelineTime(0.5)} and ${formatTimelineTime(HARD_MAX_DURATION_SECONDS)}.`;
+  }
+  return '';
+}
+
+function activateCustomClipLength() {
+  const select = document.getElementById('clipLength');
+  if (select) select.value = 'custom';
+}
+
+function syncCustomClipLengthInput() {
+  const select = document.getElementById('clipLength');
+  const input = document.getElementById('customClipLength');
+  if (!select || !input) return;
+  const enabled = select.value === 'custom';
+  input.disabled = !enabled;
+  input.style.opacity = enabled ? '1' : '0.6';
 }
 
 function updateTimingModeBadge(settings) {
   const el = document.getElementById('timingMode');
   if (!el) return;
   if (settings.clipLengthMode === 'manual') {
-    el.textContent = `MANUAL / ${Math.round(settings.maxDuration)}S`;
+    el.textContent = `MANUAL / ${formatTimelineTime(settings.maxDuration).toUpperCase()}`;
     return;
   }
   el.textContent = settings.contentMode === 'canvas' ? 'AUTO / CANVAS' : 'AUTO / DOM-SVG';
@@ -821,6 +875,7 @@ function describeAutoTiming(settings, backendLabel = '') {
 }
 
 function updateTimingSummary(message = '') {
+  syncCustomClipLengthInput();
   if (message) {
     setTimingSummary(message);
     return;
@@ -829,6 +884,11 @@ function updateTimingSummary(message = '') {
   const settings = getCaptureSettings(document.getElementById('codeInput')?.value || '');
   updateTimingModeBadge(settings);
   const backendLabel = API_BASE ? ` via ${new URL(API_BASE, window.location.href).host}` : '';
+  const clipLengthError = getClipLengthValidationError();
+  if (clipLengthError) {
+    setTimingSummary(clipLengthError);
+    return;
+  }
   if (settings.clipLengthMode === 'manual') {
     setTimingSummary(`Manual mode: ${settings.label} renders at ${settings.frameRate} FPS${backendLabel} for ${formatTimelineTime(settings.maxDuration)}.`);
     return;
@@ -1034,6 +1094,12 @@ queuePreviewScale();
 async function startConvert() {
   const code = document.getElementById('codeInput').value.trim();
   if (!code) { setStatus('bhai code paste karo pehle', 'err'); return; }
+  const clipLengthError = getClipLengthValidationError();
+  if (clipLengthError) {
+    setStatus(clipLengthError, 'err');
+    updateTimingSummary();
+    return;
+  }
   const settings = getCaptureSettings(code);
 
   document.getElementById('btnConvert').disabled = true;
@@ -1088,7 +1154,10 @@ function getCaptureSettings(code) {
   const clipLengthOverride = getClipLengthOverrideSeconds();
 
   if (clipLengthOverride !== null) {
-    const overrideSeconds = Math.max(settings.minDuration, clipLengthOverride);
+    const overrideSeconds = Math.min(
+      HARD_MAX_DURATION_SECONDS,
+      Math.max(settings.minDuration, clipLengthOverride)
+    );
     settings.maxDuration = overrideSeconds;
     settings.minDuration = overrideSeconds;
     settings.clipLengthMode = 'manual';
@@ -1097,7 +1166,10 @@ function getCaptureSettings(code) {
   }
 
   if (Number.isFinite(settings.classifier.durationSeconds) && settings.classifier.durationSeconds > 0) {
-    const classifiedSeconds = Math.max(settings.minDuration, settings.classifier.durationSeconds);
+    const classifiedSeconds = Math.min(
+      HARD_MAX_DURATION_SECONDS,
+      Math.max(settings.minDuration, settings.classifier.durationSeconds)
+    );
     settings.minDuration = classifiedSeconds;
     settings.maxDuration = classifiedSeconds;
     settings.requestTimeoutMs = Math.max(settings.requestTimeoutMs, Math.round(settings.maxDuration * 25000));

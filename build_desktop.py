@@ -1,110 +1,119 @@
-import os
-import sys
+#!/usr/bin/env python3
+
+import platform
 import shutil
 import subprocess
-import platform
+import sys
+import zipfile
 from pathlib import Path
 
-# --- CONFIGURATION ---
-APP_NAME = "CODE2VIDEO"
+APP_NAME = "ClipACanvas"
 ENTRY_POINT = "desktop_app.py"
 DIST_DIR = Path("dist")
 BUILD_DIR = Path("build")
-BIN_DIR = Path("bin")
-ICON_FILE = Path("assets") / "code2video.ico"
+ICON_FILE = Path("assets") / "custom_app_icon.ico"
+PORTABLE_EXE = DIST_DIR / f"{APP_NAME}.exe"
+PORTABLE_ZIP = DIST_DIR / f"{APP_NAME}-windows.zip"
+LEGACY_APP_DIR = DIST_DIR / APP_NAME
 
-IS_WINDOWS = platform.system() == "Windows"
-FFMPEG_NAME = "ffmpeg.exe" if IS_WINDOWS else "ffmpeg"
+def clean():
+    if BUILD_DIR.exists():
+        shutil.rmtree(BUILD_DIR)
 
-def run_command(cmd, msg):
-    print(f"[*] {msg}...")
-    try:
-        # Use shell=True on Windows for better command resolution if needed, 
-        # but here we stay with list format for safety.
-        subprocess.run(cmd, check=True, capture_output=True, text=True)
-    except subprocess.CalledProcessError as e:
-        print(f"[!] Error during {msg}:")
-        print(e.stderr)
-        sys.exit(1)
+    DIST_DIR.mkdir(exist_ok=True)
+    for artifact in [PORTABLE_EXE, PORTABLE_ZIP]:
+        if artifact.exists():
+            artifact.unlink()
 
-def main():
-    if not IS_WINDOWS:
-        print("build_desktop.py is for Windows packaging.")
-        print("Use build_mac_app.py on macOS instead.")
-        sys.exit(1)
+    if LEGACY_APP_DIR.exists():
+        try:
+            shutil.rmtree(LEGACY_APP_DIR)
+        except PermissionError:
+            print(f"WARNING: Could not remove locked legacy folder: {LEGACY_APP_DIR}")
 
-    # 1. Clean up old builds
-    if DIST_DIR.exists(): shutil.rmtree(DIST_DIR)
-    if BUILD_DIR.exists(): shutil.rmtree(BUILD_DIR)
-    if BIN_DIR.exists(): shutil.rmtree(BIN_DIR)
-    BIN_DIR.mkdir()
+def create_portable_zip(exe_path: Path) -> None:
+    print(f"Creating ZIP archive at {PORTABLE_ZIP}...")
+    with zipfile.ZipFile(PORTABLE_ZIP, "w", compression=zipfile.ZIP_DEFLATED, compresslevel=9) as archive:
+        archive.write(exe_path, arcname=exe_path.name)
 
-    print(f"=== Building {APP_NAME} Distributable ({platform.system()}) ===")
+def build_windows():
+    print(f"Building {APP_NAME} for Windows...")
 
-    # 2. Get FFmpeg Binary
-    print("[*] Locating FFmpeg...")
-    import imageio_ffmpeg
-    ffmpeg_exe = imageio_ffmpeg.get_ffmpeg_exe()
-    shutil.copy(ffmpeg_exe, BIN_DIR / FFMPEG_NAME)
-    # Ensure it's executable on Mac/Linux
-    if not IS_WINDOWS:
-        os.chmod(BIN_DIR / FFMPEG_NAME, 0o755)
-    print(f"    -> Copied FFmpeg to {BIN_DIR}")
+    sep = ";"
+    add_data = [
+        ("clipacanvas.html", "."),
+        ("logo_neon_preview-removebg-preview.png", "."),
+        ("logo_neon_overlay.png", "."),
+        ("serve.py", "."),
+        ("playwright_render.py", "."),
+        ("playwright_render.mjs", "."),
+    ]
 
-    # 3. Get Playwright Chromium Binary
-    print("[*] Installing/Locating Chromium...")
-    # Set a local path for browsers so we know where they are
-    local_browsers = BIN_DIR / "browsers"
-    local_browsers.mkdir(parents=True, exist_ok=True)
-    os.environ["PLAYWRIGHT_BROWSERS_PATH"] = str(local_browsers)
-    
-    # Run playwright install to ensure we have the binary locally for this platform
-    run_command([sys.executable, "-m", "playwright", "install", "chromium"], f"Downloading Chromium for {platform.system()}")
-    
-    # 4. Prepare PyInstaller Command
-    # Data separator is ';' on Windows, ':' on Mac/Linux
-    sep = ";" if IS_WINDOWS else ":"
-    
-    pyinstaller_cmd = [
+    local_bin = Path("bin")
+    if local_bin.exists():
+        # Bundle the preloaded Chromium/FFmpeg payload into the onefile build.
+        add_data.append((str(local_bin), "bin"))
+    else:
+        print("WARNING: bin/ folder not found. Portable build will fall back to local FFmpeg/Playwright.")
+
+    cmd = [
         sys.executable,
         "-m",
         "PyInstaller",
         "--noconfirm",
-        "--onedir", # Using onedir for better stability with large browser binaries
+        "--clean",
+        "--onefile",
         "--windowed",
         "--name", APP_NAME,
-        "--add-data", f"code2video.html{sep}.",
-        "--add-data", f"bin{sep}bin",
+        "--icon", str(ICON_FILE),
         "--collect-all", "playwright",
         "--collect-all", "webview",
         "--hidden-import", "playwright_render",
         "--hidden-import", "serve",
-        ENTRY_POINT
     ]
 
-    if ICON_FILE.exists():
-        pyinstaller_cmd.extend(["--icon", str(ICON_FILE)])
+    for source, destination in add_data:
+        cmd.extend(["--add-data", f"{source}{sep}{destination}"])
 
-    # macOS specific: Add icon and bundle identifier if needed
-    if not IS_WINDOWS:
-        pyinstaller_cmd.extend([
-            "--osx-bundle-identifier", "com.code2video.app",
-        ])
+    cmd.append(ENTRY_POINT)
+    subprocess.run(cmd, check=True)
 
-    print("[*] Running PyInstaller...")
-    subprocess.run(pyinstaller_cmd, check=True)
+    if not PORTABLE_EXE.exists():
+        raise FileNotFoundError(f"Expected portable executable was not created: {PORTABLE_EXE}")
 
-    archive_base = DIST_DIR / f"{APP_NAME}-windows"
-    shutil.make_archive(str(archive_base), "zip", root_dir=DIST_DIR, base_dir=APP_NAME)
+    create_portable_zip(PORTABLE_EXE)
 
-    print("\n" + "="*40)
-    print(f"SUCCESS! {APP_NAME} is ready.")
-    if IS_WINDOWS:
-        print(f"Location: {DIST_DIR / APP_NAME / (APP_NAME + '.exe')}")
-        print(f"Zip: {archive_base}.zip")
+def build_mac():
+    print(f"Building {APP_NAME} for macOS...")
+    # Note: For proper macOS bundles, use build_mac_app.py instead
+    sep = ":"
+    cmd = [
+        sys.executable,
+        "-m",
+        "PyInstaller",
+        "--noconfirm",
+        "--onedir",
+        "--windowed",
+        "--name", APP_NAME,
+        "--add-data", f"clipacanvas.html{sep}.",
+        "--add-data", f"logo_neon_preview-removebg-preview.png{sep}.",
+        "--add-data", f"logo_neon_overlay.png{sep}.",
+        "--add-data", f"serve.py{sep}.",
+        "--add-data", f"playwright_render.py{sep}.",
+        "--add-data", f"playwright_render.mjs{sep}.",
+        "--osx-bundle-identifier", "com.clipacanvas.app",
+        ENTRY_POINT
+    ]
+    subprocess.run(cmd, check=True)
+
+def main():
+    clean()
+    if platform.system() == "Windows":
+        build_windows()
+    elif platform.system() == "Darwin":
+        build_mac()
     else:
-        print(f"Location: {DIST_DIR / (APP_NAME + '.app')}")
-    print("="*40)
+        print(f"Unsupported OS: {platform.system()}")
 
 if __name__ == "__main__":
     main()

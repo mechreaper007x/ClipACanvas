@@ -23,8 +23,8 @@ python3 -m playwright install chromium
 echo "[*] Building macOS app..."
 python3 build_mac_app.py
 
-APP_PATH="dist/CODE2VIDEO.app"
-ZIP_PATH="dist/CODE2VIDEO-macos.zip"
+APP_PATH="dist/ClipACanvas.app"
+ZIP_PATH="dist/ClipACanvas-macos.zip"
 
 if [[ -d "$APP_PATH" ]]; then
   xattr -dr com.apple.quarantine "$APP_PATH" 2>/dev/null || true

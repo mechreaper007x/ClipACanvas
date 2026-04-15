@@ -1,192 +1,104 @@
+#!/usr/bin/env python3
+
 import os
-import shutil
 import subprocess
-import sys
+import shutil
+import platform
 import tempfile
 from pathlib import Path
 
-
-APP_NAME = "CODE2VIDEO"
+APP_NAME = "ClipACanvas"
 ENTRY_POINT = "desktop_app.py"
 DIST_DIR = Path("dist")
 BUILD_DIR = Path("build")
-BIN_DIR = Path("bin")
-PNG_ICON = Path("assets") / "code2video.png"
-ICNS_ICON = Path("assets") / "code2video.icns"
+PNG_ICON = Path("assets") / "clipacanvas.png"
+ICNS_ICON = Path("assets") / "clipacanvas.icns"
 
+def clean():
+    """Remove build and dist folders."""
+    for d in [DIST_DIR, BUILD_DIR]:
+        if d.exists():
+            shutil.rmtree(d)
 
-def run_command(cmd: list[str], msg: str) -> None:
-    print(f"[*] {msg}...")
-    try:
-        subprocess.run(cmd, check=True, capture_output=True, text=True)
-    except subprocess.CalledProcessError as exc:
-        print(f"[!] Error during {msg}:")
-        print(exc.stderr)
-        raise SystemExit(1) from exc
-
-
-def ensure_macos() -> None:
-    if sys.platform != "darwin":
-        print("build_mac_app.py must be run on macOS.")
-        raise SystemExit(1)
-
-
-def ensure_dir_clean(path: Path) -> None:
-    if path.exists():
-        shutil.rmtree(path)
-
-
-def build_icns() -> Path | None:
+def create_icns():
+    """Convert PNG to ICNS using iconutil (macOS only)."""
     if not PNG_ICON.exists():
+        print(f"WARNING: {PNG_ICON} not found. App will have default icon.")
         return None
 
-    iconutil = shutil.which("iconutil")
-    sips = shutil.which("sips")
-    if not iconutil or not sips:
-        return None
+    if ICNS_ICON.exists():
+        return ICNS_ICON
 
+    print("Generating .icns from .png...")
     with tempfile.TemporaryDirectory() as temp_dir:
-        iconset_dir = Path(temp_dir) / "code2video.iconset"
-        iconset_dir.mkdir(parents=True, exist_ok=True)
-        sizes = [16, 32, 128, 256, 512]
+        iconset_dir = Path(temp_dir) / "clipacanvas.iconset"
+        iconset_dir.mkdir()
+        
+        sizes = [16, 32, 64, 128, 256, 512]
         for size in sizes:
-            run_command(
-                [
-                    sips,
-                    "-z",
-                    str(size),
-                    str(size),
-                    str(PNG_ICON),
-                    "--out",
-                    str(iconset_dir / f"icon_{size}x{size}.png"),
-                ],
-                f"Rendering icon {size}x{size}",
-            )
-            retina_size = size * 2
-            run_command(
-                [
-                    sips,
-                    "-z",
-                    str(retina_size),
-                    str(retina_size),
-                    str(PNG_ICON),
-                    "--out",
-                    str(iconset_dir / f"icon_{size}x{size}@2x.png"),
-                ],
-                f"Rendering icon {size}x{size}@2x",
-            )
+            # Normal
+            subprocess.run([
+                "sips", "-z", str(size), str(size),
+                str(PNG_ICON), "--out", str(iconset_dir / f"icon_{size}x{size}.png")
+            ], check=True, capture_output=True)
+            # Retina
+            subprocess.run([
+                "sips", "-z", str(size*2), str(size*2),
+                str(PNG_ICON), "--out", str(iconset_dir / f"icon_{size}x{size}@2x.png")
+            ], check=True, capture_output=True)
 
-        run_command(
-            [iconutil, "-c", "icns", str(iconset_dir), "-o", str(ICNS_ICON)],
-            "Building macOS icon",
-        )
+        subprocess.run(["iconutil", "-c", "icns", str(iconset_dir), "-o", str(ICNS_ICON)], check=True)
     return ICNS_ICON
 
+def build_mac_bundle():
+    """Create a proper macOS .app bundle using PyInstaller."""
+    print(f"Building {APP_NAME}.app...")
+    
+    icon_path = create_icns()
+    
+    cmd = [
+        "pyinstaller",
+        "--noconfirm",
+        "--onedir",
+        "--windowed",
+        "--name", APP_NAME,
+        "--add-data", "clipacanvas.html:.",
+        "--add-data", "logo_neon_preview-removebg-preview.png:.",
+        "--add-data", "serve.py:.",
+        "--add-data", "playwright_render.py:.",
+        "--add-data", "playwright_render.mjs:.",
+        "--hidden-import", "playwright_render",
+        "--hidden-import", "serve",
+        "--osx-bundle-identifier", "com.clipacanvas.app",
+    ]
 
-def copy_runtime_assets(app_bundle: Path) -> None:
-    resources_dir = app_bundle / "Contents" / "Resources"
-    bundled_bin_dir = resources_dir / "bin"
-    if bundled_bin_dir.exists():
-        shutil.rmtree(bundled_bin_dir)
-    shutil.copytree(BIN_DIR, bundled_bin_dir)
+    if icon_path:
+        cmd.extend(["--icon", str(icon_path)])
 
-    frameworks_dir = app_bundle / "Contents" / "Frameworks"
-    frameworks_bin_dir = frameworks_dir / "bin"
-    if frameworks_dir.exists() and not frameworks_bin_dir.exists():
-        os.symlink("../Resources/bin", frameworks_bin_dir)
+    cmd.append(ENTRY_POINT)
+    
+    subprocess.run(cmd, check=True)
 
-    ffmpeg_path = bundled_bin_dir / "ffmpeg"
-    if ffmpeg_path.exists():
-        os.chmod(ffmpeg_path, 0o755)
+    # Bundle binaries
+    app_path = DIST_DIR / f"{APP_NAME}.app"
+    resources_dir = app_path / "Contents" / "Resources" / "bin"
+    resources_dir.mkdir(parents=True, exist_ok=True)
 
+    local_bin = Path("bin")
+    if local_bin.exists():
+        print("Copying bundled binaries to App Resources...")
+        shutil.copytree(local_bin, resources_dir, dirs_exist_ok=True)
 
-def re_sign_app_bundle(app_bundle: Path) -> None:
-    codesign = shutil.which("codesign")
-    if not codesign:
+    print("Creating ZIP archive...")
+    shutil.make_archive(str(DIST_DIR / f"{APP_NAME}-macos"), 'zip', DIST_DIR, f"{APP_NAME}.app")
+
+def main():
+    if platform.system() != "Darwin":
+        print("Error: build_mac_app.py must be run on macOS.")
         return
 
-    run_command(
-        [codesign, "--force", "--deep", "--sign", "-", str(app_bundle)],
-        "Re-signing macOS app bundle",
-    )
-
-
-def main() -> int:
-    ensure_macos()
-
-    ensure_dir_clean(DIST_DIR)
-    ensure_dir_clean(BUILD_DIR)
-    ensure_dir_clean(BIN_DIR)
-    BIN_DIR.mkdir()
-
-    print(f"=== Building {APP_NAME} macOS App ===")
-
-    print("[*] Locating FFmpeg...")
-    import imageio_ffmpeg
-
-    ffmpeg_exe = imageio_ffmpeg.get_ffmpeg_exe()
-    bundled_ffmpeg = BIN_DIR / "ffmpeg"
-    shutil.copy(ffmpeg_exe, bundled_ffmpeg)
-    os.chmod(bundled_ffmpeg, 0o755)
-    print(f"    -> Copied FFmpeg to {BIN_DIR}")
-
-    print("[*] Installing/Locating Chromium...")
-    local_browsers = BIN_DIR / "browsers"
-    local_browsers.mkdir(parents=True, exist_ok=True)
-    os.environ["PLAYWRIGHT_BROWSERS_PATH"] = str(local_browsers)
-    run_command(
-        [sys.executable, "-m", "playwright", "install", "chromium"],
-        "Downloading Chromium for macOS",
-    )
-
-    icon_file = build_icns()
-    pyinstaller_cmd = [
-        sys.executable,
-        "-m",
-        "PyInstaller",
-        "--noconfirm",
-        "--windowed",
-        "--name",
-        APP_NAME,
-        "--add-data",
-        "code2video.html:.",
-        "--collect-all",
-        "playwright",
-        "--collect-all",
-        "webview",
-        "--hidden-import",
-        "playwright_render",
-        "--hidden-import",
-        "serve",
-        "--osx-bundle-identifier",
-        "com.code2video.app",
-        ENTRY_POINT,
-    ]
-    if icon_file and icon_file.exists():
-        pyinstaller_cmd.extend(["--icon", str(icon_file)])
-
-    print("[*] Running PyInstaller...")
-    subprocess.run(pyinstaller_cmd, check=True)
-
-    app_bundle = DIST_DIR / f"{APP_NAME}.app"
-    if not app_bundle.exists():
-        print(f"[!] Expected app bundle was not created: {app_bundle}")
-        raise SystemExit(1)
-
-    print("[*] Copying runtime assets into app bundle...")
-    copy_runtime_assets(app_bundle)
-    re_sign_app_bundle(app_bundle)
-
-    archive_base = DIST_DIR / f"{APP_NAME}-macos"
-    shutil.make_archive(str(archive_base), "zip", root_dir=DIST_DIR, base_dir=f"{APP_NAME}.app")
-
-    print("\n" + "=" * 40)
-    print(f"SUCCESS! {APP_NAME} macOS app is ready.")
-    print(f"Location: {DIST_DIR / (APP_NAME + '.app')}")
-    print(f"Zip: {archive_base}.zip")
-    print("=" * 40)
-    return 0
-
+    clean()
+    build_mac_bundle()
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    main()

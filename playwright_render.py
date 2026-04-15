@@ -13,6 +13,8 @@ from pathlib import Path
 
 from playwright.sync_api import sync_playwright
 
+HARD_MAX_DURATION_SECONDS = 60.0
+
 
 CONTROL_SCRIPT = r"""
 (() => {
@@ -213,8 +215,11 @@ def render_payload(payload: dict, output_path: str | Path, ffmpeg_exe: str | Non
     bitrate = payload.get("bitrate", "5M")
     content_mode = payload.get("contentMode", "auto")
     frame_rate = int(payload.get("frameRate", 60))
-    max_duration = float(payload.get("maxDuration", 12))
-    min_duration = float(payload.get("minDuration", 0.35))
+    max_duration = min(
+        HARD_MAX_DURATION_SECONDS,
+        max(0.35, float(payload.get("maxDuration", 12))),
+    )
+    min_duration = min(max_duration, max(0.0, float(payload.get("minDuration", 0.35))))
     settle_window = float(payload.get("settleWindow", 0.45))
 
     # Memory Optimization: Start FFmpeg with a pipe

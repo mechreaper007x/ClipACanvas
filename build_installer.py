@@ -1,16 +1,16 @@
+#!/usr/bin/env python3
+
 import os
 import shutil
 import subprocess
 import sys
 from pathlib import Path
 
-
-APP_NAME = "CODE2VIDEO"
-INSTALLER_NAME = "CODE2VIDEO-Setup.exe"
+APP_NAME = "ClipACanvas"
+INSTALLER_NAME = "ClipACanvas-Setup.exe"
 DIST_DIR = Path("dist")
-APP_DIR = DIST_DIR / APP_NAME
-ISS_FILE = Path("installer") / "CODE2VIDEO.iss"
-
+PORTABLE_EXE = DIST_DIR / f"{APP_NAME}.exe"
+ISS_FILE = Path("installer") / "ClipACanvas.iss"
 
 def find_iscc() -> str | None:
     candidates = [
@@ -25,35 +25,36 @@ def find_iscc() -> str | None:
             return candidate
     return None
 
-
-def ensure_bundle() -> None:
-    if APP_DIR.exists():
+def ensure_portable_exe() -> None:
+    if PORTABLE_EXE.exists():
         return
+    print(f"{PORTABLE_EXE} not found. Building desktop executable first...")
     subprocess.run([sys.executable, "build_desktop.py"], check=True)
 
-
-def main() -> int:
-    if os.name != "nt":
-        print("The installer build is supported on Windows only.")
-        return 1
-
-    ensure_bundle()
+def build_installer():
+    """Run Inno Setup to create the Windows installer."""
+    print(f"Building {APP_NAME} Installer...")
 
     if not ISS_FILE.exists():
-        print(f"Missing installer script: {ISS_FILE}")
-        return 1
+        print(f"ERROR: Inno Setup script not found at {ISS_FILE}")
+        return
 
+    ensure_portable_exe()
     iscc = find_iscc()
     if not iscc:
-        print("Inno Setup compiler was not found.")
-        print("Install it first, then rerun: python build_installer.py")
-        return 1
+        print("ERROR: Inno Setup compiler not found.")
+        print("Please install Inno Setup 6 or update the path in build_installer.py")
+        return
 
-    subprocess.run([iscc, str(ISS_FILE)], check=True)
-    output_path = DIST_DIR / INSTALLER_NAME
-    print(f"Installer ready: {output_path.resolve()}")
-    return 0
-
+    cmd = [str(iscc), str(ISS_FILE)]
+    try:
+        subprocess.run(cmd, check=True)
+        print(f"Installer created: dist/{INSTALLER_NAME}")
+    except subprocess.CalledProcessError as e:
+        print(f"ERROR: Inno Setup failed with exit code {e.returncode}")
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    if os.name != 'nt':
+        print("Installer build is only supported on Windows.")
+    else:
+        build_installer()
