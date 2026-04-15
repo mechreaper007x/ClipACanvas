@@ -7,6 +7,20 @@
   "repository": "https://github.com/mechreaper007x/ClipACanvas",
   "license": "MIT",
   "instructions": "Install via uvx: uvx clipacanvas-mcp. Requires Python 3.10+, FFmpeg, and Playwright Chromium.",
+  "configSchema": {
+    "type": "object",
+    "properties": {
+      "CLIPACANVAS_FFMPEG_EXE": {
+        "type": "string",
+        "description": "Optional: Path to a specific FFmpeg executable."
+      },
+      "CLIPACANVAS_MAX_DURATION": {
+        "type": "string",
+        "description": "Optional: Maximum render duration in seconds (default: 12).",
+        "default": "12"
+      }
+    }
+  },
   "tools": [
     {
       "name": "render_video",
