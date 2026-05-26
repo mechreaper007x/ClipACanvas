@@ -25,7 +25,20 @@
       "WebFetch(domain:google-gemini.github.io)",
       "Bash(gh api:*)",
       "Bash(gh auth:*)",
-      "Bash(gh repo:*)"
+      "Bash(gh repo:*)",
+      "WebFetch(domain:smithery.ai)",
+      "Bash(npx smithery *)",
+      "Bash(npm list *)",
+      "Bash(npm install *)",
+      "Bash(smithery *)",
+      "Bash(export SMITHERY_API_KEY=\"53026712-3d70-48fd-9d9e-1b3234dc3b9d\")",
+      "Bash(pip index *)",
+      "Bash(gh pr create --repo punkpeye/awesome-mcp-servers --base main --head mechreaper007x:add-clipacanvas-mcp --title 'feat: add mechreaper007x/ClipACanvas MCP server' --body ' *)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "Bash(curl -s \"https://smithery.ai/servers/creatorsavya/clipacanvas\")",
+      "Bash(curl -s \"https://raw.githubusercontent.com/mechreaper007x/ClipACanvas/main/.well-known/mcp/server-card.json\")",
+      "Bash(curl -s \"https://smithery.ai/api/servers/creatorsavya/clipacanvas\")",
+      "Bash(curl -s \"https://smithery.ai/servers/creatorsavya/clipacanvas/releases\")"
     ]
   }
 }

@@ -1,6 +1,6 @@
 name: clipacanvas
 version: 1.0.2
-description: Render HTML/CSS/JS animations to MP4 video locally via MCP tools.
+description: "ClipACanvas: Transform HTML/CSS/JS animations into stunning MP4 videos — entirely local, no uploads, no cloud. Powered by Chromium + FFmpeg. Perfect for AI agents that want to generate video content, demo animations, or visual explanations on-the-fly."
 author: mechreaper007x
 repository: https://github.com/mechreaper007x/ClipACanvas
 license: MIT
@@ -8,6 +8,16 @@ type: external
 external:
   pypi: clipacanvas-mcp
   uvx: clipacanvas-mcp
+categories:
+  - video
+  - animation
+  - creativity
+keywords:
+  - video generation
+  - html to video
+  - animation
+  - mp4
+  - local processing
 configSchema:
   type: object
   properties:

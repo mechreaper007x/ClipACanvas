@@ -1998,3 +1998,187 @@
 ### Open Items
 
 - Unrelated local worktree changes outside the README/website/session-log files remain untouched.
+
+## 2026-05-15
+
+### Summary
+
+- No repo changes made.
+- Listed supported Clip.A.Canvas CLI/MCP install and launch commands from the current README, MCP docs, TUI docs, and package metadata.
+
+### Files Touched
+
+- `SESSION_LOG.md`
+
+### Commits
+
+- No commits created.
+
+### Deploy Links
+
+- None.
+
+### Open Items
+
+- TUI docs and package metadata currently disagree on the executable name: docs mention `clipacanvas-tui`, while `tui/pyproject.toml` exposes `clippp`.
+
+## 2026-05-15
+
+### Summary
+
+- No repo changes made.
+- Clarified the planned Claude and Codex release paths for the existing `clipacanvas-mcp` package, including Claude Desktop MCPB and Codex CLI/plugin distribution.
+
+### Files Touched
+
+- `SESSION_LOG.md`
+
+### Commits
+
+- No commits created.
+
+### Deploy Links
+
+- None.
+
+### Open Items
+
+- Codex plugin packaging still needs a concrete local plugin manifest/build step if the project targets Codex's plugin directory instead of only direct MCP CLI install.
+
+## 2026-05-15
+
+### Summary
+
+- No product repo changes made.
+- Verified live PyPI packages: `clipacanvas-mcp` is published at `1.0.2`; `clipacanvas-tui` is published at `1.0.0`.
+- Updated the release guidance mentally to use direct PyPI commands instead of GitHub-subdirectory install commands for normal users.
+
+### Files Touched
+
+- `SESSION_LOG.md`
+
+### Commits
+
+- No commits created.
+
+### Deploy Links
+
+- PyPI MCP: `https://pypi.org/project/clipacanvas-mcp/`
+- PyPI TUI: `https://pypi.org/project/clipacanvas-tui/`
+
+### Open Items
+
+- Public docs should be cleaned up to prefer PyPI install commands now that both packages are published.
+
+## 2026-05-15
+
+### Summary
+
+- No product repo changes made.
+- Outlined the Claude-first release path: immediate Claude Code install through the published PyPI MCP package and Claude Desktop distribution through an `.mcpb` bundle.
+
+### Files Touched
+
+- `SESSION_LOG.md`
+
+### Commits
+
+- No commits created.
+
+### Deploy Links
+
+- None.
+
+### Open Items
+
+- Claude Desktop release still needs a concrete `.mcpb` manifest, bundle build, and GitHub release asset.
+
+## 2026-05-15
+
+### Summary
+
+- Added Claude Desktop MCPB packaging under `claude/desktop-extension`, bundling the annotated Clip.A.Canvas MCP server source with UV-managed Python dependencies.
+- Added Claude submission support docs, a public Claude install page, and a public privacy policy page.
+- Added MCP tool titles and annotations for Claude review, including destructive metadata on `render_video_to_file`.
+- Built `dist/ClipACanvas-1.0.2.mcpb` and verified the manifest with `@anthropic-ai/mcpb`.
+- Deployed the updated website to Vercel so `https://clipacanvas.vercel.app/claude.html` and `https://clipacanvas.vercel.app/privacy.html` are live.
+- Added a repo-local Codex plugin package under `plugins/clipacanvas` with MCP config, skill guidance, marketplace metadata, assets, and a release zip.
+
+### Files Touched
+
+- `claude/desktop-extension/manifest.json`
+- `claude/desktop-extension/pyproject.toml`
+- `claude/desktop-extension/src/server.py`
+- `claude/desktop-extension/src/clipacanvas_mcp/*`
+- `claude/desktop-extension/icon.png`
+- `claude/desktop-extension/README.md`
+- `claude/connectors-directory-submission.md`
+- `plugins/clipacanvas/.codex-plugin/plugin.json`
+- `plugins/clipacanvas/.mcp.json`
+- `plugins/clipacanvas/skills/clipacanvas-render/SKILL.md`
+- `plugins/clipacanvas/assets/icon.png`
+- `plugins/clipacanvas/assets/logo.png`
+- `.agents/plugins/marketplace.json`
+- `mcp/src/clipacanvas_mcp/render_tool.py`
+- `website/index.html`
+- `website/styles.css`
+- `website/claude.html`
+- `website/privacy.html`
+- `SESSION_LOG.md`
+
+### Commits
+
+- No commits created.
+
+### Deploy Links
+
+- Website: `https://clipacanvas.vercel.app`
+- Claude docs: `https://clipacanvas.vercel.app/claude.html`
+- Privacy policy: `https://clipacanvas.vercel.app/privacy.html`
+
+### Release Artifacts
+
+- `dist/ClipACanvas-1.0.2.mcpb` - SHA-256 `FE9C56896FFCDB824B3D81A427E383B06FD853218A586485BA57F67766ABC8B1`
+- `dist/clipacanvas-codex-plugin-1.0.2.zip` - SHA-256 `F2564DDB651BBCDBA2ECD1221E68BB0A6583F617EE4EDE94E8A96A7A1546CAAD`
+
+### Open Items
+
+- `dist/ClipACanvas-1.0.2.mcpb` is unsigned; signing requires a release signing key.
+- The Claude Desktop extension icon validates but is 256x256; MCPB recommends 512x512 for best display.
+- Official hosted Claude Connector Directory listing still requires a separate hardened HTTPS remote MCP service if targeting Claude.ai beyond local desktop extension distribution.
+- Existing unrelated local worktree changes remain untouched.
+
+## 2026-05-26
+
+### Summary
+
+- Registered both `clipacanvas-tui` and `clippp` CLI entry points in `tui/pyproject.toml` for full naming compatibility.
+- Updated `README.md` and `tui/README.md` to recommend PyPI-first installation commands.
+- Created `MARKETING.md` outlining the launch and promotion strategy (copy templates for Product Hunt, Hacker News, Reddit, Twitter/X, and registry lists) along with 3 showcase animation code snippets.
+- Validated that both CLI commands run successfully, and all 11 cases in the frontend render matrix regression test suite pass.
+- Added Glama claim verification file `.well-known/glama.json` and official MCP registry manifest `.mcp/server.json`.
+- Populated `awesome_mcp_readme.md` with a detailed step-by-step workbook for submitting the MCP server to Smithery, Glama, dotMCP, and the official MCP registry.
+
+### Files Touched
+
+- `tui/pyproject.toml`
+- `README.md`
+- `tui/README.md`
+- `MARKETING.md`
+- `.well-known/glama.json`
+- `.mcp/server.json`
+- `awesome_mcp_readme.md`
+- `SESSION_LOG.md`
+
+### Commits
+
+- `d9f3a94` - `docs: align CLI script names, update PyPI install instructions, add MCP registry manifests and marketing materials`
+
+### Deploy Links
+
+- None.
+
+### Open Items
+
+- Push these updates to the GitHub repository to make them public.
+- Claim/promote the Smithery listing and submit the MCP server to Glama.ai and dotMCP.io.

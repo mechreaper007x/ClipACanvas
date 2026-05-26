@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Install Clip.A.Canvas for Claude Code and Claude Desktop.">
+  <title>Claude Install | Clip.A.Canvas</title>
+  <link rel="stylesheet" href="styles.css">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%23070a0c'/%3E%3Cpath d='M18 20h10v24H18zm18 0h10v10H36zm0 14h10v10H36z' fill='%23d7ff43'/%3E%3C/svg%3E">
+</head>
+<body>
+  <div class="page-shell">
+    <img class="site-corner-logo" src="logo_neon_overlay.png" alt="Clip.A.Canvas logo">
+    <nav class="topbar">
+      <div class="topbar-nav">
+        <a href="index.html#features">Features</a>
+        <a href="index.html#mcp">MCP</a>
+        <a href="privacy.html">Privacy</a>
+        <a href="https://github.com/mechreaper007x/ClipACanvas">GitHub</a>
+      </div>
+    </nav>
+
+    <main>
+      <section class="section-block legal-page">
+        <div class="section-heading">
+          <p class="eyebrow">Claude</p>
+          <h1>Clip.A.Canvas for Claude</h1>
+          <p>Use Claude to render browser animation snippets into local MP4 files through the Clip.A.Canvas MCP server.</p>
+        </div>
+
+        <div class="feature-grid detail-grid">
+          <article class="feature-card">
+            <span class="card-kicker">Claude Code</span>
+            <h2>Install from PyPI through uvx</h2>
+            <pre class="command-block"><code>claude mcp add -s user clipacanvas -- uvx clipacanvas-mcp</code></pre>
+            <p>On Windows, use `cmd /c uvx clipacanvas-mcp` if Claude Code cannot resolve `uvx` directly.</p>
+          </article>
+          <article class="feature-card">
+            <span class="card-kicker">Claude Desktop</span>
+            <h2>One-click MCPB extension</h2>
+            <p>The Claude Desktop extension is packaged as `ClipACanvas-1.0.2.mcpb` and launches the same published MCP package through the UV runtime.</p>
+          </article>
+        </div>
+
+        <div class="legal-content">
+          <h2>Available Tools</h2>
+          <p>`render_video` renders HTML, CSS, JavaScript, SVG, or canvas animation code to MP4 and returns base64 video data.</p>
+          <p>`render_video_to_file` renders the same content to a user-selected MP4 file path.</p>
+
+          <h2>Defaults</h2>
+          <p>Default output is 540x960, 60 FPS, 5 Mbps, with a 12 second max duration unless overridden by the MCP client.</p>
+
+          <h2>Privacy</h2>
+          <p>Rendering runs locally through Chromium and FFmpeg. Clip.A.Canvas does not upload snippets or rendered videos to a Clip.A.Canvas server.</p>
+        </div>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <p>Clip.A.Canvas</p>
+      <div class="footer-links">
+        <a href="index.html">Home</a>
+        <a href="privacy.html">Privacy</a>
+        <a href="https://github.com/mechreaper007x/ClipACanvas/issues">Support</a>
+      </div>
+    </footer>
+  </div>
+</body>
+</html>

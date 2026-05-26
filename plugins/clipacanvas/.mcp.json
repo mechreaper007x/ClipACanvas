@@ -1,0 +1,17 @@
+{
+  "mcpServers": {
+    "clipacanvas": {
+      "command": "uvx",
+      "args": [
+        "clipacanvas-mcp"
+      ],
+      "env": {
+        "CLIPACANVAS_MAX_DURATION": "12",
+        "CLIPACANVAS_DEFAULT_WIDTH": "540",
+        "CLIPACANVAS_DEFAULT_HEIGHT": "960",
+        "CLIPACANVAS_DEFAULT_BITRATE": "5M",
+        "CLIPACANVAS_DEFAULT_FRAME_RATE": "60"
+      }
+    }
+  }
+}

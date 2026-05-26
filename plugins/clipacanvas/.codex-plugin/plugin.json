@@ -1,0 +1,47 @@
+{
+  "name": "clipacanvas",
+  "version": "1.0.2",
+  "description": "Render HTML, CSS, SVG, and canvas animations to MP4 through the Clip.A.Canvas MCP server.",
+  "author": {
+    "name": "Savyasachi Mishra",
+    "url": "https://github.com/mechreaper007x"
+  },
+  "homepage": "https://clipacanvas.vercel.app/claude.html",
+  "repository": "https://github.com/mechreaper007x/ClipACanvas",
+  "license": "MIT",
+  "keywords": [
+    "mcp",
+    "html-to-video",
+    "animation",
+    "mp4",
+    "playwright",
+    "ffmpeg"
+  ],
+  "skills": "./skills/",
+  "mcpServers": "./.mcp.json",
+  "interface": {
+    "displayName": "Clip.A.Canvas",
+    "shortDescription": "Render browser animation code to MP4.",
+    "longDescription": "Clip.A.Canvas adds a local MCP renderer that turns HTML, CSS, SVG, JavaScript, and canvas animations into MP4 files using Chromium and FFmpeg.",
+    "developerName": "Savyasachi Mishra",
+    "category": "Productivity",
+    "capabilities": [
+      "MCP",
+      "Render",
+      "Video",
+      "Write"
+    ],
+    "websiteURL": "https://clipacanvas.vercel.app",
+    "privacyPolicyURL": "https://clipacanvas.vercel.app/privacy.html",
+    "termsOfServiceURL": "https://github.com/mechreaper007x/ClipACanvas/blob/main/LICENSE",
+    "defaultPrompt": [
+      "Render this HTML animation to MP4.",
+      "Export this SVG motion as a video.",
+      "Save this canvas animation to an MP4 file."
+    ],
+    "brandColor": "#D7FF43",
+    "composerIcon": "./assets/icon.png",
+    "logo": "./assets/logo.png",
+    "screenshots": []
+  }
+}

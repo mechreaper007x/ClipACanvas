@@ -168,10 +168,11 @@ a {
 }
 
 .hero h1,
+.legal-page h1,
 .section-heading h2,
 .download-copy h2 {
   margin: 0;
-  letter-spacing: -0.05em;
+  letter-spacing: 0;
 }
 
 .hero h1 {
@@ -450,6 +451,7 @@ a {
 }
 
 .section-heading h2,
+.legal-page h1,
 .download-copy h2 {
   font-size: clamp(2.2rem, 4vw, 4rem);
   line-height: 0.96;
@@ -519,6 +521,38 @@ a {
   font-family: "IBM Plex Mono", monospace;
   font-size: 0.84rem;
   line-height: 1.7;
+}
+
+.legal-page {
+  max-width: 980px;
+  margin: 0 auto;
+}
+
+.legal-content {
+  display: grid;
+  gap: 18px;
+  padding: 28px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--radius-lg);
+  background: var(--panel);
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(18px);
+}
+
+.legal-content h2 {
+  margin: 10px 0 0;
+  font-size: 1.15rem;
+  line-height: 1.25;
+}
+
+.legal-content p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.72;
+}
+
+.legal-content a {
+  color: var(--lime);
 }
 
 .card-kicker {

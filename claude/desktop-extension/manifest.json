@@ -1,0 +1,65 @@
+{
+  "manifest_version": "0.4",
+  "name": "clipacanvas",
+  "display_name": "Clip.A.Canvas",
+  "version": "1.0.2",
+  "description": "Render HTML, CSS, SVG, and canvas animations to MP4 locally through Chromium and FFmpeg.",
+  "author": {
+    "name": "Savyasachi Mishra"
+  },
+  "icon": "icon.png",
+  "server": {
+    "type": "uv",
+    "entry_point": "src/server.py",
+    "mcp_config": {
+      "command": "uv",
+      "args": [
+        "run",
+        "--directory",
+        "${__dirname}",
+        "src/server.py"
+      ],
+      "env": {
+        "CLIPACANVAS_MAX_DURATION": "12",
+        "CLIPACANVAS_DEFAULT_WIDTH": "540",
+        "CLIPACANVAS_DEFAULT_HEIGHT": "960",
+        "CLIPACANVAS_DEFAULT_BITRATE": "5M",
+        "CLIPACANVAS_DEFAULT_FRAME_RATE": "60"
+      }
+    }
+  },
+  "tools": [
+    {
+      "name": "render_video",
+      "description": "Render HTML, CSS, SVG, or canvas animation code to an MP4 and return base64 video data."
+    },
+    {
+      "name": "render_video_to_file",
+      "description": "Render HTML, CSS, SVG, or canvas animation code to an MP4 file at a requested path."
+    }
+  ],
+  "compatibility": {
+    "platforms": [
+      "darwin",
+      "win32"
+    ],
+    "runtimes": {
+      "python": ">=3.10"
+    }
+  },
+  "privacy_policies": [
+    "https://clipacanvas.vercel.app/privacy.html"
+  ],
+  "keywords": [
+    "html",
+    "css",
+    "svg",
+    "canvas",
+    "video",
+    "mp4",
+    "animation",
+    "ffmpeg",
+    "mcp"
+  ],
+  "license": "MIT"
+}

@@ -1,0 +1,17 @@
+[project]
+name = "clipacanvas-claude-desktop-extension"
+version = "1.0.2"
+description = "Claude Desktop extension wrapper for Clip.A.Canvas MCP"
+requires-python = ">=3.10"
+dependencies = [
+    "mcp[cli]>=1.0.0",
+    "imageio-ffmpeg",
+    "playwright",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/clipacanvas_mcp"]

@@ -1,0 +1,25 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.mechreaper007x/clipacanvas",
+  "description": "Render HTML, CSS, SVG, and Canvas animations to MP4 locally via Playwright/Chromium and FFmpeg.",
+  "repository": {
+    "url": "https://github.com/mechreaper007x/ClipACanvas",
+    "source": "github",
+    "subfolder": "mcp"
+  },
+  "version": "1.0.2",
+  "packages": [
+    {
+      "registryType": "pypi",
+      "identifier": "clipacanvas-mcp",
+      "version": "1.0.2",
+      "transport": {
+        "type": "stdio",
+        "command": "uvx",
+        "args": [
+          "clipacanvas-mcp"
+        ]
+      }
+    }
+  ]
+}

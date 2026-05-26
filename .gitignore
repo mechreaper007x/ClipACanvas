@@ -18,3 +18,5 @@ bin/
 build/
 dist/
 *.spec
+
+.kirin-quarantine

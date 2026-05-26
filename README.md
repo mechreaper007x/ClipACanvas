@@ -1,215 +1,153 @@
-# Clip.A.Canvas
+# MCP Registry
 
-<p align="center">
-  <img src="logo_neon_preview-removebg-preview.png" alt="Clip.A.Canvas logo" width="720">
-</p>
+The MCP registry provides MCP clients with a list of MCP servers, like an app store for MCP servers.
 
-<!-- description:start -->
-**Clip.A.Canvas** transforms HTML/CSS/JS animations into MP4 videos — entirely local, no uploads, no cloud. Powered by Chromium + FFmpeg for high-quality, browser-accurate rendering. Perfect for AI agents generating video content, demos, or visual explanations on-the-fly.
-<!-- description:end -->
+[**📤 Publish my MCP server**](docs/modelcontextprotocol-io/quickstart.mdx) | [**⚡️ Live API docs**](https://registry.modelcontextprotocol.io/docs) | [**👀 Ecosystem vision**](docs/design/ecosystem-vision.md) | 📖 **[Full documentation](./docs)**
 
-**Clip.A.Canvas** is a local browser-motion-to-video toolkit.
+## Development Status
 
-It includes:
+**2025-10-24 update**: The Registry API has entered an **API freeze (v0.1)** 🎉. For the next month or more, the API will remain stable with no breaking changes, allowing integrators to confidently implement support. This freeze applies to v0.1 while development continues on v0. We'll use this period to validate the API in real-world integrations and gather feedback to shape v1 for general availability. Thank you to everyone for your contributions and patience—your involvement has been key to getting us here!
 
-- a desktop app for paste, preview, and MP4 export
-- an MCP server for Gemini, Codex, and Claude Code
-- a terminal TUI for code-first render workflows
+**2025-09-08 update**: The registry has launched in preview 🎉 ([announcement blog post](https://blog.modelcontextprotocol.io/posts/2025-09-08-mcp-registry-preview/)). While the system is now more stable, this is still a preview release and breaking changes or data resets may occur. A general availability (GA) release will follow later. We'd love your feedback in [GitHub discussions](https://github.com/modelcontextprotocol/registry/discussions/new?category=ideas) or in the [#registry-dev Discord](https://discord.com/channels/1358869848138059966/1369487942862504016) ([joining details here](https://modelcontextprotocol.io/community/communication)).
 
-- Website: `https://clipacanvas.vercel.app`
-- GitHub: `https://github.com/mechreaper007x/ClipACanvas`
-- Releases: `https://github.com/mechreaper007x/ClipACanvas/releases/tag/v1.0.0`
+Current key maintainers:
+- **Adam Jones** (Anthropic) [@domdomegg](https://github.com/domdomegg)  
+- **Tadas Antanavicius** (PulseMCP) [@tadasant](https://github.com/tadasant)
+- **Toby Padilla** (GitHub) [@toby](https://github.com/toby)
+- **Radoslav (Rado) Dimitrov** (Stacklok) [@rdimitrov](https://github.com/rdimitrov)
 
-## What It Does
+## Contributing
 
-- Renders HTML/CSS/JS, SVG, and canvas animations into MP4.
-- Uses Playwright + Chromium for browser-accurate capture.
-- Encodes locally with FFmpeg.
-- Runs as a desktop app through `pywebview`.
-- Exposes the same render engine through an MCP server and a TUI.
+We use multiple channels for collaboration - see [modelcontextprotocol.io/community/communication](https://modelcontextprotocol.io/community/communication).
 
-## Desktop App
+Often (but not always) ideas flow through this pipeline:
 
-### Install Dependencies
+- **[Discord](https://modelcontextprotocol.io/community/communication)** - Real-time community discussions
+- **[Discussions](https://github.com/modelcontextprotocol/registry/discussions)** - Propose and discuss product/technical requirements
+- **[Issues](https://github.com/modelcontextprotocol/registry/issues)** - Track well-scoped technical work  
+- **[Pull Requests](https://github.com/modelcontextprotocol/registry/pulls)** - Contribute work towards issues
 
-```bash
-git clone https://github.com/mechreaper007x/ClipACanvas.git
-cd ClipACanvas
-pip install -r requirements.txt
-pip install -r desktop_requirements.txt
-npm install
-python -m playwright install chromium
-```
+### Quick start:
 
-### Run the App
+#### Pre-requisites
 
-On Windows:
+- **Docker**
+- **Go 1.24.x**
+- **ko** - Container image builder for Go ([installation instructions](https://ko.build/install/))
+- **golangci-lint v2.4.0**
+
+#### Running the server
 
 ```bash
-launch_desktop.bat
+# Start full development environment
+make dev-compose
 ```
 
-Or directly:
+This starts the registry at [`localhost:8080`](http://localhost:8080) with PostgreSQL. The database uses ephemeral storage and is reset each time you restart the containers, ensuring a clean state for development and testing.
+
+**Note:** The registry uses [ko](https://ko.build) to build container images. The `make dev-compose` command automatically builds the registry image with ko and loads it into your local Docker daemon before starting the services.
+
+By default, the registry seeds from the production API with a filtered subset of servers (to keep startup fast). This ensures your local environment mirrors production behavior and all seed data passes validation. For offline development you can seed from a file without validation with `MCP_REGISTRY_SEED_FROM=data/seed.json MCP_REGISTRY_ENABLE_REGISTRY_VALIDATION=false make dev-compose`.
+
+The setup can be configured with environment variables in [docker-compose.yml](./docker-compose.yml) - see [.env.example](./.env.example) for a reference.
+
+<details>
+<summary>Alternative: Running a pre-built Docker image</summary>
+
+Pre-built Docker images are automatically published to GitHub Container Registry. Note that the image does not bundle PostgreSQL, so you need to run your own and point the registry at it via `MCP_REGISTRY_DATABASE_URL` (see [docker-compose.yml](./docker-compose.yml) for a working example):
 
 ```bash
-python desktop_app.py
+# Run latest stable release
+docker run -p 8080:8080 ghcr.io/modelcontextprotocol/registry:latest
+
+# Run latest from main branch (continuous deployment)
+docker run -p 8080:8080 ghcr.io/modelcontextprotocol/registry:main
+
+# Run specific release version
+docker run -p 8080:8080 ghcr.io/modelcontextprotocol/registry:v1.0.0
+
+# Run development build from main branch
+docker run -p 8080:8080 ghcr.io/modelcontextprotocol/registry:main-20250906-abc123d
 ```
 
-On macOS:
+**Available tags:** 
+- **Releases**: `latest`, `v1.0.0`, `v1.1.0`, etc.
+- **Continuous**: `main` (latest main branch build)
+- **Development**: `main-<date>-<sha>` (specific commit builds)
+
+</details>
+
+#### Publishing a server
+
+To publish a server, we've built a simple CLI. You can use it with:
 
 ```bash
-chmod +x launch_desktop.command
-./launch_desktop.command
+# Build the latest CLI
+make publisher
+
+# Use it!
+./bin/mcp-publisher --help
 ```
 
-## MCP Install
+See [the publisher guide](./docs/modelcontextprotocol-io/quickstart.mdx) for more details.
 
-### Direct install from GitHub
-
-These commands do not require cloning the repo first. They install the MCP package from the `mcp/` subdirectory of this repository.
-
-Gemini CLI:
+#### Other commands
 
 ```bash
-gemini mcp add clipacanvas -- uvx --from "clipacanvas-mcp @ git+https://github.com/mechreaper007x/ClipACanvas.git#subdirectory=mcp" clipacanvas-mcp
+# Run lint, unit tests and integration tests
+make check
 ```
 
-Codex CLI:
+There are also a few more helpful commands for development. Run `make help` to learn more, or look in [Makefile](./Makefile).
 
-```bash
-codex mcp add clipacanvas -- uvx --from "clipacanvas-mcp @ git+https://github.com/mechreaper007x/ClipACanvas.git#subdirectory=mcp" clipacanvas-mcp
+<!--
+For Claude and other AI tools: Always prefer make targets over custom commands where possible.
+-->
+
+## Architecture
+
+### Project Structure
+
+```
+├── cmd/                     # Application entry points
+│   └── publisher/           # Server publishing tool
+├── data/                    # Seed data
+├── deploy/                  # Deployment configuration (Pulumi)
+├── docs/                    # Documentation
+├── internal/                # Private application code
+│   ├── api/                 # HTTP handlers and routing
+│   ├── auth/                # Authentication (GitHub OAuth, JWT, namespace blocking)
+│   ├── config/              # Configuration management
+│   ├── database/            # Data persistence (PostgreSQL)
+│   ├── service/             # Business logic
+│   ├── telemetry/           # Metrics and monitoring
+│   └── validators/          # Input validation
+├── pkg/                     # Public packages
+│   ├── api/                 # API types and structures
+│   │   └── v0/              # Version 0 API types
+│   └── model/               # Data models for server.json
+├── scripts/                 # Development and testing scripts
+├── tests/                   # Integration tests
+└── tools/                   # CLI tools and utilities
+    └── validate-*.sh        # Schema validation tools
 ```
 
-Claude Code on Windows:
+### Authentication
 
-```bash
-claude mcp add -s user clipacanvas -- cmd /c uvx --from "clipacanvas-mcp @ git+https://github.com/mechreaper007x/ClipACanvas.git#subdirectory=mcp" clipacanvas-mcp
-```
+Publishing supports multiple authentication methods:
+- **GitHub OAuth** - For publishing by logging into GitHub
+- **GitHub OIDC** - For publishing from GitHub Actions
+- **DNS verification** - For proving ownership of a domain and its subdomains
+- **HTTP verification** - For proving ownership of a domain
 
-### Local editable install
+The registry validates namespace ownership when publishing. E.g. to publish...:
+- `io.github.domdomegg/my-cool-mcp` you must login to GitHub as `domdomegg`, or be in a GitHub Action on domdomegg's repos
+- `me.adamjones/my-cool-mcp` you must prove ownership of `adamjones.me` via DNS or HTTP challenge
 
-Use this path if you are developing the MCP package locally:
+## Community Projects
 
-```bash
-cd mcp
-pip install -e .
-python -m clipacanvas_mcp.server
-```
+Check out [community projects](docs/community-projects.md) to explore notable registry-related work created by the community.
 
-Notes:
+## More documentation
 
-- `uvx` handles the Python package environment for end users.
-- The MCP package auto-installs Playwright Chromium on first render if it is missing.
-- After a future PyPI publish, the install command shortens to `uvx --from clipacanvas-mcp clipacanvas-mcp`.
-
-## TUI
-
-The repo also ships a keyboard-first terminal client for code-first render workflows.
-
-### Direct install from GitHub
-
-Install the CLI without cloning the whole repo:
-
-```bash
-pipx install "git+https://github.com/mechreaper007x/ClipACanvas.git#subdirectory=tui"
-python -m playwright install chromium
-clipacanvas-tui --clipboard --preview
-```
-
-Requirements:
-
-- Python 3.10+
-- FFmpeg on `PATH`, or set `CLIPACANVAS_FFMPEG_EXE`
-- Playwright Chromium installed once with `python -m playwright install chromium`
-
-### Local editable install
-
-Use this path if you are developing the TUI locally:
-
-```bash
-cd tui
-pip install -e .
-python -m playwright install chromium
-clipacanvas-tui
-```
-
-Notes:
-
-- Load large snippets with `clipacanvas-tui path/to/snippet.html --preview` or `clipacanvas-tui --clipboard --preview`.
-- On Windows, press `F7` inside the TUI if Defender Controlled Folder Access blocks saves to protected folders such as `Documents` or `Videos`.
-
-## Build Outputs
-
-### Windows Portable EXE + ZIP
-
-```bash
-python build_desktop.py
-```
-
-Outputs:
-
-- `dist/ClipACanvas.exe`
-- `dist/ClipACanvas-windows.zip`
-
-### Windows Installer
-
-```bash
-python build_installer.py
-```
-
-Output:
-
-- `dist/ClipACanvas-Setup.exe`
-
-### macOS App Bundle
-
-Run this on macOS:
-
-```bash
-python3 build_mac_app.py
-```
-
-Outputs:
-
-- `dist/ClipACanvas.app`
-- `dist/ClipACanvas-macos.zip`
-
-## Release Workflow
-
-Build the distributables first, then generate release metadata:
-
-```bash
-python build_release_assets.py --version v1.0.0
-```
-
-This generates:
-
-- `dist/SHA256SUMS.txt`
-- `dist/RELEASE_NOTES.md`
-
-Ship releases through GitHub Releases. Windows builds are currently unsigned, so SmartScreen or Defender reputation warnings can still appear on first run.
-
-## Project Layout
-
-- `clipacanvas.html`: main app UI
-- `desktop_app.py`: desktop launcher
-- `serve.py`: local backend and render endpoint
-- `playwright_render.py`: Python renderer path used by the desktop app
-- `playwright_render.mjs`: Node renderer fallback
-- `mcp/`: standalone MCP package
-- `tui/`: terminal UI package
-- `build_desktop.py`: packaged desktop build
-- `build_installer.py`: Windows installer build
-- `build_mac_app.py`: macOS app build
-- `website/`: Vercel site
-- `tests/frontend_render_matrix.py`: frontend render regression suite
-
-## Notes
-
-- The portable Windows build is a single-file executable that unpacks bundled payloads at runtime.
-- The installer is the simplest Windows distribution path for non-technical users.
-- macOS packaging must be built on macOS.
-
-## License
-
-MIT.
+See the [documentation](./docs) for more details if your question has not been answered here!

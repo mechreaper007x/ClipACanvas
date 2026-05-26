@@ -30,6 +30,8 @@ uv tool install clipacanvas-tui
 ## Usage
 
 ```bash
+clipacanvas-tui
+# or
 clippp
 # or
 python -m clipacanvas_tui.app
@@ -37,13 +39,15 @@ python -m clipacanvas_tui.app
 
 The TUI opens immediately in your terminal.
 
+Both `clipacanvas-tui` and `clippp` launch the exact same interface.
+
 For large HTML that triggers terminal paste warnings, load from a file, stdin, or
 the OS clipboard instead of terminal paste:
 
 ```bash
 clipacanvas-tui --clipboard --preview
-clipacanvas-tui path/to/snippet.html --preview
-cat snippet.html | clipacanvas-tui - --preview
+# or
+clippp --clipboard --preview
 ```
 
 Use the `Clip` selector to switch between `Auto` and `Custom`. In `Custom`,

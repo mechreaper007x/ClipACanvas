@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Clip.A.Canvas privacy policy for the desktop app, TUI, and MCP server.">
+  <title>Privacy Policy | Clip.A.Canvas</title>
+  <link rel="stylesheet" href="styles.css">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%23070a0c'/%3E%3Cpath d='M18 20h10v24H18zm18 0h10v10H36zm0 14h10v10H36z' fill='%23d7ff43'/%3E%3C/svg%3E">
+</head>
+<body>
+  <div class="page-shell">
+    <img class="site-corner-logo" src="logo_neon_overlay.png" alt="Clip.A.Canvas logo">
+    <nav class="topbar">
+      <div class="topbar-nav">
+        <a href="index.html#features">Features</a>
+        <a href="index.html#mcp">MCP</a>
+        <a href="claude.html">Claude</a>
+        <a href="https://github.com/mechreaper007x/ClipACanvas">GitHub</a>
+      </div>
+    </nav>
+
+    <main>
+      <section class="section-block legal-page">
+        <div class="section-heading">
+          <p class="eyebrow">Privacy</p>
+          <h1>Clip.A.Canvas Privacy Policy</h1>
+          <p>Last updated: May 15, 2026</p>
+        </div>
+
+        <div class="legal-content">
+          <h2>Local Processing</h2>
+          <p>Clip.A.Canvas renders HTML, CSS, JavaScript, SVG, and canvas animations on your own machine using Chromium and FFmpeg. The desktop app, TUI, and local MCP server do not upload your code snippets or rendered MP4 files to Clip.A.Canvas servers.</p>
+
+          <h2>Data Collection</h2>
+          <p>Clip.A.Canvas does not collect analytics, account data, telemetry, source snippets, rendered videos, or file paths through the local application, TUI, or MCP server.</p>
+
+          <h2>Files</h2>
+          <p>Rendered MP4 files are saved only to locations selected by the user or returned through the local MCP client. The `render_video_to_file` MCP tool writes to the output path supplied by the user.</p>
+
+          <h2>Third Parties</h2>
+          <p>Clip.A.Canvas uses local Python dependencies, Playwright Chromium, and FFmpeg or imageio-ffmpeg for rendering and encoding. If a user-provided HTML snippet loads remote images, fonts, scripts, or network resources, Chromium may request those resources from the referenced third-party hosts.</p>
+
+          <h2>Security</h2>
+          <p>Users should render code they trust. Clip.A.Canvas executes supplied browser code inside Chromium during rendering. The local MCP server does not intentionally provide host command execution tools.</p>
+
+          <h2>Contact</h2>
+          <p>Report issues at <a href="https://github.com/mechreaper007x/ClipACanvas/issues">github.com/mechreaper007x/ClipACanvas/issues</a>.</p>
+        </div>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <p>Clip.A.Canvas</p>
+      <div class="footer-links">
+        <a href="index.html">Home</a>
+        <a href="claude.html">Claude</a>
+        <a href="privacy.html">Privacy</a>
+      </div>
+    </footer>
+  </div>
+</body>
+</html>

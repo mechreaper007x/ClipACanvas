@@ -12,6 +12,7 @@ dependencies = [
 ]
 
 [project.scripts]
+clipacanvas-tui = "clipacanvas_tui.app:main"
 clippp = "clipacanvas_tui.app:main"
 
 [build-system]
