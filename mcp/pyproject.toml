@@ -16,9 +16,15 @@ dev = [
     "pytest",
     "pytest-asyncio",
 ]
+sse = [
+    "starlette>=0.27",
+    "uvicorn[standard]>=0.24",
+]
 
 [project.scripts]
 clipacanvas-mcp = "clipacanvas_mcp.server:main"
+clipmcp = "clipacanvas_mcp.server:main"
+clipmcp-sse = "clipacanvas_mcp.sse_app:main"
 
 [build-system]
 requires = ["hatchling"]
