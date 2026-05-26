@@ -2158,6 +2158,7 @@
 - Validated that both CLI commands run successfully, and all 11 cases in the frontend render matrix regression test suite pass.
 - Added Glama claim verification file `.well-known/glama.json` and official MCP registry manifest `.mcp/server.json`.
 - Populated `awesome_mcp_readme.md` with a detailed step-by-step workbook for submitting the MCP server to Smithery, Glama, dotMCP, and the official MCP registry.
+- Created `tunnel.yaml` and successfully connected the local server to dotMCP via their secure WebSocket tunnel relay.
 
 ### Files Touched
 
@@ -2168,6 +2169,7 @@
 - `.well-known/glama.json`
 - `.mcp/server.json`
 - `awesome_mcp_readme.md`
+- `tunnel.yaml`
 - `SESSION_LOG.md`
 
 ### Commits
