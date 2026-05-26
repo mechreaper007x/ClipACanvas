@@ -21,9 +21,8 @@ COPY src/ src/
 
 RUN pip install --no-cache-dir ".[sse]"
 
-# ── Non-root user ─────────────────────────────────────────────────────────────
-RUN useradd -m -u 1000 appuser
-USER appuser
+# ── Non-root user (UID 1000 already exists in playwright base image) ──────────
+USER 1000
 
 EXPOSE 7860
 
