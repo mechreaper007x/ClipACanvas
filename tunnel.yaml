@@ -1,9 +1,20 @@
 # tunnel.yaml
-key: "dott_139f0d079fde20e2f91e2a23c31e2092c1c4723dff30210259806efcd0d43c8d"
-servers:
-  - id: "2fa07eb8128d455083d5bc4f0ca6b0e6"
-    command: "C:\\Users\\Savyasachi Mishra\\.local\\bin\\uvx.exe"
-    args:
-      - "--from"
-      - "clipacanvas-mcp"
-      - "clipmcp"
+# ─────────────────────────────────────────────────────────────────────────────
+# NOTE: Tunnel is no longer needed.
+# The MCP server now runs on Hugging Face Spaces (cloud, SSE mode).
+# Point any dotMCP / MCP client directly to the SSE URL below.
+#
+# SSE Endpoint: https://mechreaper007x-clip-a-canvas-mcp.hf.space/sse
+#
+# If you ever need to run a LOCAL tunnel again (e.g. dev/testing only),
+# uncomment and use the block below — but this consumes your laptop resources.
+# ─────────────────────────────────────────────────────────────────────────────
+
+# key: "dott_139f0d079fde20e2f91e2a23c31e2092c1c4723dff30210259806efcd0d43c8d"
+# servers:
+#   - id: "2fa07eb8128d455083d5bc4f0ca6b0e6"
+#     command: "C:\\Users\\Savyasachi Mishra\\.local\\bin\\uvx.exe"
+#     args:
+#       - "--from"
+#       - "clipacanvas-mcp"
+#       - "clipmcp"
