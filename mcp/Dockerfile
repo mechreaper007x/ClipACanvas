@@ -1,17 +1,16 @@
 # ─────────────────────────────────────────────────────────────────────────────
 #  Clip.A.Canvas — MCP Server (SSE mode)
 #  Hugging Face Spaces — Docker SDK  (port 7860)
+#
+#  Uses Microsoft's official Playwright Python image — Chromium, all system
+#  libs, and Python 3.11 are pre-installed and tested. No manual apt-get lists.
 # ─────────────────────────────────────────────────────────────────────────────
 
-FROM python:3.11-slim
+FROM mcr.microsoft.com/playwright/python:v1.52.0-noble
 
-# ── System packages ──────────────────────────────────────────────────────────
-# Let playwright --with-deps handle all Chromium system libraries.
-# We only pre-install ffmpeg and ca-certificates ourselves.
+# ── FFmpeg (not bundled in playwright image) ──────────────────────────────────
 RUN apt-get update && apt-get install -y --no-install-recommends \
         ffmpeg \
-        ca-certificates \
-        wget \
     && rm -rf /var/lib/apt/lists/*
 
 # ── Python deps ───────────────────────────────────────────────────────────────
@@ -20,10 +19,6 @@ COPY pyproject.toml .
 COPY src/ src/
 
 RUN pip install --no-cache-dir ".[sse]"
-
-# ── Playwright browsers ───────────────────────────────────────────────────────
-# --with-deps installs all required system libraries automatically
-RUN playwright install --with-deps chromium
 
 # ── Non-root user ─────────────────────────────────────────────────────────────
 RUN useradd -m -u 1000 appuser
