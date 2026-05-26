@@ -24,7 +24,7 @@ consumed by any SSE-capable MCP client without installing anything locally.
 Point your MCP client at this Space's `/sse` endpoint:
 
 ```
-https://<username>-clip-a-canvas-mcp.hf.space/sse
+https://mechreaper007x-clip-a-canvas-mcp.hf.space/sse
 ```
 
 ### Claude Desktop (`claude_desktop_config.json`)
@@ -33,7 +33,7 @@ https://<username>-clip-a-canvas-mcp.hf.space/sse
 {
   "mcpServers": {
     "clipacanvas": {
-      "url": "https://<username>-clip-a-canvas-mcp.hf.space/sse"
+      "url": "https://mechreaper007x-clip-a-canvas-mcp.hf.space/sse"
     }
   }
 }
