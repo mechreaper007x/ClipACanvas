@@ -36,9 +36,9 @@ dotMCP provides zero-config tunneling and visual tools for running MCP servers g
     1. Go to **[dotmcp.io](https://dotmcp.io)** and log in with your GitHub account.
     2. Click **"Publish Server"** or **"Add Connector"** on the dashboard.
     3. Enter the public PyPI name `clipacanvas-mcp` or the repository link: `https://github.com/mechreaper007x/ClipACanvas`.
-    4. You can also run it via the dotMCP tunnel CLI on your local system if you want to expose it for remote agents:
+    4. You can also run it via the dotMCP tunnel CLI on your local system using the `tunnel.yaml` configuration:
        ```bash
-       npx dotmcp-tunnel --command "uvx clipacanvas-mcp"
+       npx -y @dotmcp/tunnel -c tunnel.yaml
        ```
 
 ---
