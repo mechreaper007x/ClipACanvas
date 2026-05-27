@@ -21,3 +21,5 @@ servers:
       - "supergateway"
       - "--sse"
       - "https://mechreaper007x-clip-a-canvas-mcp.hf.space/sse"
+      - "--logLevel"
+      - "none"
