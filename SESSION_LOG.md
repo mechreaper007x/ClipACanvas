@@ -2255,6 +2255,7 @@
 - Tested the live health check endpoint: `https://mechreaper007x-clip-a-canvas-mcp.hf.space/health` successfully returns JSON status `ok`.
 - Pushed all 8 pending local commits (including the HF Spaces Docker setup and config fixes) from local `main` to GitHub remote `origin/main`.
 - Configured the local dotMCP tunnel file `tunnel.yaml` to redirect all tool execution traffic from the local machine to the remote Hugging Face Space (SSE) using `supergateway` (via `cmd.exe /c npx -y supergateway --sse ...`).
+- Added the `--logLevel none` flag to `supergateway` in `tunnel.yaml` to suppress log output on stdout, which was causing the tunnel daemon's JSON-RPC stream parser to crash/exit with code 1.
 - Started the `npx @dotmcp/tunnel start -c tunnel.yaml` daemon in the background to sync tools with dotmcp.io and route requests to the cloud without local computer resource overhead.
 - Updated `task.md` and `walkthrough.md` to reflect full deployment completion and health check verification.
 
@@ -2267,7 +2268,8 @@
 
 ### Commits
 
-- No new commits created; pushed 8 existing local commits (`44dfc2b` through `0bc9f26`) to GitHub.
+- `84e893e` — `chore: add --logLevel none to supergateway in tunnel.yaml to prevent stream corruption`
+- Pushed all 8 pending local commits (`44dfc2b` through `0bc9f26`) to GitHub.
 
 ### Deploy Links
 
@@ -2279,6 +2281,7 @@
 ### Open Items
 
 - Keep the background tunnel daemon running to route dotMCP traffic to Hugging Face Spaces.
+
 
 
 
