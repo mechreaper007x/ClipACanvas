@@ -2377,6 +2377,9 @@
 - Added the `"license": "MIT"` field to the root `package.json` to assist Node.js-based repository scanner compatibility.
 - Configured `CORSMiddleware` in `sse_app.py` to allow direct browser connections from Glama's web MCP Inspector, resolving proxy buffering timeouts (`Request timed out`).
 
+- Added standard registry badges (Smithery and Glama) with premium hover transitions to the website's MCP section (`website/index.html` and `website/styles.css`).
+- Pushed the website changes to GitHub to automatically trigger Vercel to rebuild and redeploy `https://clipacanvas.vercel.app`.
+
 ### Files Touched
 
 - `SESSION_LOG.md`
@@ -2386,22 +2389,27 @@
 - `glama.json`
 - `package.json`
 - `mcp/src/clipacanvas_mcp/sse_app.py`
+- `website/index.html`
+- `website/styles.css`
 
 ### Commits
 
 - `b569b0d` — `chore: add root glama.json manifest and fix LICENSE formatting for automated parsing`
 - `f907233` — `chore: add root LICENSE.md and add license metadata to package.json for scanner compatibility`
 - `d167729` (GitHub) / `a609f96` (HF) — `feat: add CORSMiddleware to enable native web browser connections`
+- `c029412` — `feat: add Smithery and Glama registry badges with premium hover transitions to website`
 
 ### Deploy Links
 
 - Glama listing: `https://glama.ai/mcp/servers/mechreaper007x/ClipACanvas`
 - GitHub Release v1.0.2: `https://github.com/mechreaper007x/ClipACanvas/releases/tag/v1.0.2`
 - HF Space: `https://huggingface.co/spaces/mechreaper007x/clip-a-canvas-mcp`
+- Vercel Website: `https://clipacanvas.vercel.app`
 
 ### Open Items
 
 - Claim/manage the live listing on Glama.ai.
+
 
 
 

@@ -450,6 +450,22 @@ a {
   margin-bottom: 28px;
 }
 
+.mcp-badges {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  margin-top: 24px;
+}
+
+.mcp-badges a {
+  display: inline-flex;
+  transition: transform 0.2s ease;
+}
+
+.mcp-badges a:hover {
+  transform: translateY(-2px);
+}
+
 .section-heading h2,
 .legal-page h1,
 .download-copy h2 {
