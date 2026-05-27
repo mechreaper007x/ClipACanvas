@@ -2423,7 +2423,10 @@
 - Performed a web/internet check on the newly announced Google **Antigravity CLI** (`agy`) which succeeds the retired Gemini CLI.
 - Discovered that the global MCP configurations for Antigravity are managed via `mcp_config.json` located at `~/.gemini/antigravity-cli/mcp_config.json` (macOS/Linux) or `%USERPROFILE%\.gemini\antigravity-cli\mcp_config.json` (Windows), and verified that active servers are checked using `agy inspect` and `/mcp list` in the TUI session.
 - Replaced the older fictional/incorrect shell commands (`antigravity mcp add ...`) on the Vercel website and the `mcp/README.md` file with the correct and accurate JSON snippet for `mcp_config.json` and `agy` tool execution.
-- Staged, committed, and pushed these updates to the GitHub repository, and triggered a successful redeployment of the production website on Vercel.
+- Diagnosed and fixed the Claude/Codex client startup issues:
+  - Addressed Claude Desktop's `-32000` (Connection Closed) error on Windows by implementing/documenting the standard `cmd /c` process wrapper for subprocess execution.
+  - Clarified Codex TUI's cosmetic `Auth: Unsupported` display status, highlighting that local stdio-based MCP servers function securely without external OAuth requirements.
+- Staged, committed, and pushed these updates to the GitHub repository, and triggered successful redeployments of the production website on Vercel.
 
 ### Files Touched
 
@@ -2434,6 +2437,8 @@
 ### Commits
 
 - `28139e1` — `docs: update Antigravity CLI (agy) configuration instructions on website and README`
+- `d058f4e` — `docs: clarify Windows Claude cmd wrapper and Codex Auth: Unsupported status`
+- `0865b2d` — `chore: update session log for Antigravity CLI discovery and deployment`
 
 ### Deploy Links
 
@@ -2442,5 +2447,5 @@
 
 ### Open Items
 
-- None. The transition to Antigravity CLI has been fully and accurately integrated.
+- None. The transition to Antigravity CLI and Windows subprocess wrappers has been fully and accurately integrated.
 
