@@ -2433,12 +2433,15 @@
 - `SESSION_LOG.md`
 - `mcp/README.md`
 - `website/index.html`
+- `.vercelignore`
 
 ### Commits
 
 - `28139e1` — `docs: update Antigravity CLI (agy) configuration instructions on website and README`
 - `d058f4e` — `docs: clarify Windows Claude cmd wrapper and Codex Auth: Unsupported status`
 - `0865b2d` — `chore: update session log for Antigravity CLI discovery and deployment`
+- `20a789c` — `chore: add .vercelignore to exclude large build artifacts from Vercel uploads`
+- `f58635b` — `chore: polish session log with Claude and Codex fixes`
 
 ### Deploy Links
 
