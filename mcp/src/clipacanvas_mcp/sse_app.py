@@ -51,9 +51,9 @@ async def handle_sse(request: Request):
         )
 
 
-async def handle_messages(request: Request):
+async def handle_messages(scope, receive, send):
     """Accept POSTed JSON-RPC messages from the SSE client."""
-    await sse.handle_post_message(request.scope, request.receive, request._send)  # noqa: SLF001
+    await sse.handle_post_message(scope, receive, send)
 
 
 # ---------------------------------------------------------------------------
