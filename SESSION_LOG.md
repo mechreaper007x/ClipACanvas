@@ -2466,3 +2466,62 @@
 
 - None. The transition to Antigravity CLI and Windows subprocess wrappers has been fully and accurately integrated.
 
+## 2026-05-27 (MCP Local Execution Fix — Playwright Chromium Install)
+
+### Summary
+
+- Diagnosed the root cause of MCP tool execution failures in Codex and Claude Code: **Playwright Chromium browser binaries were not installed** on the local system after a version update.
+- The Playwright Python package was present, but the actual Chromium headless shell at `%LOCALAPPDATA%\ms-playwright\chromium_headless_shell-1169\` was missing, causing `BrowserType.launch: Executable doesn't exist` errors.
+- Ran `python -m playwright install chromium` to download Chromium 136.0.7103.25 (build v1169) and the headless shell.
+- Verified the fix with three independent test suites:
+  - `mcp_diagnostic.py` — all 5/5 checks passed (imports, FFmpeg, Playwright, tool definitions, 1s test render).
+  - `tests/frontend_render_matrix.py` — all 11/11 regression cases passed across DOM/SVG and Canvas render modes.
+  - `mcp_e2e_test.py` — full JSON-RPC stdio lifecycle (initialize → tools/list → render_video) passed with 100,676 chars Base64 video returned.
+- Confirmed all MCP client configurations are correct: Codex (`~/.codex/config.toml`), Claude global (`~/.claude.json`), and project (`.mcp/server.json`).
+- No code changes were required — only the Playwright browser installation was missing.
+
+### Files Touched
+
+- `SESSION_LOG.md`
+
+### Commits
+
+- No commits created.
+
+### Deploy Links
+
+- None.
+
+### Open Items
+
+- None. MCP server local execution is fully operational across all clients.
+
+## 2026-05-27 (dotMCP Tunnel Security Fix)
+
+### Summary
+
+- Fixed dotMCP Tunnel key exposure by removing `tunnel.yaml` from Git tracking.
+- Added `tunnel.yaml` to `.gitignore`.
+- Created `tunnel.example.yaml` template with relative paths and placeholder key.
+- Replaced the compromised publisher key and local absolute paths in the workspace `tunnel.yaml` with placeholders.
+
+### Files Touched
+
+- `.gitignore`
+- `tunnel.example.yaml`
+- `tunnel.yaml` (untracked)
+- `SESSION_LOG.md`
+
+### Commits
+
+- `82577e6` — `security: untrack tunnel.yaml and add tunnel.example.yaml to prevent key exposure`
+
+### Deploy Links
+
+- None.
+
+### Open Items
+
+- User needs to revoke/delete the compromised key `dott_139f0d...` on the dotmcp.io/dotmcp.com dashboard and generate a new key, then insert it into their local `tunnel.yaml`.
+
+
