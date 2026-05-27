@@ -26,8 +26,10 @@ from starlette.applications import Starlette
 from starlette.requests import Request
 from starlette.responses import JSONResponse, HTMLResponse
 from starlette.routing import Mount, Route
-
+from starlette.middleware import Middleware
+from starlette.middleware.cors import CORSMiddleware
 from mcp.server.sse import SseServerTransport
+
 
 # Re-use the same MCP Server instance defined in server.py
 from .server import server, APP_NAME, APP_VERSION
@@ -103,9 +105,16 @@ app = Starlette(
         Route("/health", health),
         Route("/sse", endpoint=SSEHandler()),
         Mount("/messages/", app=handle_messages),
+    ],
+    middleware=[
+        Middleware(
+            CORSMiddleware,
+            allow_origins=["*"],
+            allow_methods=["*"],
+            allow_headers=["*"],
+        )
     ]
 )
-
 
 # ---------------------------------------------------------------------------
 # Entry point
