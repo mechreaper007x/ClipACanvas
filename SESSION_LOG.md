@@ -2416,10 +2416,31 @@
 
 - Claim/manage the live listing on Glama.ai.
 
+## 2026-05-27 (Antigravity CLI Internet Check & Configuration Update)
 
+### Summary
 
+- Performed a web/internet check on the newly announced Google **Antigravity CLI** (`agy`) which succeeds the retired Gemini CLI.
+- Discovered that the global MCP configurations for Antigravity are managed via `mcp_config.json` located at `~/.gemini/antigravity-cli/mcp_config.json` (macOS/Linux) or `%USERPROFILE%\.gemini\antigravity-cli\mcp_config.json` (Windows), and verified that active servers are checked using `agy inspect` and `/mcp list` in the TUI session.
+- Replaced the older fictional/incorrect shell commands (`antigravity mcp add ...`) on the Vercel website and the `mcp/README.md` file with the correct and accurate JSON snippet for `mcp_config.json` and `agy` tool execution.
+- Staged, committed, and pushed these updates to the GitHub repository, and triggered a successful redeployment of the production website on Vercel.
 
+### Files Touched
 
+- `SESSION_LOG.md`
+- `mcp/README.md`
+- `website/index.html`
 
+### Commits
 
+- `28139e1` — `docs: update Antigravity CLI (agy) configuration instructions on website and README`
+
+### Deploy Links
+
+- Vercel Website: `https://clipacanvas.vercel.app`
+- GitHub Repo: `https://github.com/mechreaper007x/ClipACanvas`
+
+### Open Items
+
+- None. The transition to Antigravity CLI has been fully and accurately integrated.
 

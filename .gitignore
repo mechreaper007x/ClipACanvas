@@ -32,3 +32,4 @@ tui/uv.lock
 .temp_publish/
 .agents/
 awesome-mcp-servers/
+.vercel
