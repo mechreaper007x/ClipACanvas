@@ -2438,6 +2438,7 @@
 - `.vercelignore`
 - `vercel.json`
 - `mcp/pyproject.toml`
+- `.mcp/server.json`
 
 ### Commits
 
@@ -2453,6 +2454,8 @@
 - `604a81f` — `chore: polish session log with vercel rewrite loop commits`
 - `fb6b04b` — `fix: resolve module layout mapping bug in Hatchling by adding sources = ['src'] to wheel targets`
 - `60ace15` — `chore: final session log sync with uvx fix`
+- `2cb0951` — `fix: resolve Codex local startup error by adding the correct uvx arguments to .mcp/server.json`
+- `c06890a` — `chore: sync session log with pyproject mapping fix`
 
 ### Deploy Links
 
