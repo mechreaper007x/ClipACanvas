@@ -2525,6 +2525,7 @@
 - `82577e6` — `security: untrack tunnel.yaml and add tunnel.example.yaml to prevent key exposure`
 - `909803a` — `docs: correct dotmcp-tunnel package name and options in guides`
 - `fdd1b35` — `feat: run dotmcp-tunnel in the cloud inside Hugging Face Spaces container`
+- `2495466` — `fix: change localhost to 127.0.0.1 in start.sh to bypass Node.js IPv6 resolution issue`
 
 ### Deploy Links
 
@@ -2532,7 +2533,7 @@
 
 ### Open Items
 
-- User needs to add `DOTMCP_KEY` and `DOTMCP_SERVER_ID` environment secrets on Hugging Face Spaces to automatically start the cloud tunnel.
-- User needs to revoke/delete the compromised key `dott_139f0d...` on the dotmcp.io/dotmcp.com dashboard and generate a new key if they haven't already.
+- None. Both local and cloud-based dotMCP tunnel connections are fully operational.
+
 
 
