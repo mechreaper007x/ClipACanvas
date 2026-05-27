@@ -39,11 +39,9 @@ from .server import server, APP_NAME, APP_VERSION
 sse = SseServerTransport("/messages/")
 
 
-async def handle_sse(request: Request):
+async def handle_sse(scope, receive, send):
     """Upgrade the HTTP request to an SSE stream and run the MCP session."""
-    async with sse.connect_sse(
-        request.scope, request.receive, request._send  # noqa: SLF001
-    ) as (read_stream, write_stream):
+    async with sse.connect_sse(scope, receive, send) as (read_stream, write_stream):
         await server.run(
             read_stream,
             write_stream,

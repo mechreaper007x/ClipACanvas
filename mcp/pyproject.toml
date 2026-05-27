@@ -8,7 +8,7 @@ requires-python = ">=3.10"
 dependencies = [
     "mcp[cli]>=1.0.0",
     "imageio-ffmpeg",
-    "playwright",
+    "playwright==1.52.0",
 ]
 
 [project.optional-dependencies]
