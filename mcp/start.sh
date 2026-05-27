@@ -7,7 +7,7 @@ SSE_PID=$!
 # Wait for SSE server to start
 echo "[start.sh] Waiting for SSE server to start on port 7860..."
 for i in {1..30}; do
-    if python -c "import urllib.request; urllib.request.urlopen('http://localhost:7860/health')" &>/dev/null; then
+    if python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:7860/health')" &>/dev/null; then
         echo "[start.sh] SSE server is healthy!"
         break
     fi
@@ -26,7 +26,7 @@ servers:
     command: "supergateway"
     args:
       - "--sse"
-      - "http://localhost:7860/sse"
+      - "http://127.0.0.1:7860/sse"
       - "--logLevel"
       - "none"
 EOF
