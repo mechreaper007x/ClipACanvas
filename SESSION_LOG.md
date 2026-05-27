@@ -2434,6 +2434,7 @@
 - `mcp/README.md`
 - `website/index.html`
 - `.vercelignore`
+- `vercel.json`
 
 ### Commits
 
@@ -2442,6 +2443,9 @@
 - `0865b2d` — `chore: update session log for Antigravity CLI discovery and deployment`
 - `20a789c` — `chore: add .vercelignore to exclude large build artifacts from Vercel uploads`
 - `f58635b` — `chore: polish session log with Claude and Codex fixes`
+- `1db3f35` — `chore: add root vercel.json to route all root domain traffic to the website folder`
+- `dc2cf8b` — `chore: fix vercel.json rewrite loop using negative lookahead regex`
+- `d988d23` — `chore: final session log sync with Vercel deploy commits`
 
 ### Deploy Links
 
