@@ -2433,6 +2433,8 @@
 - `SESSION_LOG.md`
 - `mcp/README.md`
 - `website/index.html`
+- `website/claude.html`
+- `README.md`
 - `.vercelignore`
 - `vercel.json`
 
@@ -2446,6 +2448,8 @@
 - `1db3f35` — `chore: add root vercel.json to route all root domain traffic to the website folder`
 - `dc2cf8b` — `chore: fix vercel.json rewrite loop using negative lookahead regex`
 - `d988d23` — `chore: final session log sync with Vercel deploy commits`
+- `490f603` — `docs: use correct uvx --from clipacanvas-mcp clipmcp command in all guides`
+- `604a81f` — `chore: polish session log with vercel rewrite loop commits`
 
 ### Deploy Links
 
