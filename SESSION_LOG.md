@@ -2258,11 +2258,14 @@
 - Installed `supergateway` locally and configured `tunnel.yaml` to run `node` directly on `node_modules/supergateway/dist/index.js`. This bypasses Windows `cmd.exe /c` batch wrapping issues and Node security patch restrictions (EINVAL errors when spawning `.cmd`/`.bat` files without shell expansion).
 - Configured `supergateway` with the `--logLevel none` option to suppress stdout logging, preventing corruption of the dotMCP JSON-RPC stream.
 - Started the `npx @dotmcp/tunnel start -c tunnel.yaml` daemon in the background to sync tools with dotmcp.io and route requests to the cloud without local computer resource overhead.
+- Diagnosed root `README.md` mismatch: The root README had accidentally been overwritten with the general "MCP Registry" README in a previous commit, causing Glama to reject the repository listing.
+- Restored the correct root `README.md` describing the Clip.A.Canvas project, its desktop app, TUI CLI, and remote/local MCP server setup.
 - Updated `task.md` and `walkthrough.md` to reflect full deployment completion and health check verification.
 
 ### Files Touched
 
 - `SESSION_LOG.md`
+- `README.md`
 - `mcp/src/clipacanvas_mcp/sse_app.py`
 - `tunnel.yaml`
 - `package.json`
@@ -2272,6 +2275,7 @@
 
 ### Commits
 
+- `e7e6a5e` — `docs: restore correct Clip.A.Canvas root README.md with cloud/local MCP instructions`
 - `9234837` — `fix: resolve Starlette handle_messages signature mismatch (takes scope, receive, send)`
 - `4777c1d` — `chore: spawn node directly on supergateway in tunnel.yaml to fix Windows spawn issues`
 - `84e893e` — `chore: add --logLevel none to supergateway in tunnel.yaml to prevent stream corruption`
@@ -2287,6 +2291,7 @@
 ### Open Items
 
 - Keep the background tunnel daemon running to route dotMCP traffic to Hugging Face Spaces.
+
 
 
 
