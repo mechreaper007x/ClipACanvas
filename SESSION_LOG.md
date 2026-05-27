@@ -2254,8 +2254,8 @@
 - Checked and verified that the Hugging Face Space `mechreaper007x/clip-a-canvas-mcp` is successfully built and stage is `RUNNING`.
 - Tested the live health check endpoint: `https://mechreaper007x-clip-a-canvas-mcp.hf.space/health` successfully returns JSON status `ok`.
 - Pushed all 8 pending local commits (including the HF Spaces Docker setup and config fixes) from local `main` to GitHub remote `origin/main`.
-- Configured the local dotMCP tunnel file `tunnel.yaml` to redirect all tool execution traffic from the local machine to the remote Hugging Face Space (SSE) using `supergateway` (via `cmd.exe /c npx -y supergateway --sse ...`).
-- Added the `--logLevel none` flag to `supergateway` in `tunnel.yaml` to suppress log output on stdout, which was causing the tunnel daemon's JSON-RPC stream parser to crash/exit with code 1.
+- Installed `supergateway` locally and configured `tunnel.yaml` to run `node` directly on `node_modules/supergateway/dist/index.js`. This bypasses Windows `cmd.exe /c` batch wrapping issues and Node security patch restrictions (EINVAL errors when spawning `.cmd`/`.bat` files without shell expansion).
+- Configured `supergateway` with the `--logLevel none` option to suppress stdout logging, preventing corruption of the dotMCP JSON-RPC stream.
 - Started the `npx @dotmcp/tunnel start -c tunnel.yaml` daemon in the background to sync tools with dotmcp.io and route requests to the cloud without local computer resource overhead.
 - Updated `task.md` and `walkthrough.md` to reflect full deployment completion and health check verification.
 
@@ -2263,11 +2263,14 @@
 
 - `SESSION_LOG.md`
 - `tunnel.yaml`
+- `package.json`
+- `package-lock.json`
 - `task.md`
 - `walkthrough.md`
 
 ### Commits
 
+- `4777c1d` — `chore: spawn node directly on supergateway in tunnel.yaml to fix Windows spawn issues`
 - `84e893e` — `chore: add --logLevel none to supergateway in tunnel.yaml to prevent stream corruption`
 - Pushed all 8 pending local commits (`44dfc2b` through `0bc9f26`) to GitHub.
 
@@ -2281,6 +2284,7 @@
 ### Open Items
 
 - Keep the background tunnel daemon running to route dotMCP traffic to Hugging Face Spaces.
+
 
 
 
