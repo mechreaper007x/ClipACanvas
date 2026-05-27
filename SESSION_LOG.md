@@ -2325,30 +2325,41 @@
 
 - Monitor the dotMCP tunnel daemon in the background to ensure steady connectivity.
 
-## 2026-05-27 (MCP Registry Publication Verification)
+## 2026-05-27 (Glama Listing Approval & Dockerfile Alignment)
 
 ### Summary
 
 - Restored the correct `mcp/README.md` to avoid registry overwrite conflict.
 - Verified that the Clip.A.Canvas MCP server has been successfully published to the official Model Context Protocol Registry at version `1.0.2` (duplicate version attempt rejected by registry server as already published).
-- No repo changes made.
+- Created a standard `Dockerfile` at the root of the repository to support Glama's automated safety/quality checks and general containerized stdio-based builds.
+- Updated `.gitignore` to keep local-only publisher CLI binaries and test logs ignored.
+- Committed and pushed all registry manifests, licenses, and the new root `Dockerfile` to the GitHub repository.
 
 ### Files Touched
 
+- `Dockerfile` (root)
+- `mcp/server.json`
+- `mcp/smithery.yaml`
+- `.gitignore`
+- `LICENSE`
+- `mcp/LICENSE`
 - `SESSION_LOG.md`
 
 ### Commits
 
-- No commits created.
+- `07d43b1` — `chore: add root Dockerfile for Glama safety checks and commit registry manifests`
 
 ### Deploy Links
 
+- GitHub: `https://github.com/mechreaper007x/ClipACanvas`
 - HF Space: `https://huggingface.co/spaces/mechreaper007x/clip-a-canvas-mcp`
 - SSE Endpoint: `https://mechreaper007x-clip-a-canvas-mcp.hf.space/sse`
 - Health Endpoint: `https://mechreaper007x-clip-a-canvas-mcp.hf.space/health`
-- Official MCP Registry server namespace: `io.github.mechreaper007x/clipacanvas`
+- Official MCP Registry namespace: `io.github.mechreaper007x/clipacanvas`
+- Glama listing: `https://glama.ai/mcp/servers/mechreaper007x/ClipACanvas` (or via search)
 
 ### Open Items
 
-- Monitor the dotMCP tunnel daemon in the background to ensure steady connectivity.
+- Claim the listing on Glama.ai using owner email `creatorsavya@gmail.com` and run the automated safety/quality checks.
+
 
