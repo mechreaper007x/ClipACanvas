@@ -33,3 +33,6 @@ tui/uv.lock
 .agents/
 awesome-mcp-servers/
 .vercel
+
+# Exclude local dotMCP tunnel configuration containing private keys
+tunnel.yaml

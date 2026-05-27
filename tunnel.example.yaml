@@ -1,7 +1,7 @@
-# tunnel.yaml
+# tunnel.example.yaml
 # ─────────────────────────────────────────────────────────────────────────────
 # This configuration bridges your dotMCP tunnel daemon to the cloud-hosted
-# Hugging Face Space (SSE). 
+# Hugging Face Space (SSE).
 #
 # When dotMCP requests a tool execution, it goes through the tunnel daemon
 # on your laptop, but instead of running the server locally, it uses
@@ -10,12 +10,12 @@
 # Compute / Playwright / FFmpeg runs on Hugging Face (zero laptop resource usage).
 # ─────────────────────────────────────────────────────────────────────────────
 
-key: "dott_139f0d079fde20e2f91e2a23c31e2092c1c4723dff30210259806efcd0d43c8d"
+key: "dott_YOUR_TUNNEL_KEY_HERE"
 servers:
-  - id: "2fa07eb8128d455083d5bc4f0ca6b0e6"
+  - id: "YOUR_SERVER_ID_HERE"
     command: "node"
     args:
-      - "C:/Users/Savyasachi Mishra/Desktop/clipacanvas/node_modules/supergateway/dist/index.js"
+      - "./node_modules/supergateway/dist/index.js"
       - "--sse"
       - "https://mechreaper007x-clip-a-canvas-mcp.hf.space/sse"
       - "--logLevel"
