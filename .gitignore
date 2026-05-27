@@ -20,3 +20,15 @@ dist/
 *.spec
 
 .kirin-quarantine
+
+# MCP local publisher CLI tools
+mcp/mcp-publisher.exe
+mcp/mcp-publisher.tar.gz
+
+# Local test videos and scratch files
+tui/*.mp4
+tui/render_and_open.py
+tui/uv.lock
+.temp_publish/
+.agents/
+awesome-mcp-servers/

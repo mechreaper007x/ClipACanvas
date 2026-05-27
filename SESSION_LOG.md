@@ -2292,9 +2292,63 @@
 
 - Keep the background tunnel daemon running to route dotMCP traffic to Hugging Face Spaces.
 
+## 2026-05-27 (Post-Deployment Verification & Subprocess Fix)
 
+### Summary
 
+- Fixed Starlette ASGI routing inside the Hugging Face Space by copying the class-based `SSEHandler` implementation to the Space repository.
+- Resolved a runtime `ValueError: flush of closed file` error by removing the manual `ffmpeg_proc.stdin.close()` invocation before `communicate()` in `playwright_render.py` (applied across root, `mcp`, and `claude/desktop-extension` packages). This lets Python's subprocess library manage stdin closure natively.
+- Tested and verified the cloud-deployed SSE endpoint using the client script, confirming it successfully renders HTML/CSS code and returns a valid base64 MP4 stream to the client.
+- Pushed updates to both the Hugging Face Space repository (`8875794`) and the main GitHub repository (`21f1946`).
+- Confirmed that the local `dotmcp-tunnel` proxying through `supergateway` correctly routes requests to the cloud without local compute overhead.
 
+### Files Touched
 
+- `mcp/src/clipacanvas_mcp/playwright_render.py`
+- `playwright_render.py`
+- `claude/desktop-extension/src/clipacanvas_mcp/playwright_render.py`
+- `mcp/src/clipacanvas_mcp/sse_app.py`
+- `SESSION_LOG.md`
 
+### Commits
+
+- `21f1946` — `fix: resolve Starlette ASGI sse response type and prevent ValueError: flush of closed file in subprocess communicate on Python 3.11+`
+- `8875794` (HF Space) — `fix: remove manual stdin close before communicate`
+
+### Deploy Links
+
+- HF Space: `https://huggingface.co/spaces/mechreaper007x/clip-a-canvas-mcp`
+- SSE Endpoint: `https://mechreaper007x-clip-a-canvas-mcp.hf.space/sse`
+- Health Endpoint: `https://mechreaper007x-clip-a-canvas-mcp.hf.space/health`
+
+### Open Items
+
+- Monitor the dotMCP tunnel daemon in the background to ensure steady connectivity.
+
+## 2026-05-27 (MCP Registry Publication Verification)
+
+### Summary
+
+- Restored the correct `mcp/README.md` to avoid registry overwrite conflict.
+- Verified that the Clip.A.Canvas MCP server has been successfully published to the official Model Context Protocol Registry at version `1.0.2` (duplicate version attempt rejected by registry server as already published).
+- No repo changes made.
+
+### Files Touched
+
+- `SESSION_LOG.md`
+
+### Commits
+
+- No commits created.
+
+### Deploy Links
+
+- HF Space: `https://huggingface.co/spaces/mechreaper007x/clip-a-canvas-mcp`
+- SSE Endpoint: `https://mechreaper007x-clip-a-canvas-mcp.hf.space/sse`
+- Health Endpoint: `https://mechreaper007x-clip-a-canvas-mcp.hf.space/health`
+- Official MCP Registry server namespace: `io.github.mechreaper007x/clipacanvas`
+
+### Open Items
+
+- Monitor the dotMCP tunnel daemon in the background to ensure steady connectivity.
 
