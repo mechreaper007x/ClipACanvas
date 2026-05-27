@@ -2,6 +2,7 @@
   "name": "clip-a-canvas",
   "private": true,
   "type": "module",
+  "license": "MIT",
   "scripts": {
     "render:playwright": "node playwright_render.mjs",
     "install:browsers": "playwright install chromium"
@@ -10,3 +11,4 @@
     "playwright": "^1.58.2"
   }
 }
+

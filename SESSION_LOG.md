@@ -2372,18 +2372,23 @@
 - Verified that the corrected CMD Arguments successfully completed the Glama registry build and deployment!
 
 - Overwrote the complicated transition-related `LICENSE` with a clean industry-standard `MIT License` to fix automated license parsing ("Does not have a license F").
+- Created `LICENSE.md` as an additional copy of the license file for maximum scanner compatibility.
 - Created a standard `glama.json` metadata manifest at the root of the repository to resolve the "No glama.json" issue.
+- Added the `"license": "MIT"` field to the root `package.json` to assist Node.js-based repository scanner compatibility.
 
 ### Files Touched
 
 - `SESSION_LOG.md`
 - `LICENSE`
+- `LICENSE.md`
 - `mcp/LICENSE`
 - `glama.json`
+- `package.json`
 
 ### Commits
 
 - `b569b0d` — `chore: add root glama.json manifest and fix LICENSE formatting for automated parsing`
+- `f429bc0` — `chore: add root LICENSE.md and add license metadata to package.json for scanner compatibility`
 
 ### Deploy Links
 
@@ -2393,6 +2398,7 @@
 ### Open Items
 
 - Claim/manage the live listing on Glama.ai.
+
 
 
 
