@@ -1,0 +1,17 @@
+# Ignore all heavy development files and dependencies for Vercel
+.git
+.github
+node_modules
+dist
+build
+output
+renders
+bin
+.temp_publish
+.venv
+venv
+env
+*.exe
+*.zip
+*.log
+logo_120px_view.png
