@@ -2378,6 +2378,7 @@
 - Configured `CORSMiddleware` in `sse_app.py` to allow direct browser connections from Glama's web MCP Inspector, resolving proxy buffering timeouts (`Request timed out`).
 
 - Added standard registry badges (Smithery and Glama) with premium hover transitions to the website's MCP section (`website/index.html` and `website/styles.css`).
+- Integrated clear, copy-pasteable documentation for **Glama Gateway** (`npx -y @glama/mcp-gateway`) and **dotMCP Tunnel** (`npx dotmcp-tunnel`) into the website's installation grid, highlighting cloud-proxied and globally tunneled execution.
 - Pushed the website changes to GitHub to automatically trigger Vercel to rebuild and redeploy `https://clipacanvas.vercel.app`.
 
 ### Files Touched
@@ -2397,7 +2398,8 @@
 - `b569b0d` — `chore: add root glama.json manifest and fix LICENSE formatting for automated parsing`
 - `f907233` — `chore: add root LICENSE.md and add license metadata to package.json for scanner compatibility`
 - `d167729` (GitHub) / `a609f96` (HF) — `feat: add CORSMiddleware to enable native web browser connections`
-- `c029412` — `feat: add Smithery and Glama registry badges with premium hover transitions to website`
+- `fda93e4` — `feat: add Smithery and Glama registry badges with premium hover transitions to website`
+- `a78a9c0` — `docs: integrate copy-pasteable Glama Gateway and dotMCP Tunnel guides into website`
 
 ### Deploy Links
 
@@ -2409,6 +2411,7 @@
 ### Open Items
 
 - Claim/manage the live listing on Glama.ai.
+
 
 
 

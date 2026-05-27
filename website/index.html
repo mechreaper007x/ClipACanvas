@@ -223,6 +223,20 @@
             <pre class="command-block"><code>claude mcp add -s user clipacanvas -- uvx clipacanvas-mcp</code></pre>
           </article>
         </div>
+        <div class="integration-grid">
+          <article class="workflow-card install-card">
+            <span class="step-index">Glama Gateway</span>
+            <h3>Run in the Cloud</h3>
+            <p style="font-size: 0.85em; margin: 0 0 12px; opacity: 0.7;">Route MCP requests in the cloud via Glama's secure gateway to bypass local dependencies:</p>
+            <pre class="command-block"><code>npx -y @glama/mcp-gateway --server mechreaper007x/ClipACanvas</code></pre>
+          </article>
+          <article class="workflow-card install-card">
+            <span class="step-index">dotMCP Tunnel</span>
+            <h3>Expose Globally</h3>
+            <p style="font-size: 0.85em; margin: 0 0 12px; opacity: 0.7;">Expose your local stdio server to the secure dotMCP WebSocket tunnel relay in one click:</p>
+            <pre class="command-block"><code>npx dotmcp-tunnel --command "uvx clipacanvas-mcp"</code></pre>
+          </article>
+        </div>
         <p class="mcp-note">
           Claude Desktop users can install the MCPB extension from the GitHub release once it is attached.
         </p>

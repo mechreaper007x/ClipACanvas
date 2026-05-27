@@ -481,7 +481,8 @@ a {
 
 .feature-grid,
 .workflow-grid,
-.install-grid {
+.install-grid,
+.integration-grid {
   display: grid;
   gap: 18px;
 }
@@ -500,6 +501,11 @@ a {
 
 .install-grid {
   grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.integration-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-top: 18px;
 }
 
 .feature-card,
@@ -675,7 +681,8 @@ a {
 
   .signal-strip,
   .workflow-grid,
-  .install-grid {
+  .install-grid,
+  .integration-grid {
     grid-template-columns: 1fr;
   }
 }
