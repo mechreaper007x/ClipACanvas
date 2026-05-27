@@ -1,25 +1,36 @@
 # Clip.A.Canvas MCP Server
 
-A universal MCP (Model Context Protocol) server that exposes Clip.A.Canvas HTML-to-video rendering as an MCP tool. Works with Claude Desktop, ChatGPT, Gemini CLI, Claude Code, and any STDIO/HTTPS-based MCP client.
+A universal MCP (Model Context Protocol) server that exposes Clip.A.Canvas HTML-to-video rendering as an MCP tool. Works with Claude Desktop, ChatGPT, Antigravity CLI (agy), Claude Code, and any STDIO/HTTPS-based MCP client.
 
 <!-- mcp-name: io.github.mechreaper007x/clipacanvas -->
 
 ## Features
 
 - **Universal MCP tool** — `render_video` and `render_video_to_file` exposed via the MCP protocol
-- **Works everywhere** — Claude Desktop, ChatGPT, Gemini CLI, Claude Code, and more
+- **Works everywhere** — Claude Desktop, ChatGPT, Antigravity CLI, Claude Code, and more
 - **Local rendering** — no upload, no cloud; Chromium + FFmpeg run on your machine
 - **Base64 or file output** — return video as base64 string or save directly to a path
 
 ## Installation
 
-### One-command MCP install
+### Client Configuration
 
+#### 1. Antigravity CLI (`agy`)
+Add the following to your `mcp_config.json` (typically at `~/.gemini/antigravity-cli/mcp_config.json`):
+```json
+{
+  "mcpServers": {
+    "clipacanvas": {
+      "command": "uvx",
+      "args": ["clipacanvas-mcp"]
+    }
+  }
+}
+```
+Verify the server loads successfully by running `agy inspect`.
+
+#### 2. Claude Code
 ```bash
-# Antigravity / Gemini CLI
-antigravity mcp add clipacanvas -- uvx clipacanvas-mcp
-
-# Claude Code
 claude mcp add -s user clipacanvas -- cmd /c uvx clipacanvas-mcp
 ```
 
