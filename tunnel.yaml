@@ -13,12 +13,9 @@
 key: "dott_139f0d079fde20e2f91e2a23c31e2092c1c4723dff30210259806efcd0d43c8d"
 servers:
   - id: "2fa07eb8128d455083d5bc4f0ca6b0e6"
-    command: "cmd.exe"
+    command: "node"
     args:
-      - "/c"
-      - "npx"
-      - "-y"
-      - "supergateway"
+      - "C:/Users/Savyasachi Mishra/Desktop/clipacanvas/node_modules/supergateway/dist/index.js"
       - "--sse"
       - "https://mechreaper007x-clip-a-canvas-mcp.hf.space/sse"
       - "--logLevel"
