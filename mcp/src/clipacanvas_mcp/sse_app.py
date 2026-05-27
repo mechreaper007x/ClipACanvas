@@ -100,7 +100,7 @@ app = Starlette(
     routes=[
         Route("/", homepage),
         Route("/health", health),
-        Route("/sse", handle_sse),
+        Mount("/sse", app=handle_sse),
         Mount("/messages/", app=handle_messages),
     ]
 )
