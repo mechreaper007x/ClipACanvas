@@ -34,6 +34,13 @@ Verify the server loads successfully by running `agy inspect`.
 claude mcp add -s user clipacanvas -- cmd /c uvx clipacanvas-mcp
 ```
 
+#### 3. Codex CLI
+```bash
+codex mcp add clipacanvas -- uvx clipacanvas-mcp
+```
+> [!NOTE]
+> If `codex mcp list` displays `Auth: Unsupported` for Clip.A.Canvas, this is completely normal! This status simply means the server does not require external OAuth authentication to run (which is correct for local stdio MCP servers).
+
 ### From PyPI
 
 ```bash

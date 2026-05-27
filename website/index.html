@@ -223,7 +223,7 @@
           <article class="workflow-card install-card">
             <span class="step-index">Claude</span>
             <h3>Claude Code install</h3>
-            <pre class="command-block"><code>claude mcp add -s user clipacanvas -- uvx clipacanvas-mcp</code></pre>
+            <pre class="command-block"><code>claude mcp add -s user clipacanvas -- cmd /c uvx clipacanvas-mcp</code></pre>
           </article>
         </div>
         <div class="integration-grid">
@@ -241,7 +241,8 @@
           </article>
         </div>
         <p class="mcp-note">
-          Claude Desktop users can install the MCPB extension from the GitHub release once it is attached.
+          💡 <strong>Windows Users</strong>: Wrap execution commands in <code>cmd /c</code> (e.g., <code>cmd /c uvx clipacanvas-mcp</code>) inside Claude settings to prevent connection errors (-32000).<br>
+          💡 <strong>Codex Status</strong>: If <code>codex mcp list</code> shows <code>Auth: Unsupported</code>, this is normal! It simply means this local server runs securely without requiring OAuth credentials.
         </p>
       </section>
 
