@@ -44,7 +44,7 @@ We host a public instance of the MCP server on Hugging Face Spaces using Server-
 If you prefer running the server locally on your machine:
 ```bash
 # Run locally with uvx
-uvx clipacanvas-mcp
+uvx --from clipacanvas-mcp clipmcp
 
 # Or install via pip
 pip install clipacanvas-mcp
@@ -56,7 +56,7 @@ pip install clipacanvas-mcp
   "mcpServers": {
     "clipacanvas": {
       "command": "uvx",
-      "args": ["clipacanvas-mcp"]
+      "args": ["--from", "clipacanvas-mcp", "clipmcp"]
     }
   }
 }

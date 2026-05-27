@@ -30,10 +30,8 @@
 
         <div class="feature-grid detail-grid">
           <article class="feature-card">
-            <span class="card-kicker">Claude Code</span>
-            <h2>Install from PyPI through uvx</h2>
-            <pre class="command-block"><code>claude mcp add -s user clipacanvas -- uvx clipacanvas-mcp</code></pre>
-            <p>On Windows, use `cmd /c uvx clipacanvas-mcp` if Claude Code cannot resolve `uvx` directly.</p>
+            <pre class="command-block"><code>claude mcp add -s user clipacanvas -- cmd /c uvx --from clipacanvas-mcp clipmcp</code></pre>
+            <p>On Windows, use <code>cmd /c</code> before <code>uvx --from ...</code> to prevent subprocess connection errors (-32000).</p>
           </article>
           <article class="feature-card">
             <span class="card-kicker">Claude Desktop</span>

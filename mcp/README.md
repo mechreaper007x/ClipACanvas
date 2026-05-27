@@ -22,7 +22,7 @@ Add the following to your `mcp_config.json` (typically at `~/.gemini/antigravity
   "mcpServers": {
     "clipacanvas": {
       "command": "uvx",
-      "args": ["clipacanvas-mcp"]
+      "args": ["--from", "clipacanvas-mcp", "clipmcp"]
     }
   }
 }
@@ -31,12 +31,12 @@ Verify the server loads successfully by running `agy inspect`.
 
 #### 2. Claude Code
 ```bash
-claude mcp add -s user clipacanvas -- cmd /c uvx clipacanvas-mcp
+claude mcp add -s user clipacanvas -- cmd /c uvx --from clipacanvas-mcp clipmcp
 ```
 
 #### 3. Codex CLI
 ```bash
-codex mcp add clipacanvas -- uvx clipacanvas-mcp
+codex mcp add clipacanvas -- uvx --from clipacanvas-mcp clipmcp
 ```
 > [!NOTE]
 > If `codex mcp list` displays `Auth: Unsupported` for Clip.A.Canvas, this is completely normal! This status simply means the server does not require external OAuth authentication to run (which is correct for local stdio MCP servers).

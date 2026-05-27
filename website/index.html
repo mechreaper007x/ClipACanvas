@@ -212,18 +212,18 @@
             <h3>Add to mcp_config.json</h3>
             <pre class="command-block"><code>"clipacanvas": {
   "command": "uvx",
-  "args": ["clipacanvas-mcp"]
+  "args": ["--from", "clipacanvas-mcp", "clipmcp"]
 }</code></pre>
           </article>
           <article class="workflow-card install-card">
             <span class="step-index">Codex</span>
             <h3>Register the same package</h3>
-            <pre class="command-block"><code>codex mcp add clipacanvas -- uvx clipacanvas-mcp</code></pre>
+            <pre class="command-block"><code>codex mcp add clipacanvas -- uvx --from clipacanvas-mcp clipmcp</code></pre>
           </article>
           <article class="workflow-card install-card">
             <span class="step-index">Claude</span>
             <h3>Claude Code install</h3>
-            <pre class="command-block"><code>claude mcp add -s user clipacanvas -- cmd /c uvx clipacanvas-mcp</code></pre>
+            <pre class="command-block"><code>claude mcp add -s user clipacanvas -- cmd /c uvx --from clipacanvas-mcp clipmcp</code></pre>
           </article>
         </div>
         <div class="integration-grid">
@@ -237,11 +237,11 @@
             <span class="step-index">dotMCP Tunnel</span>
             <h3>Expose Globally</h3>
             <p style="font-size: 0.85em; margin: 0 0 12px; opacity: 0.7;">Expose your local stdio server to the secure dotMCP WebSocket tunnel relay in one click:</p>
-            <pre class="command-block"><code>npx dotmcp-tunnel --command "uvx clipacanvas-mcp"</code></pre>
+            <pre class="command-block"><code>npx dotmcp-tunnel --command "uvx --from clipacanvas-mcp clipmcp"</code></pre>
           </article>
         </div>
         <p class="mcp-note">
-          💡 <strong>Windows Users</strong>: Wrap execution commands in <code>cmd /c</code> (e.g., <code>cmd /c uvx clipacanvas-mcp</code>) inside Claude settings to prevent connection errors (-32000).<br>
+          💡 <strong>Windows Users</strong>: Wrap execution commands in <code>cmd /c</code> (e.g., <code>cmd /c uvx --from clipacanvas-mcp clipmcp</code>) inside Claude settings to prevent connection errors (-32000).<br>
           💡 <strong>Codex Status</strong>: If <code>codex mcp list</code> shows <code>Auth: Unsupported</code>, this is normal! It simply means this local server runs securely without requiring OAuth credentials.
         </p>
       </section>
