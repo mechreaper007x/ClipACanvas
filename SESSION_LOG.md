@@ -2505,6 +2505,9 @@
 - Created `tunnel.example.yaml` template with relative paths and placeholder key.
 - Corrected the incorrect `@dotmcp/tunnel` package name and `-c tunnel.yaml` command-line options in the documentation.
 - Restored the active tunnel key in the local, now-gitignored `tunnel.yaml` file so it can reconnect.
+- Implemented **Option B (Cloud Tunnel)** to automatically run `@dotmcp/tunnel` inside Hugging Face Spaces.
+- Added `start.sh` script to boot both the SSE server and the tunnel daemon in the cloud container when env secrets are present.
+- Updated `mcp/Dockerfile` to install Node.js, npm, `@dotmcp/tunnel`, and `supergateway`.
 
 ### Files Touched
 
@@ -2513,19 +2516,23 @@
 - `tunnel.yaml` (untracked)
 - `awesome_mcp_readme.md`
 - `website/index.html`
+- `mcp/Dockerfile`
+- `mcp/start.sh`
 - `SESSION_LOG.md`
 
 ### Commits
 
 - `82577e6` — `security: untrack tunnel.yaml and add tunnel.example.yaml to prevent key exposure`
 - `909803a` — `docs: correct dotmcp-tunnel package name and options in guides`
+- `fdd1b35` — `feat: run dotmcp-tunnel in the cloud inside Hugging Face Spaces container`
 
 ### Deploy Links
 
-- None.
+- HF Space: `https://huggingface.co/spaces/mechreaper007x/clip-a-canvas-mcp`
 
 ### Open Items
 
-- User needs to revoke/delete the compromised key `dott_139f0d...` on the dotmcp.io/dotmcp.com dashboard and generate a new key, then insert it into their local `tunnel.yaml`.
+- User needs to add `DOTMCP_KEY` and `DOTMCP_SERVER_ID` environment secrets on Hugging Face Spaces to automatically start the cloud tunnel.
+- User needs to revoke/delete the compromised key `dott_139f0d...` on the dotmcp.io/dotmcp.com dashboard and generate a new key if they haven't already.
 
 
