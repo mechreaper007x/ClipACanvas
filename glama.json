@@ -1,0 +1,20 @@
+{
+  "$schema": "https://glama.ai/mcp/schemas/server.json",
+  "name": "ClipACanvas",
+  "description": "Clip.A.Canvas MCP server — render HTML/CSS/JS animations to MP4 via MCP tools",
+  "type": "mcp_server",
+  "status": "stable",
+  "framework": "mcp-python",
+  "maintainers": ["creatorsavya@gmail.com"],
+  "transport": ["stdio"],
+  "keywords": [
+    "mcp",
+    "mcp-server",
+    "canvas",
+    "video",
+    "render",
+    "playwright",
+    "ffmpeg",
+    "animation"
+  ]
+}

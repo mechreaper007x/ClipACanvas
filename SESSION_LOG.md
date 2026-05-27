@@ -2362,4 +2362,35 @@
 
 - Claim the listing on Glama.ai using owner email `creatorsavya@gmail.com` and run the automated safety/quality checks.
 
+## 2026-05-27 (Glama CMD Arguments Correction & Successful Deploy)
+
+### Summary
+
+- No product repo changes made (excluding session log updates).
+- Diagnosed Glama runtime crash caused by module typo in CMD Arguments (`python -m clipmcp`).
+- Instructed the user to update their Glama CMD Arguments to use the correct Python module path `clipacanvas_mcp.server`.
+- Verified that the corrected CMD Arguments successfully completed the Glama registry build and deployment!
+
+- Overwrote the complicated transition-related `LICENSE` with a clean industry-standard `MIT License` to fix automated license parsing ("Does not have a license F").
+- Created a standard `glama.json` metadata manifest at the root of the repository to resolve the "No glama.json" issue.
+
+### Files Touched
+
+- `SESSION_LOG.md`
+- `LICENSE`
+- `mcp/LICENSE`
+- `glama.json`
+
+### Commits
+
+- `82fc0de` — `chore: add root glama.json manifest and fix LICENSE formatting for automated parsing`
+
+### Deploy Links
+
+- Glama listing: `https://glama.ai/mcp/servers/mechreaper007x/ClipACanvas`
+
+### Open Items
+
+- Claim/manage the live listing on Glama.ai and publish a new GitHub release to enable full coherence scoring.
+
 
