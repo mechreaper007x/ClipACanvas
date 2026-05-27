@@ -2184,3 +2184,97 @@
 
 - Push these updates to the GitHub repository to make them public.
 - Claim/promote the Smithery listing and submit the MCP server to Glama.ai and dotMCP.io.
+
+## 2026-05-26
+
+### Summary
+
+- Added SSE (Server-Sent Events) transport layer to the MCP server so it can run
+  in the cloud without consuming local laptop resources.
+- Created a Starlette ASGI app (`sse_app.py`) that exposes `/sse`, `/messages/`,
+  `/health`, and a landing page using `mcp.server.sse.SseServerTransport`.
+- Created a multi-stage `Dockerfile` targeting Hugging Face Spaces (port 7860)
+  with Playwright Chromium + FFmpeg pre-installed and a non-root runtime user.
+- Created `README_HF.md` with the required HF Spaces YAML front-matter
+  (`sdk: docker`, `app_port: 7860`).
+- Added `[sse]` optional dependency group (`starlette>=0.27`, `uvicorn[standard]>=0.24`)
+  and registered `clipmcp` / `clipmcp-sse` as console script entry points.
+
+### Files Touched
+
+- `mcp/src/clipacanvas_mcp/sse_app.py` — new SSE transport Starlette app
+- `mcp/pyproject.toml` — added [sse] extras and new script entry points
+- `mcp/Dockerfile` — HF Spaces Docker image (multi-stage, Chromium + FFmpeg)
+- `mcp/README_HF.md` — HF Spaces card with YAML front-matter
+
+### Commits
+
+- `44dfc2b` — `feat: add SSE transport server and Hugging Face Spaces Dockerfile`
+
+### Deploy Links
+
+- None yet — next step is creating the HF Space.
+
+### Open Items
+
+- Create the actual Hugging Face Space repo and push the `mcp/` directory to it.
+- The Space README must be named `README.md` at the root of the Space repo (copy `README_HF.md`).
+- After first deploy, update the connect URL in `README_HF.md` with the real Space slug.
+
+## 2026-05-26 (HF Spaces Deployment)
+
+### Summary
+
+- Created HF Space `mechreaper007x/clip-a-canvas-mcp` (Docker SDK, public) via API.
+- Pushed all MCP server source files to the Space repo; Docker build triggered automatically.
+- Updated `mcp/README_HF.md` with the real subdomain URL.
+
+### Files Touched
+
+- `mcp/README_HF.md` — updated with real Space URL
+
+### Commits
+
+- `4416654` — `docs: update README_HF with real HF Space URL`
+
+### Deploy Links
+
+- HF Space: `https://huggingface.co/spaces/mechreaper007x/clip-a-canvas-mcp`
+- SSE Endpoint (once build completes): `https://mechreaper007x-clip-a-canvas-mcp.hf.space/sse`
+
+### Open Items
+
+- Wait for Docker build to complete on HF (takes ~5–10 min first time; Playwright install is heavy).
+- Test SSE endpoint with an MCP client once the Space shows status RUNNING.
+
+## 2026-05-27
+
+### Summary
+
+- Checked and verified that the Hugging Face Space `mechreaper007x/clip-a-canvas-mcp` is successfully built and stage is `RUNNING`.
+- Tested the live health check endpoint: `https://mechreaper007x-clip-a-canvas-mcp.hf.space/health` successfully returns JSON status `ok`.
+- Pushed all 8 pending local commits (including the HF Spaces Docker setup and config fixes) from local `main` to GitHub remote `origin/main`.
+- Updated `task.md` and `walkthrough.md` to reflect full deployment completion and health check verification.
+
+### Files Touched
+
+- `SESSION_LOG.md`
+- `task.md`
+- `walkthrough.md`
+
+### Commits
+
+- No new commits created; pushed 8 existing local commits (`44dfc2b` through `0bc9f26`) to GitHub.
+
+### Deploy Links
+
+- HF Space: `https://huggingface.co/spaces/mechreaper007x/clip-a-canvas-mcp`
+- SSE Endpoint: `https://mechreaper007x-clip-a-canvas-mcp.hf.space/sse`
+- Health Endpoint: `https://mechreaper007x-clip-a-canvas-mcp.hf.space/health`
+- GitHub main branch: `https://github.com/mechreaper007x/ClipACanvas`
+
+### Open Items
+
+- Clarify dotMCP tunnel requirements: since the server runs on Hugging Face Spaces (SSE), the local dotMCP tunnel is no longer required for zero-laptop-compute execution.
+
+
