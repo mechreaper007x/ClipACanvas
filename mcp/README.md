@@ -16,8 +16,8 @@ A universal MCP (Model Context Protocol) server that exposes Clip.A.Canvas HTML-
 ### One-command MCP install
 
 ```bash
-# Gemini CLI
-gemini mcp add clipacanvas -- uvx clipacanvas-mcp
+# Antigravity / Gemini CLI
+antigravity mcp add clipacanvas -- uvx clipacanvas-mcp
 
 # Claude Code
 claude mcp add -s user clipacanvas -- cmd /c uvx clipacanvas-mcp

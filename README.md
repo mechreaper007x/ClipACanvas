@@ -12,7 +12,7 @@
 
 It includes:
 - **Desktop App**: Paste, preview, and export animations locally with a pywebview UI.
-- **MCP Server**: Exposes HTML-to-video rendering tools to Gemini, Codex, Claude Code, and other AI clients.
+- **MCP Server**: Exposes HTML-to-video rendering tools to Antigravity, Gemini, Codex, Claude Code, and other AI clients.
 - **Terminal UI (TUI)**: Keyboard-first command-line client for code-first rendering.
 
 - **Website**: `https://clipacanvas.vercel.app`

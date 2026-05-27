@@ -2379,6 +2379,7 @@
 
 - Added standard registry badges (Smithery and Glama) with premium hover transitions to the website's MCP section (`website/index.html` and `website/styles.css`).
 - Integrated clear, copy-pasteable documentation for **Glama Gateway** (`npx -y @glama/mcp-gateway`) and **dotMCP Tunnel** (`npx dotmcp-tunnel`) into the website's installation grid, highlighting cloud-proxied and globally tunneled execution.
+- Updated the website (`index.html`), root `README.md`, and `mcp/README.md` to reflect Google's transition of **Gemini CLI to Antigravity CLI**, fully supporting and documenting the new launch command (`antigravity mcp add`).
 - Pushed the website changes to GitHub to automatically trigger Vercel to rebuild and redeploy `https://clipacanvas.vercel.app`.
 
 ### Files Touched
@@ -2392,6 +2393,8 @@
 - `mcp/src/clipacanvas_mcp/sse_app.py`
 - `website/index.html`
 - `website/styles.css`
+- `README.md`
+- `mcp/README.md`
 
 ### Commits
 
@@ -2399,7 +2402,8 @@
 - `f907233` — `chore: add root LICENSE.md and add license metadata to package.json for scanner compatibility`
 - `d167729` (GitHub) / `a609f96` (HF) — `feat: add CORSMiddleware to enable native web browser connections`
 - `fda93e4` — `feat: add Smithery and Glama registry badges with premium hover transitions to website`
-- `a78a9c0` — `docs: integrate copy-pasteable Glama Gateway and dotMCP Tunnel guides into website`
+- `0d62f2e` — `docs: integrate copy-pasteable Glama Gateway and dotMCP Tunnel guides into website`
+- `05fc1a1` — `docs: update website, root README, and mcp/README for Google's Antigravity CLI transition`
 
 ### Deploy Links
 
@@ -2411,6 +2415,7 @@
 ### Open Items
 
 - Claim/manage the live listing on Glama.ai.
+
 
 
 
