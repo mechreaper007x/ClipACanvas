@@ -17,7 +17,9 @@
         "type": "stdio",
         "command": "uvx",
         "args": [
-          "clipacanvas-mcp"
+          "--from",
+          "clipacanvas-mcp",
+          "clipmcp"
         ]
       }
     }
