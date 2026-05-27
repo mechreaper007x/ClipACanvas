@@ -2252,8 +2252,9 @@
 ### Summary
 
 - Checked and verified that the Hugging Face Space `mechreaper007x/clip-a-canvas-mcp` is successfully built and stage is `RUNNING`.
-- Tested the live health check endpoint: `https://mechreaper007x-clip-a-canvas-mcp.hf.space/health` successfully returns JSON status `ok`.
-- Pushed all 8 pending local commits (including the HF Spaces Docker setup and config fixes) from local `main` to GitHub remote `origin/main`.
+- Diagnosed a Starlette signature mismatch in the `/messages/` POST endpoint (`sse_app.py`): the handler `handle_messages` took `(request: Request)` but was mounted as an ASGI app requiring `(scope, receive, send)`. This was causing `TypeError: handle_messages() takes 1 positional argument but 3 were given` whenever dotMCP posted JSON-RPC payloads to the Space, returning HTTP 500.
+- Fixed the ASGI signature of `handle_messages` to take `(scope, receive, send)` in `mcp/src/clipacanvas_mcp/sse_app.py` and successfully pushed the update to both the main GitHub repository and the Hugging Face Space repository.
+- Verified that the new HF build (`35047f7`) compiled successfully (with Docker cached layers) and the container successfully started (`Application startup complete`).
 - Installed `supergateway` locally and configured `tunnel.yaml` to run `node` directly on `node_modules/supergateway/dist/index.js`. This bypasses Windows `cmd.exe /c` batch wrapping issues and Node security patch restrictions (EINVAL errors when spawning `.cmd`/`.bat` files without shell expansion).
 - Configured `supergateway` with the `--logLevel none` option to suppress stdout logging, preventing corruption of the dotMCP JSON-RPC stream.
 - Started the `npx @dotmcp/tunnel start -c tunnel.yaml` daemon in the background to sync tools with dotmcp.io and route requests to the cloud without local computer resource overhead.
@@ -2262,6 +2263,7 @@
 ### Files Touched
 
 - `SESSION_LOG.md`
+- `mcp/src/clipacanvas_mcp/sse_app.py`
 - `tunnel.yaml`
 - `package.json`
 - `package-lock.json`
@@ -2270,6 +2272,7 @@
 
 ### Commits
 
+- `9234837` — `fix: resolve Starlette handle_messages signature mismatch (takes scope, receive, send)`
 - `4777c1d` — `chore: spawn node directly on supergateway in tunnel.yaml to fix Windows spawn issues`
 - `84e893e` — `chore: add --logLevel none to supergateway in tunnel.yaml to prevent stream corruption`
 - Pushed all 8 pending local commits (`44dfc2b` through `0bc9f26`) to GitHub.
@@ -2284,6 +2287,7 @@
 ### Open Items
 
 - Keep the background tunnel daemon running to route dotMCP traffic to Hugging Face Spaces.
+
 
 
 
