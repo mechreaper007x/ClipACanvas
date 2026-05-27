@@ -39,14 +39,15 @@ from .server import server, APP_NAME, APP_VERSION
 sse = SseServerTransport("/messages/")
 
 
-async def handle_sse(scope, receive, send):
-    """Upgrade the HTTP request to an SSE stream and run the MCP session."""
-    async with sse.connect_sse(scope, receive, send) as (read_stream, write_stream):
-        await server.run(
-            read_stream,
-            write_stream,
-            server.create_initialization_options(),
-        )
+class SSEHandler:
+    async def __call__(self, scope, receive, send):
+        """Upgrade the HTTP request to an SSE stream and run the MCP session."""
+        async with sse.connect_sse(scope, receive, send) as (read_stream, write_stream):
+            await server.run(
+                read_stream,
+                write_stream,
+                server.create_initialization_options(),
+            )
 
 
 async def handle_messages(scope, receive, send):
@@ -100,7 +101,7 @@ app = Starlette(
     routes=[
         Route("/", homepage),
         Route("/health", health),
-        Mount("/sse", app=handle_sse),
+        Route("/sse", endpoint=SSEHandler()),
         Mount("/messages/", app=handle_messages),
     ]
 )

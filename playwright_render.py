@@ -310,8 +310,7 @@ def render_payload(payload: dict, output_path: str | Path, ffmpeg_exe: str | Non
                 browser.close()
                 gc.collect() # Immediate cleanup
 
-        # Close FFmpeg pipe to finish encoding
-        ffmpeg_proc.stdin.close()
+        # Close FFmpeg pipe to finish encoding and read outputs
         stdout, stderr = ffmpeg_proc.communicate()
         if ffmpeg_proc.returncode != 0:
             raise RuntimeError(stderr.decode().strip())
