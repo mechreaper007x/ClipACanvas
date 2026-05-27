@@ -2503,18 +2503,22 @@
 - Fixed dotMCP Tunnel key exposure by removing `tunnel.yaml` from Git tracking.
 - Added `tunnel.yaml` to `.gitignore`.
 - Created `tunnel.example.yaml` template with relative paths and placeholder key.
-- Replaced the compromised publisher key and local absolute paths in the workspace `tunnel.yaml` with placeholders.
+- Corrected the incorrect `@dotmcp/tunnel` package name and `-c tunnel.yaml` command-line options in the documentation.
+- Restored the active tunnel key in the local, now-gitignored `tunnel.yaml` file so it can reconnect.
 
 ### Files Touched
 
 - `.gitignore`
 - `tunnel.example.yaml`
 - `tunnel.yaml` (untracked)
+- `awesome_mcp_readme.md`
+- `website/index.html`
 - `SESSION_LOG.md`
 
 ### Commits
 
 - `82577e6` — `security: untrack tunnel.yaml and add tunnel.example.yaml to prevent key exposure`
+- `909803a` — `docs: correct dotmcp-tunnel package name and options in guides`
 
 ### Deploy Links
 
