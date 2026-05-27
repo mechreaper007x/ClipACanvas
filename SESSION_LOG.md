@@ -2383,14 +2383,16 @@
 
 ### Commits
 
-- `82fc0de` — `chore: add root glama.json manifest and fix LICENSE formatting for automated parsing`
+- `b569b0d` — `chore: add root glama.json manifest and fix LICENSE formatting for automated parsing`
 
 ### Deploy Links
 
 - Glama listing: `https://glama.ai/mcp/servers/mechreaper007x/ClipACanvas`
+- GitHub Release v1.0.2: `https://github.com/mechreaper007x/ClipACanvas/releases/tag/v1.0.2`
 
 ### Open Items
 
-- Claim/manage the live listing on Glama.ai and publish a new GitHub release to enable full coherence scoring.
+- Claim/manage the live listing on Glama.ai.
+
 
 
