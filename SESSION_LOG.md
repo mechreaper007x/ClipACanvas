@@ -2437,6 +2437,7 @@
 - `README.md`
 - `.vercelignore`
 - `vercel.json`
+- `mcp/pyproject.toml`
 
 ### Commits
 
@@ -2450,6 +2451,8 @@
 - `d988d23` — `chore: final session log sync with Vercel deploy commits`
 - `490f603` — `docs: use correct uvx --from clipacanvas-mcp clipmcp command in all guides`
 - `604a81f` — `chore: polish session log with vercel rewrite loop commits`
+- `fb6b04b` — `fix: resolve module layout mapping bug in Hatchling by adding sources = ['src'] to wheel targets`
+- `60ace15` — `chore: final session log sync with uvx fix`
 
 ### Deploy Links
 
