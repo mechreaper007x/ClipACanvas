@@ -2254,11 +2254,14 @@
 - Checked and verified that the Hugging Face Space `mechreaper007x/clip-a-canvas-mcp` is successfully built and stage is `RUNNING`.
 - Tested the live health check endpoint: `https://mechreaper007x-clip-a-canvas-mcp.hf.space/health` successfully returns JSON status `ok`.
 - Pushed all 8 pending local commits (including the HF Spaces Docker setup and config fixes) from local `main` to GitHub remote `origin/main`.
+- Configured the local dotMCP tunnel file `tunnel.yaml` to redirect all tool execution traffic from the local machine to the remote Hugging Face Space (SSE) using `supergateway` (via `cmd.exe /c npx -y supergateway --sse ...`).
+- Started the `npx @dotmcp/tunnel start -c tunnel.yaml` daemon in the background to sync tools with dotmcp.io and route requests to the cloud without local computer resource overhead.
 - Updated `task.md` and `walkthrough.md` to reflect full deployment completion and health check verification.
 
 ### Files Touched
 
 - `SESSION_LOG.md`
+- `tunnel.yaml`
 - `task.md`
 - `walkthrough.md`
 
@@ -2275,6 +2278,7 @@
 
 ### Open Items
 
-- Clarify dotMCP tunnel requirements: since the server runs on Hugging Face Spaces (SSE), the local dotMCP tunnel is no longer required for zero-laptop-compute execution.
+- Keep the background tunnel daemon running to route dotMCP traffic to Hugging Face Spaces.
+
 
 
