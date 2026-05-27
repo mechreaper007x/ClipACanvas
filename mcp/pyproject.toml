@@ -32,6 +32,7 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/clipacanvas_mcp"]
+sources = ["src"]
 
 [tool.hatch.build.targets.sdist]
 include = ["src/"]
