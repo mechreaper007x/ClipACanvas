@@ -4021,4 +4021,4 @@
 - Gemini free-tier quotas can still interrupt a long planned production mid-run; each step retries twice, then the run continues with remaining steps and reports failures in the summary.
 - No agent tools yet for TTS voiceover or placing bin audio/assets on A1–A3; the 54 s challenge still needs those via the manual UI.
 - The observed 60 s composition cap and the malformed 0.5 s clip when inserting exactly at 60 s remain unfixed.
-- No git commit/push for this entry (not requested).
+- `07716b3` - durable projects, undo/redo, and hidden stepwise production plans (pushed to `origin/main`).
