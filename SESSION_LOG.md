@@ -3516,7 +3516,7 @@
 
 ### Commits
 
-- No commits created.
+- `47e0daa` - `feat: media bin, overlays, audio mixing, composite preview and in-scene media` (also carries the previously uncommitted media/audio/overlay work, bundled fonts and test suites)
 
 ### Open Items
 
