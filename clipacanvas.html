@@ -2738,6 +2738,113 @@ main.control-room #splitRight {
   box-shadow: inset 0 0 0 1px rgba(var(--go-rgb), 0.35);
 }
 .logic-box.dragging { opacity: 0.45; pointer-events: none; cursor: grabbing; }
+.logic-transition {
+  position: absolute;
+  top: 2px;
+  z-index: 7;
+  transform: translateX(-50%);
+  height: 13px;
+  padding: 0 4px;
+  border: 1px solid rgba(var(--go-rgb), 0.8);
+  background: rgba(8, 12, 9, 0.94);
+  color: var(--go);
+  font-family: var(--mono);
+  font-size: 0.38rem;
+  letter-spacing: 0.6px;
+  line-height: 1;
+  cursor: pointer;
+  pointer-events: auto;
+}
+.logic-transition:hover {
+  background: var(--go);
+  color: #081008;
+}
+.transition-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.86);
+  padding: 20px;
+}
+.transition-modal[hidden] { display: none; }
+.transition-dialog {
+  width: min(560px, 94vw);
+  max-height: 92vh;
+  overflow: auto;
+  background: var(--panel-3);
+  border: 1px solid var(--line-soft);
+  padding: 16px;
+  font-family: var(--mono);
+  color: var(--ink);
+  display: grid;
+  gap: 12px;
+}
+.transition-dialog-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.transition-dialog-head .eyebrow { color: var(--go); }
+.transition-cut {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.52rem;
+  letter-spacing: 0.8px;
+  color: var(--muted-2);
+}
+.transition-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+.transition-dialog label {
+  display: grid;
+  gap: 4px;
+  font-size: 0.48rem;
+  letter-spacing: 1px;
+  color: var(--muted-2);
+}
+.transition-dialog label[hidden] { display: none; }
+.transition-dialog input,
+.transition-dialog select,
+.transition-dialog textarea {
+  width: 100%;
+  background: var(--panel-2);
+  border: 1px solid var(--line-soft);
+  color: var(--ink);
+  font-family: var(--mono);
+  font-size: 0.62rem;
+  padding: 6px 7px;
+}
+.transition-dialog textarea { resize: vertical; min-height: 120px; line-height: 1.5; }
+.transition-dialog input[type="range"] { padding: 0; }
+.transition-code { display: grid; }
+.transition-code[hidden] { display: none; }
+.transition-note {
+  font-size: 0.48rem;
+  line-height: 1.6;
+  letter-spacing: 0.3px;
+  color: var(--muted-3);
+}
+.transition-error {
+  font-size: 0.52rem;
+  line-height: 1.5;
+  color: #ff8d7a;
+  border-left: 2px solid #ff8d7a;
+  padding-left: 8px;
+}
+.transition-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.transition-actions .dock-spacer { flex: 1 1 auto; }
 .logic-box-head {
   display: flex;
   align-items: center;
@@ -4414,6 +4521,7 @@ body.asset-dragging * { cursor: grabbing !important; user-select: none !importan
             <div class="timeline-actions">
               <button type="button" id="boxAdd" class="timeline-btn" title="Add a blank scene after the selected clip">+ SCENE</button>
               <button type="button" id="boxSplit" class="timeline-btn" title="Split clips at the playhead (S)">SPLIT</button>
+              <button type="button" id="transitionAdd" class="timeline-btn" title="Add or edit a transition on the cut touching the selected clip">TRANSITION</button>
               <button type="button" id="boxDup" class="timeline-btn" title="Duplicate the selected clip">DUP</button>
               <button type="button" id="boxDel" class="timeline-btn danger" title="Ripple delete the selected clip — the gap closes">DEL</button>
               <button type="button" id="layerAdd" class="timeline-btn" title="Add a video track above the top track">+ LAYER</button>
@@ -4461,6 +4569,51 @@ body.asset-dragging * { cursor: grabbing !important; user-select: none !importan
       <span class="dock-keys">SPACE PLAY · SHIFT+WHEEL SCROLL · ⌘K CHAT</span>
     </div>
   </section>
+
+  <div id="transitionModal" class="transition-modal" hidden>
+    <div class="transition-dialog" role="dialog" aria-modal="true" aria-label="Transition editor">
+      <div class="transition-dialog-head">
+        <span class="eyebrow">TRANSITION</span>
+        <span class="transition-cut" id="trCutLabel">—</span>
+        <button type="button" id="trClose" class="timeline-btn">CLOSE</button>
+      </div>
+      <div class="transition-grid">
+        <label>TYPE<select id="trType"></select></label>
+        <label>DURATION (S)<input id="trDuration" type="number" min="0.1" max="3" step="0.1" value="0.6"></label>
+        <label>ALIGNMENT
+          <select id="trAlignment">
+            <option value="center">Centered on cut</option>
+            <option value="start">Start at cut</option>
+            <option value="end">End at cut</option>
+          </select>
+        </label>
+        <label id="trDirectionField" hidden>DIRECTION
+          <select id="trDirection">
+            <option value="left">Left</option>
+            <option value="right">Right</option>
+            <option value="up">Up</option>
+            <option value="down">Down</option>
+          </select>
+        </label>
+        <label id="trColorField" hidden>COLOR<input id="trColor" type="color" value="#0a0f0d"></label>
+        <label id="trIntensityField" hidden>INTENSITY
+          <input id="trIntensity" type="range" min="0" max="1" step="0.05" value="0.65">
+          <span id="trIntensityValue">0.65</span>
+        </label>
+      </div>
+      <label id="trCodeField" class="transition-code" hidden>CUSTOM renderTransition(ctx) CODE
+        <textarea id="trCode" rows="8" spellcheck="false" placeholder="function renderTransition(ctx) { return { outgoing: { opacity: 1 - ctx.progress }, incoming: { opacity: ctx.progress } }; }"></textarea>
+      </label>
+      <div class="transition-note" id="trNote"></div>
+      <div class="transition-error" id="trError" hidden></div>
+      <div class="transition-actions">
+        <button type="button" id="trRemove" class="timeline-btn danger" hidden>REMOVE</button>
+        <span class="dock-spacer"></span>
+        <button type="button" id="trCancel" class="timeline-btn">CANCEL</button>
+        <button type="button" id="trApply" class="btn btn-xs">APPLY</button>
+      </div>
+    </div>
+  </div>
 
   <div id="shortcutHelpModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.96);z-index:99999;align-items:center;justify-content:center;flex-direction:column;padding:24px">
     <div style="max-width:680px;width:100%;background:var(--panel-3);border:1px solid var(--line-soft);padding:24px;font-family:'IBM Plex Mono',monospace">
@@ -5650,6 +5803,7 @@ async function runPreview() {
   iframe.onload = () => {
     queuePreviewScale();
   };
+  previewCompositeState = { active: false, count: 0 };
   iframe.srcdoc = injectPreviewReporter(injectSceneMediaTools(code));
   const overlay = document.getElementById('previewOverlay');
   if (overlay) overlay.style.display = 'none';
@@ -6546,6 +6700,7 @@ function buildTimelineRenderPlan() {
         });
       }
       clips.push({
+        id: clip.id,
         code: absolutizeMediaSources(mediaClipCode(clip)),
         duration,
         start,
@@ -6554,6 +6709,7 @@ function buildTimelineRenderPlan() {
       });
     } else if (String(clip.code || '').trim()) {
       clips.push({
+        id: clip.id,
         code: absolutizeMediaSources(clip.code),
         duration,
         start,
@@ -6580,7 +6736,22 @@ function buildTimelineRenderPlan() {
   let rangeEnd = hasFrameEnd ? Math.min(total, end) : total;
   rangeEnd = Math.max(0.5, Math.min(total, rangeEnd));
   const rangeStart = Math.max(0, Math.min(Number(start) || 0, rangeEnd - 0.1));
-  return { clips, audioClips, total, start: rangeStart, end: rangeEnd };
+  const planIds = new Set(clips.map(clip => clip.id));
+  const transitions = resolvedTransitions()
+    .filter(transition => planIds.has(transition.fromClipId) && planIds.has(transition.toClipId))
+    .map(transition => ({
+      id: transition.id,
+      fromClipId: transition.fromClipId,
+      toClipId: transition.toClipId,
+      type: transition.type,
+      duration: transition.duration,
+      alignment: transition.alignment,
+      cut: transition.cut,
+      track: transition.track,
+      params: transition.params,
+      code: transition.code || ''
+    }));
+  return { clips, audioClips, transitions, total, start: rangeStart, end: rangeEnd };
 }
 
 async function renderWithPlaywrightBackend(code, settings, options = {}) {
@@ -6644,6 +6815,10 @@ async function renderWithPlaywrightBackend(code, settings, options = {}) {
       payload.contentMode = 'dom';
       payload.maxDuration = timelinePlan.total;
       if (timelinePlan.audioClips.length) payload.audioClips = timelinePlan.audioClips;
+      if (timelinePlan.transitions.length) {
+        payload.transitions = timelinePlan.transitions;
+        payload.transitionEngine = transitionEngineSource();
+      }
     }
     const requestTimeoutMs = timelinePlan
       ? Math.max(settings.requestTimeoutMs, 60000 + Math.round(timelinePlan.total * 30000))
@@ -6865,6 +7040,7 @@ const CHAT_SYSTEM_PROMPT = [
   '- update_asset_description: save a human-confirmed description or production note on an asset. Keep it separate from AI-generated analysis and never overwrite it with generated text.',
   '- create_overlay, update_overlay, delete_overlay, attach_overlay, detach_overlay: build HTML overlays on their own track above footage. Overlay pages must use a fully transparent background. parentClipId makes an overlay follow its parent clip\'s timing while staying independently editable. This is attachment, not motion tracking — never claim to track objects in the footage.',
   '- get_clip_context: read a clip\'s timing, track, parent/children relationships and asset analysis before changing it.',
+  '- add_transition, update_transition, remove_transition: put a saved transition on a cut where two clips touch on one track. Presets: dissolve, fade-black, fade-white, dip-color, wipe, push, slide, zoom-in, zoom-out, zoom-blur, glitch, rgb-split, blur-dissolve. For a requested custom effect generate type "custom" with code declaring function renderTransition(ctx) that returns { outgoing, incoming, overlay } style objects using ctx.progress (0→1) and CSS properties opacity, transform, filter, clipPath, backgroundColor, mixBlendMode — no timers, randomness, network or DOM access. Transitions are deterministic in both the Program Monitor and the export; never claim a transition exists unless the tool returned ok.',
   '- set_export_settings: change export settings, only for settings the user explicitly requested in their latest message.',
   '- render_video: render the whole timeline (every scene, in order and by layer) to one video file with the current settings.',
   'Before each tool call, write one short action line in plain text (max 8 words, present tense), such as "Writing the canvas animation…" or "Rendering the final video…". The app shows that line live in the chat while the tool runs; do not repeat it in your final answer.',
@@ -8356,6 +8532,12 @@ function summarizeChatToolResult(name, result) {
   if (name === 'detach_overlay') return 'overlay detached';
   if (name === 'delete_overlay') return 'overlay deleted';
   if (name === 'get_clip_context') return result.clip?.name || 'clip context';
+  if (name === 'add_transition') {
+    const transition = result.transition || {};
+    return `${transitionTypeLabel(transition.type || 'dissolve')} · ${Number(transition.duration || 0).toFixed(1)}s`;
+  }
+  if (name === 'update_transition') return 'transition updated';
+  if (name === 'remove_transition') return 'transition removed';
   if (name === 'render_video') {
     if (result.queued) return 'queued until code verification';
     return `${result.fps || '—'} FPS · ${compactRenderSeconds(result.duration)} · ${String(result.format || 'mp4').toUpperCase()}`;
@@ -8591,6 +8773,42 @@ async function executeChatTool(call) {
     return projectOps.getClipContext(String(args.clipId || ''));
   }
 
+  if (name === 'add_transition') {
+    return projectOps.addTransition({
+      type: String(args.type || 'dissolve'),
+      fromClipId: args.fromClipId,
+      toClipId: args.toClipId,
+      duration: args.duration,
+      alignment: args.alignment,
+      params: {
+        direction: args.direction,
+        color: args.color,
+        intensity: args.intensity
+      },
+      code: args.code
+    });
+  }
+
+  if (name === 'update_transition') {
+    const transitionId = resolveTransitionId(args.transitionId);
+    if (!transitionId) return { ok: false, error: 'No transition at the selected cut — add one first.' };
+    return projectOps.updateTransition(transitionId, {
+      type: args.type,
+      duration: args.duration,
+      alignment: args.alignment,
+      params: args.direction !== undefined || args.color !== undefined || args.intensity !== undefined
+        ? { direction: args.direction, color: args.color, intensity: args.intensity }
+        : undefined,
+      code: args.code
+    });
+  }
+
+  if (name === 'remove_transition') {
+    const transitionId = resolveTransitionId(args.transitionId);
+    if (!transitionId) return { ok: false, error: 'No transition found at the selected cut.' };
+    return projectOps.removeTransition(transitionId);
+  }
+
   if (name === 'render_video') {
     if (chatTurnRendered) {
       return {
@@ -8685,6 +8903,9 @@ const CHAT_TOOL_ACTIONS = {
   detach_overlay: 'Detaching the overlay…',
   delete_overlay: 'Deleting the overlay…',
   get_clip_context: 'Reading clip context…',
+  add_transition: 'Adding the transition…',
+  update_transition: 'Updating the transition…',
+  remove_transition: 'Removing the transition…',
   render_video: 'Rendering the video…'
 };
 
@@ -9223,6 +9444,7 @@ const TIMELINE_MAX_SECONDS = 60;
 
 const timelineState = {
   clips: [],
+  transitions: [],
   activeId: null,
   layers: 1,
   draggingId: null,
@@ -9363,6 +9585,826 @@ function timelineTotalSeconds() {
   return Math.max(0.5, Math.min(TIMELINE_MAX_SECONDS, end));
 }
 
+// ── TRANSITIONS ─────────────────────────────────────────
+// One deterministic engine drives the Program Monitor and the Playwright
+// export: the source of ccTransitionRuntime() is embedded verbatim into both
+// the preview composite page and the export sequence document. Presets and
+// custom transitions only return CSS surface styles for a 0..1 progress value,
+// so nothing depends on wall-clock timers or random state.
+const TRANSITION_VERSION = 1;
+const TRANSITION_MAX_SECONDS = 3;
+const TRANSITION_MIN_SECONDS = 0.1;
+const TRANSITION_LIMIT = 40;
+
+function ccTransitionRuntime() {
+  if (window.CCTransitions && window.CCTransitions.version === 1) return window.CCTransitions;
+  const PRESETS = {
+    dissolve: { label: 'Cross dissolve', params: [] },
+    'fade-black': { label: 'Fade through black', params: [] },
+    'fade-white': { label: 'Fade through white', params: [] },
+    'dip-color': { label: 'Dip to color', params: ['color'] },
+    wipe: { label: 'Wipe', params: ['direction'] },
+    push: { label: 'Push', params: ['direction'] },
+    slide: { label: 'Slide over', params: ['direction'] },
+    'zoom-in': { label: 'Zoom in', params: ['intensity'] },
+    'zoom-out': { label: 'Zoom out', params: ['intensity'] },
+    'zoom-blur': { label: 'Zoom blur', params: ['intensity'] },
+    glitch: { label: 'Glitch', params: ['intensity'] },
+    'rgb-split': { label: 'RGB split', params: ['intensity'] },
+    'blur-dissolve': { label: 'Blur dissolve', params: ['intensity'] }
+  };
+  const STYLE_KEYS = ['opacity', 'transform', 'filter', 'clipPath', 'backgroundColor', 'mixBlendMode', 'backdropFilter'];
+  const OVERLAY_KEYS = ['backgroundColor', 'opacity', 'mixBlendMode'];
+  const FORBIDDEN = /(^|[^\w$])(fetch|XMLHttpRequest|WebSocket|EventSource|importScripts|eval|Function|document|window|globalThis|parent|top|localStorage|sessionStorage|indexedDB|constructor|prototype|__proto__|while|for|do)\b/;
+  const compiledCustom = new Map();
+
+  const clamp01 = (value) => Math.max(0, Math.min(1, Number(value) || 0));
+  const num = (value, fallback) => {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : fallback;
+  };
+
+  function directionVector(direction) {
+    if (direction === 'right') return { x: 1, y: 0 };
+    if (direction === 'up') return { x: 0, y: -1 };
+    if (direction === 'down') return { x: 0, y: 1 };
+    return { x: -1, y: 0 };
+  }
+
+  function wipeInset(vector, hidden) {
+    const amount = Math.round(Math.max(0, Math.min(1, hidden)) * 10000) / 100;
+    if (vector.x < 0) return 'inset(0 0 0 ' + amount + '%)';
+    if (vector.x > 0) return 'inset(0 ' + amount + '% 0 0)';
+    if (vector.y < 0) return 'inset(' + amount + '% 0 0 0)';
+    return 'inset(0 0 ' + amount + '% 0)';
+  }
+
+  function dip(color, progress) {
+    // The dip overlay hides the cut; the outgoing surface stays until it is
+    // fully covered, then the incoming surface takes over.
+    return {
+      outgoing: { opacity: progress < 0.5 ? 1 : 0 },
+      incoming: { opacity: progress >= 0.5 ? 1 : 0 },
+      overlay: { backgroundColor: color, opacity: 1 - Math.abs(2 * progress - 1) }
+    };
+  }
+
+  // Deterministic pseudo-noise: same frame, same value in preview and export.
+  function noise(seed, progress) {
+    const raw = Math.sin(seed * 12.9898 + progress * 78.233) * 43758.5453;
+    return (raw - Math.floor(raw)) * 2 - 1;
+  }
+
+  function presetStyle(type, progress, params) {
+    const p = clamp01(progress);
+    const smooth = p * p * (3 - 2 * p);
+    const intensity = clamp01(num(params.intensity, 0.65));
+    const color = /^#[0-9a-f]{3,8}$/i.test(String(params.color || '')) ? String(params.color) : '#0a0f0d';
+    const vector = directionVector(params.direction);
+    switch (type) {
+      case 'fade-black':
+        return dip('#000000', p);
+      case 'fade-white':
+        return dip('#ffffff', p);
+      case 'dip-color':
+        return dip(color, p);
+      case 'wipe':
+        return { outgoing: {}, incoming: { clipPath: wipeInset(vector, 1 - smooth) } };
+      case 'push':
+        return {
+          outgoing: { transform: 'translate(' + (vector.x * smooth * 100) + '%, ' + (vector.y * smooth * 100) + '%)' },
+          incoming: { transform: 'translate(' + (-vector.x * (1 - smooth) * 100) + '%, ' + (-vector.y * (1 - smooth) * 100) + '%)' }
+        };
+      case 'slide':
+        return {
+          outgoing: {},
+          incoming: { transform: 'translate(' + (-vector.x * (1 - smooth) * 100) + '%, ' + (-vector.y * (1 - smooth) * 100) + '%)' }
+        };
+      case 'zoom-in':
+        return {
+          outgoing: { transform: 'scale(' + (1 + 0.3 * intensity * p) + ')' },
+          incoming: { opacity: p, transform: 'scale(' + (1 - 0.08 * intensity * (1 - p)) + ')' }
+        };
+      case 'zoom-out':
+        return {
+          outgoing: { transform: 'scale(' + (1 - 0.12 * intensity * p) + ')' },
+          incoming: { opacity: p, transform: 'scale(' + (1 + 0.12 * intensity * (1 - p)) + ')' }
+        };
+      case 'zoom-blur': {
+        const blur = 14 * intensity * Math.sin(Math.PI * p);
+        return {
+          outgoing: { transform: 'scale(' + (1 + 0.25 * intensity * p) + ')', filter: 'blur(' + blur.toFixed(2) + 'px)' },
+          incoming: { opacity: p, filter: 'blur(' + blur.toFixed(2) + 'px)' }
+        };
+      }
+      case 'glitch': {
+        const step = Math.floor(p * 14);
+        const fade = Math.sin(Math.PI * p);
+        const shiftA = noise(step, p) * intensity * 5 * fade;
+        const shiftB = noise(step + 31, p) * intensity * 5 * fade;
+        return {
+          outgoing: {
+            transform: 'translate(' + shiftA.toFixed(2) + '%, 0)',
+            filter: 'hue-rotate(' + (shiftA * 14).toFixed(1) + 'deg) saturate(1.4)',
+            clipPath: 'inset(0 0 ' + Math.abs(shiftB).toFixed(2) + '% 0)'
+          },
+          incoming: {
+            opacity: p,
+            transform: 'translate(' + shiftB.toFixed(2) + '%, 0)',
+            filter: 'hue-rotate(' + (-shiftB * 14).toFixed(1) + 'deg) saturate(1.4)',
+            clipPath: 'inset(' + Math.abs(shiftA).toFixed(2) + '% 0 0 0)'
+          }
+        };
+      }
+      case 'rgb-split': {
+        const fringe = 10 * intensity * Math.sin(Math.PI * p);
+        const filter = 'drop-shadow(' + fringe.toFixed(2) + 'px 0 0 rgba(255,32,96,0.9)) drop-shadow(' + (-fringe).toFixed(2) + 'px 0 0 rgba(32,220,255,0.9))';
+        return {
+          outgoing: { filter },
+          incoming: { opacity: p, filter }
+        };
+      }
+      case 'blur-dissolve':
+        return {
+          outgoing: { filter: 'blur(' + (12 * intensity * p).toFixed(2) + 'px)' },
+          incoming: { opacity: p, filter: 'blur(' + (12 * intensity * (1 - p)).toFixed(2) + 'px)' }
+        };
+      case 'dissolve':
+      default:
+        return { outgoing: {}, incoming: { opacity: p } };
+    }
+  }
+
+  function sanitizeStyle(raw, keys) {
+    const out = {};
+    if (!raw || typeof raw !== 'object') return out;
+    for (const key of keys || STYLE_KEYS) {
+      if (!(key in raw)) continue;
+      const value = raw[key];
+      if (typeof value !== 'string' && typeof value !== 'number') continue;
+      const text = String(value).slice(0, 220);
+      if (/url\s*\(|javascript:|expression\s*\(|@import|behavior\s*:/i.test(text)) continue;
+      out[key] = text;
+    }
+    return out;
+  }
+
+  function compileCustom(code) {
+    if (compiledCustom.has(code)) return compiledCustom.get(code);
+    let fn = null;
+    if (code.length <= 8000 && /function\s+renderTransition\s*\(/.test(code) && !FORBIDDEN.test(code)) {
+      try {
+        fn = new Function('"use strict";' + code + '\n;return typeof renderTransition === "function" ? renderTransition : null;')();
+      } catch (error) {
+        fn = null;
+      }
+    }
+    compiledCustom.set(code, fn);
+    return fn;
+  }
+
+  function customStyle(transition, progress) {
+    const code = String(transition.code || '');
+    const fn = compileCustom(code);
+    if (typeof fn !== 'function') return null;
+    try {
+      const duration = Math.max(0.05, num(transition.duration, 0.5));
+      const result = fn({
+        progress,
+        width: window.innerWidth,
+        height: window.innerHeight,
+        duration,
+        time: progress * duration,
+        params: transition.params || {}
+      });
+      if (!result || typeof result !== 'object') return null;
+      return {
+        outgoing: sanitizeStyle(result.outgoing),
+        incoming: sanitizeStyle(result.incoming),
+        overlay: sanitizeStyle(result.overlay, OVERLAY_KEYS)
+      };
+    } catch (error) {
+      return null;
+    }
+  }
+
+  function styleAt(transition, progress, width, height) {
+    const p = clamp01(progress);
+    if (transition && transition.type === 'custom') {
+      return customStyle(transition, p) || { outgoing: {}, incoming: { opacity: p } };
+    }
+    return presetStyle(transition ? transition.type : 'dissolve', p, (transition && transition.params) || {});
+  }
+
+  function windowFor(transition) {
+    const duration = Math.max(0.05, num(transition && transition.duration, 0.6));
+    const cut = Math.max(0, num(transition && transition.cut, 0));
+    const alignment = transition && (transition.alignment === 'start' || transition.alignment === 'end')
+      ? transition.alignment
+      : 'center';
+    const start = Math.max(0, alignment === 'start' ? cut : (alignment === 'end' ? cut - duration : cut - duration / 2));
+    return { start, end: start + duration, cut, duration, alignment };
+  }
+
+  const layerStyleKeys = STYLE_KEYS;
+
+  function applyStyle(el, style) {
+    for (const key of layerStyleKeys) {
+      const value = style ? style[key] : '';
+      el.style[key] = value === undefined || value === null ? '' : String(value);
+    }
+  }
+
+  function indexOfClip(layers, clipId) {
+    for (let index = 0; index < layers.length; index += 1) {
+      if (layers[index].clipId === clipId) return index;
+    }
+    return -1;
+  }
+
+  function updateOverlay(root, transition, style, track) {
+    let overlay = root.querySelector('[data-cc-overlay="' + transition.id + '"]');
+    if (!overlay) {
+      overlay = document.createElement('div');
+      overlay.setAttribute('data-cc-overlay', transition.id);
+      overlay.style.position = 'absolute';
+      overlay.style.inset = '0';
+      overlay.style.pointerEvents = 'none';
+      overlay.style.visibility = 'hidden';
+      root.appendChild(overlay);
+    }
+    overlay.style.zIndex = String(((num(track, 0) + 1) * 100) + 50);
+    for (const key of OVERLAY_KEYS) {
+      const value = style ? style[key] : '';
+      overlay.style[key] = value === undefined || value === null ? '' : String(value);
+    }
+    overlay.style.visibility = style && style.backgroundColor ? 'visible' : 'hidden';
+  }
+
+  // layers: [{el, clipId, start, duration, track}]
+  // transitions: [{id, fromClipId, toClipId, type, duration, alignment, cut, track, params, code}]
+  function applyAt(root, seconds, layers, transitions) {
+    const t = Math.max(0, num(seconds, 0));
+    const participants = new Map();
+    const live = [];
+    const liveIds = new Set();
+    for (const transition of transitions || []) {
+      if (!transition || !transition.id) continue;
+      const win = windowFor(transition);
+      if (t < win.start - 0.0001 || t >= win.end - 0.0001) continue;
+      const fromIndex = indexOfClip(layers, transition.fromClipId);
+      const toIndex = indexOfClip(layers, transition.toClipId);
+      if (fromIndex < 0 || toIndex < 0) continue;
+      const progress = clamp01((t - win.start) / win.duration);
+      const styles = styleAt(transition, progress, window.innerWidth, window.innerHeight);
+      participants.set(fromIndex, { style: styles.outgoing || {}, transition, incoming: false });
+      participants.set(toIndex, { style: styles.incoming || {}, transition, incoming: true });
+      live.push({ id: transition.id, progress });
+      liveIds.add(transition.id);
+      updateOverlay(root, transition, styles.overlay || {}, layers[toIndex].track);
+    }
+    root.querySelectorAll('[data-cc-overlay]').forEach((overlay) => {
+      if (!liveIds.has(overlay.getAttribute('data-cc-overlay'))) overlay.style.visibility = 'hidden';
+    });
+    const active = [];
+    for (let index = 0; index < layers.length; index += 1) {
+      const layer = layers[index];
+      const start = num(layer.start, 0);
+      const duration = num(layer.duration, 0);
+      const part = participants.get(index);
+      const normal = t >= start - 0.0001 && t < start + duration - 0.0001;
+      const visible = normal || Boolean(part);
+      layer.el.style.visibility = visible ? 'visible' : 'hidden';
+      // The incoming surface must composite above the outgoing one, including
+      // when both clips live on the same track.
+      layer.el.style.zIndex = String(((num(layer.track, 0) + 1) * 100) + (part && part.incoming ? 1 : 0));
+      if (part) {
+        applyStyle(layer.el, part.style);
+        layer.el.setAttribute('data-cc-in-transition', '1');
+      } else if (layer.el.getAttribute('data-cc-in-transition')) {
+        applyStyle(layer.el, {});
+        layer.el.removeAttribute('data-cc-in-transition');
+      }
+      if (visible) active.push({ index, clipId: layer.clipId, local: Math.max(0, t - start) });
+    }
+    return { active, transitions: live };
+  }
+
+  window.CCTransitions = {
+    version: 1,
+    presets: PRESETS,
+    windowFor,
+    styleAt,
+    applyAt,
+    mount(root, seconds, layers, transitions) {
+      const api = window.CCTransitions;
+      const apply = (value) => api.applyAt(root, value, layers, transitions);
+      window.__ccSetCompositeTime = apply;
+      apply(seconds);
+      return apply;
+    }
+  };
+  return window.CCTransitions;
+}
+
+function transitionRuntime() {
+  return window.CCTransitions || ccTransitionRuntime();
+}
+
+function transitionEngineSource() {
+  return '(' + ccTransitionRuntime.toString() + ')();';
+}
+
+function newTransitionId() {
+  return 'tr-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 6);
+}
+
+function transitionTypeList() {
+  const presets = transitionRuntime().presets || {};
+  return Object.keys(presets).map(id => ({ id, label: presets[id].label, params: presets[id].params.slice() }));
+}
+
+function transitionTypeLabel(type) {
+  if (type === 'custom') return 'Custom code';
+  const found = transitionTypeList().find(item => item.id === type);
+  return found ? found.label : 'Cross dissolve';
+}
+
+function sanitizeTransitionParams(raw) {
+  const params = {};
+  if (!raw || typeof raw !== 'object') return params;
+  if (['left', 'right', 'up', 'down'].includes(raw.direction)) params.direction = raw.direction;
+  if (typeof raw.color === 'string' && /^#[0-9a-f]{3,8}$/i.test(raw.color)) params.color = raw.color.toLowerCase();
+  if (raw.intensity !== undefined && Number.isFinite(Number(raw.intensity))) {
+    params.intensity = Math.round(Math.max(0, Math.min(1, Number(raw.intensity))) * 100) / 100;
+  }
+  return params;
+}
+
+function sanitizeTransition(raw) {
+  if (!raw || typeof raw !== 'object') return null;
+  const fromClipId = typeof raw.fromClipId === 'string' ? raw.fromClipId : '';
+  const toClipId = typeof raw.toClipId === 'string' ? raw.toClipId : '';
+  if (!fromClipId || !toClipId || fromClipId === toClipId) return null;
+  const type = typeof raw.type === 'string' && (raw.type === 'custom' || transitionTypeList().some(item => item.id === raw.type))
+    ? raw.type
+    : 'dissolve';
+  return {
+    id: typeof raw.id === 'string' && raw.id ? raw.id : newTransitionId(),
+    fromClipId,
+    toClipId,
+    type,
+    duration: Math.round(Math.max(TRANSITION_MIN_SECONDS, Math.min(TRANSITION_MAX_SECONDS, Number(raw.duration) || 0.6)) * 10) / 10,
+    alignment: raw.alignment === 'start' || raw.alignment === 'end' ? raw.alignment : 'center',
+    params: sanitizeTransitionParams(raw.params),
+    code: type === 'custom' ? String(raw.code || '').slice(0, 8000) : ''
+  };
+}
+
+function findClipById(id) {
+  return timelineState.clips.find(clip => clip.id === id) || null;
+}
+
+function clipsTouchOnTrack(from, to) {
+  return Boolean(from && to)
+    && from.id !== to.id
+    && Number(from.track) === Number(to.track)
+    && Math.abs(clipEnd(from) - (Number(to.start) || 0)) <= 0.051;
+}
+
+function transitionPairForClip(clip) {
+  if (!clip) return null;
+  const neighbours = clipsOnTrack(clip.track).filter(item => item.id !== clip.id);
+  const previous = neighbours
+    .filter(item => Math.abs(clipEnd(item) - (Number(clip.start) || 0)) <= 0.051)
+    .pop();
+  if (previous) return { from: previous, to: clip, cut: Number(clip.start) || 0 };
+  const next = neighbours
+    .filter(item => Math.abs((Number(item.start) || 0) - clipEnd(clip)) <= 0.051)[0];
+  if (next) return { from: clip, to: next, cut: Number(next.start) || 0 };
+  return null;
+}
+
+function defaultTransitionPair() {
+  const selected = activeClip();
+  const fromSelection = transitionPairForClip(selected);
+  if (fromSelection) return fromSelection;
+  let best = null;
+  let bestDistance = Infinity;
+  for (const clip of timelineState.clips) {
+    const pair = transitionPairForClip(clip);
+    if (!pair) continue;
+    const distance = Math.abs(pair.cut - (Number(timelineState.playhead) || 0));
+    if (distance < bestDistance) {
+      best = pair;
+      bestDistance = distance;
+    }
+  }
+  return best;
+}
+
+function resolveTransitionId(rawId) {
+  const explicit = String(rawId || '').trim();
+  if (explicit) return explicit;
+  const pair = defaultTransitionPair();
+  if (!pair) return '';
+  const found = resolvedTransitions().find(transition =>
+    transition.fromClipId === pair.from.id && transition.toClipId === pair.to.id
+  );
+  return found ? found.id : '';
+}
+
+function resolvedTransitions() {
+  return timelineState.transitions.map(transition => {
+    const from = findClipById(transition.fromClipId);
+    const to = findClipById(transition.toClipId);
+    if (!from || !to || !clipsTouchOnTrack(from, to)) return null;
+    return {
+      ...transition,
+      cut: Number(to.start) || 0,
+      track: Number(to.track) || 0,
+      fromStart: Number(from.start) || 0,
+      fromDuration: Number(from.duration) || 0,
+      toStart: Number(to.start) || 0,
+      toDuration: Number(to.duration) || 0,
+      fromName: from.name,
+      toName: to.name
+    };
+  }).filter(Boolean);
+}
+
+function transitionWindow(transition) {
+  return transitionRuntime().windowFor(transition);
+}
+
+function transitionsAtTime(seconds) {
+  const at = Number(seconds) || 0;
+  return resolvedTransitions().filter(transition => {
+    const win = transitionWindow(transition);
+    return at >= win.start - 1e-4 && at < win.end - 1e-4;
+  });
+}
+
+function transitionHandlesError(from, to, duration, alignment) {  const outgoingExtension = alignment === 'start' ? duration : (alignment === 'end' ? 0 : duration / 2);
+  const incomingPreroll = alignment === 'end' ? duration : (alignment === 'start' ? 0 : duration / 2);
+  if (outgoingExtension > 0 && clipIsMedia(from) && from.type === 'video') {
+    const asset = clipAsset(from);
+    const total = Number(asset?.duration) || 0;
+    if (total > 0) {
+      const available = total - (clipSourceIn(from) + (Number(from.duration) || 0));
+      if (available + 0.02 < outgoingExtension) {
+        return `The outgoing clip has ${Math.max(0, available).toFixed(2)}s of footage after its out point; this transition needs ${outgoingExtension.toFixed(2)}s. Shorten it or change its alignment.`;
+      }
+    }
+  }
+  if (incomingPreroll > 0 && clipIsMedia(to) && to.type === 'video') {
+    const handle = clipSourceIn(to);
+    if (handle + 0.02 < incomingPreroll) {
+      return `The incoming clip has ${handle.toFixed(2)}s of handle before its in point; this transition needs ${incomingPreroll.toFixed(2)}s. Trim its in point earlier or shorten the transition.`;
+    }
+  }
+  return '';
+}
+
+function customTransitionCodeError(code) {
+  const text = String(code || '');
+  if (!/function\s+renderTransition\s*\(/.test(text)) {
+    return 'Custom transition code must declare function renderTransition(ctx).';
+  }
+  if (text.length > 8000) return 'Custom transition code is limited to 8000 characters.';
+  if (/(^|[^\w$])(fetch|XMLHttpRequest|WebSocket|EventSource|importScripts|eval|Function|document|window|globalThis|parent|top|localStorage|sessionStorage|indexedDB|constructor|prototype|__proto__|while|for|do)\b/.test(text)) {
+    return 'Custom transition code contains a blocked construct. Use only the ctx contract and CSS style values.';
+  }
+  return '';
+}
+
+function transitionSpecError(from, to, duration, alignment, ignoreId = '') {  if (!from || !to) return 'A transition needs two clips.';
+  if (from.id === to.id) return 'A clip cannot transition into itself.';
+  if (from.type === 'audio' || to.type === 'audio') return 'Audio clips do not have visual transitions.';
+  if (Number(from.track) !== Number(to.track)) return 'Both clips must be on the same track.';
+  if (!clipsTouchOnTrack(from, to)) return 'The clips must touch on the timeline — no gap or overlap.';
+  if (!(duration >= TRANSITION_MIN_SECONDS && duration <= TRANSITION_MAX_SECONDS)) {
+    return `Transition length must be ${TRANSITION_MIN_SECONDS}–${TRANSITION_MAX_SECONDS}s.`;
+  }
+  if (duration > (Number(from.duration) || 0) + 1e-6 || duration > (Number(to.duration) || 0) + 1e-6) {
+    return 'The transition is longer than one of the clips.';
+  }
+  const handleError = transitionHandlesError(from, to, duration, alignment);
+  if (handleError) return handleError;
+  const candidate = transitionRuntime().windowFor({ cut: Number(to.start) || 0, duration, alignment });
+  for (const existing of resolvedTransitions()) {
+    if (existing.id === ignoreId) continue;
+    if (Number(existing.track) !== Number(from.track)) continue;
+    const win = transitionWindow(existing);
+    if (candidate.start < win.end - 1e-4 && candidate.end > win.start + 1e-4) {
+      return 'That transition window overlaps another transition on this track.';
+    }
+  }
+  return '';
+}
+
+function pruneTransitions() {
+  const seen = new Set();
+  timelineState.transitions = timelineState.transitions.filter(transition => {
+    const from = findClipById(transition.fromClipId);
+    const to = findClipById(transition.toClipId);
+    if (!from || !to) return false;
+    if (transitionSpecError(from, to, transition.duration, transition.alignment, transition.id)) return false;
+    const key = `${from.id}>${to.id}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+function transitionSummaryForChat() {  return resolvedTransitions().map(transition => {
+    const win = transitionWindow(transition);
+    return {
+      id: transition.id,
+      type: transition.type,
+      label: transitionTypeLabel(transition.type),
+      fromClipId: transition.fromClipId,
+      toClipId: transition.toClipId,
+      durationSeconds: transition.duration,
+      alignment: transition.alignment,
+      cutSeconds: Math.round(transition.cut * 100) / 100,
+      windowStartSeconds: Math.round(win.start * 100) / 100,
+      windowEndSeconds: Math.round(win.end * 100) / 100,
+      params: transition.params,
+      custom: transition.type === 'custom'
+    };
+  });
+}
+
+function addTransitionRecord(spec = {}) {
+  if (timelineState.transitions.length >= TRANSITION_LIMIT) {
+    return { ok: false, error: `Transition limit is ${TRANSITION_LIMIT}.` };
+  }
+  let from = spec.fromClipId ? findClipById(String(spec.fromClipId)) : null;
+  let to = spec.toClipId ? findClipById(String(spec.toClipId)) : null;
+  if (!from || !to) {
+    const pair = defaultTransitionPair();
+    if (!pair) return { ok: false, error: 'No touching cut found. Select a clip that touches another clip on the same track.' };
+    from = pair.from;
+    to = pair.to;
+  }
+  const duration = Math.round(Math.max(TRANSITION_MIN_SECONDS, Math.min(TRANSITION_MAX_SECONDS, Number(spec.duration) || 0.6)) * 10) / 10;
+  const alignment = spec.alignment === 'start' || spec.alignment === 'end' ? spec.alignment : 'center';
+  const requestedType = String(spec.type || 'dissolve');
+  if (requestedType !== 'custom' && !transitionTypeList().some(item => item.id === requestedType)) {
+    return { ok: false, error: `Unknown transition type "${requestedType}".` };
+  }
+  const error = transitionSpecError(from, to, duration, alignment);
+  if (error) return { ok: false, error };
+  if (requestedType === 'custom') {
+    const codeError = customTransitionCodeError(spec.code);
+    if (codeError) return { ok: false, error: codeError };
+  }
+  const transition = sanitizeTransition({
+    fromClipId: from.id,
+    toClipId: to.id,
+    type: requestedType,
+    duration,
+    alignment,
+    params: spec.params,
+    code: spec.code
+  });
+  if (!transition) return { ok: false, error: 'Only default and custom transitions are supported.' };
+  timelineState.transitions.push(transition);
+  saveTimelineState(true);
+  renderLogicBoxes();
+  updateStageTimeline();
+  previewAtPlayhead();
+  setStatus(`${transitionTypeLabel(transition.type)} · ${from.name} → ${to.name} · ${duration.toFixed(1)}s`, 'ok');
+  return { ok: true, transition, from, to };
+}
+
+function updateTransitionRecord(transitionId, patch = {}) {
+  const transition = timelineState.transitions.find(item => item.id === transitionId);
+  if (!transition) return { ok: false, error: 'Transition not found.' };
+  const from = findClipById(transition.fromClipId);
+  const to = findClipById(transition.toClipId);
+  if (!from || !to) return { ok: false, error: 'The clips for this transition no longer exist.' };
+  const nextType = patch.type === 'custom' || transitionTypeList().some(item => item.id === patch.type)
+    ? patch.type
+    : transition.type;
+  if (patch.type !== undefined && patch.type !== nextType) {
+    return { ok: false, error: `Unknown transition type "${patch.type}".` };
+  }
+  const duration = patch.duration === undefined
+    ? transition.duration
+    : Math.round(Math.max(TRANSITION_MIN_SECONDS, Math.min(TRANSITION_MAX_SECONDS, Number(patch.duration) || transition.duration)) * 10) / 10;
+  const alignment = patch.alignment === 'start' || patch.alignment === 'end'
+    ? patch.alignment
+    : (patch.alignment === 'center' ? 'center' : transition.alignment);
+  const params = patch.params === undefined ? transition.params : sanitizeTransitionParams(patch.params);
+  const code = nextType === 'custom'
+    ? String(patch.code === undefined ? transition.code : patch.code).slice(0, 8000)
+    : '';
+  if (nextType === 'custom') {
+    const codeError = customTransitionCodeError(code);
+    if (codeError) return { ok: false, error: codeError };
+  }
+  const error = transitionSpecError(from, to, duration, alignment, transition.id);
+  if (error) return { ok: false, error };
+  transition.type = nextType;
+  transition.duration = duration;
+  transition.alignment = alignment;
+  transition.params = params;
+  transition.code = code;
+  saveTimelineState(true);
+  renderLogicBoxes();
+  updateStageTimeline();
+  previewAtPlayhead();
+  setStatus(`${transitionTypeLabel(transition.type)} updated · ${duration.toFixed(1)}s`, 'ok');
+  return { ok: true, transition };
+}
+
+function removeTransitionRecord(transitionId) {
+  const index = timelineState.transitions.findIndex(item => item.id === transitionId);
+  if (index < 0) return { ok: false, error: 'Transition not found.' };
+  const [removed] = timelineState.transitions.splice(index, 1);
+  saveTimelineState(true);
+  renderLogicBoxes();
+  updateStageTimeline();
+  previewAtPlayhead();
+  setStatus(`${transitionTypeLabel(removed.type)} removed`, 'ok');
+  return { ok: true, removed };
+}
+
+// ── TRANSITION DIALOG ───────────────────────────────────
+const transitionDialogState = { fromClipId: '', toClipId: '', transitionId: '' };
+
+function transitionDialogElements() {
+  return {
+    modal: document.getElementById('transitionModal'),
+    type: document.getElementById('trType'),
+    duration: document.getElementById('trDuration'),
+    alignment: document.getElementById('trAlignment'),
+    directionField: document.getElementById('trDirectionField'),
+    direction: document.getElementById('trDirection'),
+    colorField: document.getElementById('trColorField'),
+    color: document.getElementById('trColor'),
+    intensityField: document.getElementById('trIntensityField'),
+    intensity: document.getElementById('trIntensity'),
+    intensityValue: document.getElementById('trIntensityValue'),
+    codeField: document.getElementById('trCodeField'),
+    code: document.getElementById('trCode'),
+    cutLabel: document.getElementById('trCutLabel'),
+    note: document.getElementById('trNote'),
+    error: document.getElementById('trError'),
+    remove: document.getElementById('trRemove')
+  };
+}
+
+function transitionTypeParams(type) {
+  const preset = transitionTypeList().find(item => item.id === type);
+  return preset ? preset.params : [];
+}
+
+function updateTransitionDialogFields() {
+  const els = transitionDialogElements();
+  if (!els.type) return;
+  const type = els.type.value;
+  const params = transitionTypeParams(type);
+  if (els.directionField) els.directionField.hidden = !params.includes('direction');
+  if (els.colorField) els.colorField.hidden = !params.includes('color');
+  if (els.intensityField) els.intensityField.hidden = !params.includes('intensity');
+  if (els.codeField) els.codeField.hidden = type !== 'custom';
+  if (els.intensityValue) els.intensityValue.textContent = Number(els.intensity?.value || 0).toFixed(2);
+  if (els.note) {
+    els.note.textContent = type === 'custom'
+      ? 'renderTransition(ctx) returns { outgoing, incoming, overlay } CSS styles for ctx.progress 0→1. Allowed: opacity, transform, filter, clipPath, backgroundColor, mixBlendMode. No network, timers, loops or DOM access. Rendered only inside the isolated preview/export page.'
+      : 'The transition is saved on the cut itself, previewed in the Program Monitor and rendered by the same engine on export.';
+  }
+}
+
+function openTransitionDialog(options = {}) {
+  const els = transitionDialogElements();
+  if (!els.modal || !els.type) return;
+  let transition = options.transitionId
+    ? timelineState.transitions.find(item => item.id === options.transitionId) || null
+    : null;
+  let from = transition ? findClipById(transition.fromClipId) : null;
+  let to = transition ? findClipById(transition.toClipId) : null;
+  if (!transition) {
+    const pair = defaultTransitionPair();
+    if (!pair) {
+      setStatus('No touching cut found — place two clips edge to edge on one track.', 'err');
+      return;
+    }
+    from = pair.from;
+    to = pair.to;
+  }
+  if (!from || !to) {
+    setStatus('The clips for this transition no longer exist.', 'err');
+    return;
+  }
+  const previousType = els.type.value;
+  els.type.innerHTML = transitionTypeList()
+    .map(item => `<option value="${escapeAttr(item.id)}">${escapeHtml(item.label)}</option>`)
+    .join('') + '<option value="custom">Custom code…</option>';
+  if (!previousType) els.type.value = 'dissolve';
+  const type = transition ? transition.type : (els.type.value || 'dissolve');
+  els.type.value = type;
+  els.duration.value = transition ? transition.duration : 0.6;
+  els.alignment.value = transition ? transition.alignment : 'center';
+  const params = transition ? sanitizeTransitionParams(transition.params) : {};
+  els.direction.value = params.direction || 'left';
+  els.color.value = params.color || '#0a0f0d';
+  els.intensity.value = params.intensity ?? 0.65;
+  els.code.value = transition ? String(transition.code || '') : 'function renderTransition(ctx) {\n  const p = ctx.progress;\n  return {\n    outgoing: { opacity: 1 - p, transform: `scale(${1 + 0.06 * p})` },\n    incoming: { opacity: p, transform: `scale(${1 + 0.06 * (1 - p)})` }\n  };\n}';
+  if (els.cutLabel) els.cutLabel.textContent = `${from.name} → ${to.name} · CUT ${formatTimelineTime(Number(to.start) || 0)} · V${(Number(to.track) || 0) + 1}`;
+  if (els.error) {
+    els.error.hidden = true;
+    els.error.textContent = '';
+  }
+  if (els.remove) els.remove.hidden = !transition;
+  transitionDialogState.fromClipId = from.id;
+  transitionDialogState.toClipId = to.id;
+  transitionDialogState.transitionId = transition ? transition.id : '';
+  updateTransitionDialogFields();
+  els.modal.hidden = false;
+  els.type.focus();
+}
+
+function closeTransitionDialog() {
+  const els = transitionDialogElements();
+  if (els.modal) els.modal.hidden = true;
+  transitionDialogState.transitionId = '';
+}
+
+function showTransitionDialogError(message) {
+  const els = transitionDialogElements();
+  if (!els.error) return;
+  els.error.hidden = false;
+  els.error.textContent = message;
+  setStatus(message, 'err');
+}
+
+function applyTransitionDialog() {
+  const els = transitionDialogElements();
+  if (!els.type) return;
+  const spec = {
+    type: els.type.value,
+    duration: Number(els.duration.value),
+    alignment: els.alignment.value,
+    params: {
+      direction: els.direction.value,
+      color: els.color.value,
+      intensity: Number(els.intensity.value)
+    },
+    code: els.code.value
+  };
+  const result = transitionDialogState.transitionId
+    ? projectOps.updateTransition(transitionDialogState.transitionId, spec)
+    : projectOps.addTransition({
+      ...spec,
+      fromClipId: transitionDialogState.fromClipId,
+      toClipId: transitionDialogState.toClipId
+    });
+  if (!result.ok) {
+    showTransitionDialogError(result.error || 'Could not save the transition.');
+    return;
+  }
+  closeTransitionDialog();
+  const toClip = findClipById(result.transition.toClipId);
+  const win = transitionWindow({
+    cut: Number(toClip?.start) || 0,
+    duration: result.transition.duration,
+    alignment: result.transition.alignment
+  });
+  setPlayhead(win.start + win.duration / 2, { preview: true });
+  renderLogicBoxes();
+}
+
+function removeTransitionFromDialog() {
+  if (!transitionDialogState.transitionId) return;
+  const result = projectOps.removeTransition(transitionDialogState.transitionId);
+  if (!result.ok) {
+    showTransitionDialogError(result.error || 'Could not remove the transition.');
+    return;
+  }
+  closeTransitionDialog();
+}
+
+function initTransitionDialog() {
+  const els = transitionDialogElements();
+  if (!els.modal) return;
+  els.type?.addEventListener('change', updateTransitionDialogFields);
+  els.intensity?.addEventListener('input', updateTransitionDialogFields);
+  document.getElementById('trCancel')?.addEventListener('click', closeTransitionDialog);
+  document.getElementById('trClose')?.addEventListener('click', closeTransitionDialog);
+  document.getElementById('trApply')?.addEventListener('click', applyTransitionDialog);
+  els.remove?.addEventListener('click', removeTransitionFromDialog);
+  els.modal.addEventListener('pointerdown', (event) => {
+    if (event.target === els.modal) closeTransitionDialog();
+  });
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape' && !els.modal.hidden) closeTransitionDialog();
+  });
+}
+
 function assetTechnicalSummary(asset) {
   if (!asset) return null;
   const technical = asset.analysis?.technical || {};
@@ -9389,6 +10431,7 @@ function timelineSummaryForChat() {
     playheadSeconds: Math.round((Number(timelineState.playhead) || 0) * 10) / 10,
     selectedSceneId: active?.id || null,
     projectAssets: timelineState.assets.map(assetTechnicalSummary),
+    transitions: transitionSummaryForChat(),
     scenes: timelineState.clips.map((clip, index) => ({
       index: index + 1,
       id: clip.id,
@@ -9409,6 +10452,7 @@ function timelineSummaryForChat() {
 function saveTimelineState(immediate = false) {
   const write = () => {
     try {
+      pruneTransitions();
       localStorage.setItem(TIMELINE_KEY, JSON.stringify({
         activeId: timelineState.activeId,
         layers: timelineState.layers,
@@ -9422,6 +10466,17 @@ function saveTimelineState(immediate = false) {
           addedAt: asset.addedAt || 0,
           analysis: asset.analysis || null,
           analysisError: asset.analysisError || ''
+        })),
+        transitions: timelineState.transitions.map(transition => ({
+          id: transition.id,
+          fromClipId: transition.fromClipId,
+          toClipId: transition.toClipId,
+          type: transition.type,
+          duration: transition.duration,
+          alignment: transition.alignment,
+          params: transition.params,
+          code: transition.code || '',
+          version: TRANSITION_VERSION
         })),
         clips: timelineState.clips.map(clip => ({
           id: clip.id,
@@ -9643,6 +10698,12 @@ function loadTimelineState() {
   timelineState.playhead = timelineState.clips.length
     ? Math.max(0, Math.min(timelineTotalSeconds(), Number(stored?.playhead) || 0))
     : 0;
+  const storedTransitions = stored && Array.isArray(stored.transitions) ? stored.transitions : [];
+  timelineState.transitions = storedTransitions
+    .slice(0, TRANSITION_LIMIT)
+    .map(sanitizeTransition)
+    .filter(Boolean);
+  pruneTransitions();
   saveTimelineState(true);
 }
 
@@ -9669,14 +10730,35 @@ function clipPreviewTime(clip) {
 }
 
 // Stage preview that stacks every track at the playhead, like the export.
+// During a transition window both participating clips are kept in the page so
+// playback can drive the same deterministic engine used by the export.
+let previewCompositeState = { active: false, count: 0 };
+let pendingCompositeCount = 0;
+
+function compositeLayerPlan(at) {
+  const participants = new Set();
+  for (const transition of transitionsAtTime(at)) {
+    participants.add(transition.fromClipId);
+    participants.add(transition.toClipId);
+  }
+  const layers = clipsAtTime(at)
+    .filter(clip => clipIsRenderable(clip) && clip.type !== 'audio');
+  for (const clipId of participants) {
+    if (layers.some(clip => clip.id === clipId)) continue;
+    const clip = findClipById(clipId);
+    if (clip && clipIsRenderable(clip) && clip.type !== 'audio') layers.push(clip);
+  }
+  layers.sort((a, b) => (Number(a.track) || 0) - (Number(b.track) || 0));
+  return { layers, participants };
+}
+
 function buildCompositePreview(at, options = {}) {
+  pendingCompositeCount = 0;
   const active = activeClip();
   const activeCode = options.activeCode;
-  const covering = clipsAtTime(at)
-    .filter(clip => clipIsRenderable(clip) && clip.type !== 'audio')
-    .sort((a, b) => (Number(a.track) || 0) - (Number(b.track) || 0));
-  if (covering.length < 2) return '';
-  const layers = covering.map(clip => {
+  const plan = compositeLayerPlan(at);
+  const layers = [];
+  for (const clip of plan.layers) {
     const track = Math.max(0, Math.min(3, Number(clip.track) || 0));
     let html = '';
     if (clipIsMedia(clip)) {
@@ -9691,19 +10773,43 @@ function buildCompositePreview(at, options = {}) {
       const code = clip.id === active?.id && activeCode != null
         ? activeCode
         : String(clip.code || '');
-      if (!code.trim()) return '';
+      if (!code.trim()) continue;
       html = injectPreviewReporter(injectSceneMediaTools(code));
     }
-    return `<iframe class="cc-layer" sandbox="allow-scripts" style="z-index:${track + 1}" srcdoc="${escapeAttr(html)}"></iframe>`;
-  }).filter(Boolean);
+    layers.push({ clip, track, html });
+  }
+  pendingCompositeCount = layers.length;
   if (layers.length < 2) return '';
+  const pageIds = new Set(layers.map(layer => layer.clip.id));
+  const transitions = resolvedTransitions().filter(transition =>
+    pageIds.has(transition.fromClipId) && pageIds.has(transition.toClipId)
+  );
+  const tags = layers.map(layer =>
+    `<iframe class="cc-layer" sandbox="allow-scripts" data-clip-id="${escapeAttr(layer.clip.id)}" data-start="${Number(layer.clip.start) || 0}" data-duration="${Number(layer.clip.duration) || 0}" data-track="${layer.track}" style="z-index:${(layer.track + 1) * 100}" srcdoc="${escapeAttr(layer.html)}"></iframe>`
+  );
+  const transitionsJson = JSON.stringify(transitions).replace(/</g, '\\u003c');
   return [
     '<!doctype html><html><head><meta charset="utf-8"><style>',
     'html,body{margin:0;padding:0;width:100%;height:100%;background:#000;overflow:hidden}',
-    '.cc-layer{position:absolute;inset:0;width:100%;height:100%;border:0;display:block;background:transparent}',
+    '.cc-layer{position:absolute;inset:0;width:100%;height:100%;border:0;display:block;background:transparent;transform-origin:center center}',
     '</style></head><body>',
     '<script>addEventListener("message",function(e){try{parent.postMessage(e.data,"*")}catch(err){}});<\/script>',
-    layers.join('\n'),
+    tags.join('\n'),
+    '<script>' + transitionEngineSource() + '<\/script>',
+    '<script>',
+    '(function(){',
+    'var layers = Array.prototype.map.call(document.querySelectorAll(".cc-layer"), function(el){',
+    '  return { el: el, clipId: el.getAttribute("data-clip-id"), start: Number(el.getAttribute("data-start")), duration: Number(el.getAttribute("data-duration")), track: Number(el.getAttribute("data-track")) };',
+    '});',
+    'var transitions = ' + (transitionsJson || '[]') + ';',
+    'var apply = window.CCTransitions.mount(document.body, ' + (Number(at) || 0).toFixed(4) + ', layers, transitions);',
+    'addEventListener("message", function(event){',
+    '  var data = event.data;',
+    '  if (!data || data.source !== "clipacanvas-composite" || data.type !== "time") return;',
+    '  apply(Number(data.seconds) || 0);',
+    '});',
+    '})();',
+    '<\/script>',
     '</body></html>'
   ].join('\n');
 }
@@ -9716,11 +10822,23 @@ function renderCompositePreview(html) {
     iframe.onload = () => queuePreviewScale();
     iframe.srcdoc = html;
   }
+  previewCompositeState = { active: true, count: pendingCompositeCount };
   queuePreviewScale();
 }
 
+function postCompositeTime(seconds) {
+  if (!previewCompositeState.active) return;
+  const iframe = document.getElementById('liveFrame');
+  try {
+    iframe?.contentWindow?.postMessage(
+      { source: 'clipacanvas-composite', type: 'time', seconds: Number(seconds) || 0 },
+      '*'
+    );
+  } catch (error) { console.error(error); }
+}
+
 function countPreviewLayers(at) {
-  return clipsAtTime(at).filter(clip => clipIsRenderable(clip) && clip.type !== 'audio').length;
+  return compositeLayerPlan(at).layers.length;
 }
 
 function previewClipCode(clip) {
@@ -9756,6 +10874,7 @@ function previewClipCode(clip) {
 function previewMediaSource({ url, kind, sourceIn = 0, duration = 0, fit = 'contain', name = '', autoplay = true }) {
   hideStageFilm(0);
   setEmptySceneHint(false);
+  previewCompositeState = { active: false, count: 0 };
   const iframe = document.getElementById('liveFrame');
   if (iframe) {
     iframe.onload = () => queuePreviewScale();
@@ -10416,6 +11535,7 @@ function renderLogicBoxes() {
   if (!host) return;
   clampTimelineView();
   const rows = [];
+  const transitions = resolvedTransitions();
   for (let track = timelineState.layers - 1; track >= 0; track--) {
     const trackClips = timelineState.clips.filter(clip => clip.track === track);
     const boxes = trackClips
@@ -10455,9 +11575,17 @@ function renderLogicBoxes() {
           `<div class="logic-resize" title="Drag to trim the out point"></div>` +
           `</div>`;
       }).join('');
+    const badges = transitions
+      .filter(transition => transition.track === track)
+      .map(transition => {
+        const win = transitionWindow(transition);
+        const cutPct = timeToTimelinePct(transition.cut);
+        const title = `${transitionTypeLabel(transition.type)} · ${formatTimelineTime(transition.duration)} · ${transition.alignment.toUpperCase()} · ${formatTimelineTime(win.start)} → ${formatTimelineTime(win.end)}`;
+        return `<button type="button" class="logic-transition" data-transition-id="${escapeAttr(transition.id)}" title="${escapeAttr(title)}" style="left:${cutPct}%">${escapeHtml(transition.type === 'custom' ? 'CODE' : 'TR')}</button>`;
+      }).join('');
     rows.push(`<div class="et-row" data-track="${track}">` +
       `<div class="et-label"><b>V${track + 1}</b><em>${trackClips.length} CLIP${trackClips.length === 1 ? '' : 'S'}</em></div>` +
-      `<div class="et-lane" data-track="${track}">${boxes}</div>` +
+      `<div class="et-lane" data-track="${track}">${boxes}${badges}</div>` +
       `</div>`);
   }
   host.innerHTML = rows.join('');
@@ -11138,6 +12266,7 @@ const projectOps = Object.freeze({
       duration: timelineTotalSeconds(),
       layers: timelineState.layers,
       activeId: timelineState.activeId,
+      transitions: transitionSummaryForChat(),
       clips: timelineState.clips.map(clip => ({
         id: clip.id,
         name: clip.name,
@@ -11193,6 +12322,9 @@ const projectOps = Object.freeze({
       clip: summarize(clip),
       parent: parent ? summarize(parent) : null,
       children: timelineState.clips.filter(item => item.parentClipId === clip.id).map(summarize),
+      transitions: transitionSummaryForChat().filter(transition =>
+        transition.fromClipId === clip.id || transition.toClipId === clip.id
+      ),
       asset: assetTechnicalSummary(clipAsset(clip))
     };
   },
@@ -11242,6 +12374,40 @@ const projectOps = Object.freeze({
     updateStageTimeline();
     setStatus(`Detached ${overlay.name}${parent ? ` from ${parent.name}` : ''}`, 'ok');
     return { ok: true, clipId: overlay.id };
+  },
+
+  addTransition(options = {}) {
+    const result = addTransitionRecord(options);
+    if (!result.ok) return { ok: false, error: result.error };
+    return {
+      ok: true,
+      transition: {
+        id: result.transition.id,
+        type: result.transition.type,
+        duration: result.transition.duration,
+        alignment: result.transition.alignment,
+        fromClipId: result.transition.fromClipId,
+        toClipId: result.transition.toClipId,
+        params: result.transition.params
+      },
+      summary: transitionSummaryForChat()
+    };
+  },
+
+  updateTransition(transitionId, patch = {}) {
+    const result = updateTransitionRecord(transitionId, patch);
+    if (!result.ok) return { ok: false, error: result.error };
+    return { ok: true, transition: result.transition, summary: transitionSummaryForChat() };
+  },
+
+  removeTransition(transitionId) {
+    const result = removeTransitionRecord(transitionId);
+    if (!result.ok) return { ok: false, error: result.error };
+    return { ok: true, removedId: result.removed.id, summary: transitionSummaryForChat() };
+  },
+
+  listTransitions() {
+    return { ok: true, transitions: transitionSummaryForChat() };
   },
 
   createTrack() {
@@ -11586,9 +12752,11 @@ function updateMonitorTime() {
 
 function playbackClipKey(at) {
   const active = clipsAtTime(at);
-  if (!active.length) return 'none';
+  const transitionKey = transitionsAtTime(at).map(transition => transition.id).join(',');
+  if (!active.length) return transitionKey ? `tr:${transitionKey}` : 'none';
   const ids = active.map(clip => clip.id).join(',');
-  return active.some(clip => clipIsMedia(clip)) ? `${ids}|${Math.floor(at * 2)}` : ids;
+  const mediaBucket = active.some(clip => clipIsMedia(clip)) ? Math.floor(at * 2) : '';
+  return `${ids}|tr:${transitionKey}|${mediaBucket}`;
 }
 
 function togglePlayback() {
@@ -11631,6 +12799,7 @@ function playbackTick(ts) {
     playbackState.clipKey = key;
     previewAtPlayhead();
   }
+  postCompositeTime(at);
   playbackState.raf = requestAnimationFrame(playbackTick);
 }
 
@@ -11765,6 +12934,7 @@ function positionPlayhead(seconds) {
 }
 
 function previewClipFrame(clip, at) {
+  previewCompositeState = { active: false, count: 0 };
   if (clipIsMedia(clip)) {
     const offset = Math.max(0, at - (Number(clip.start) || 0));
     previewMediaSource({
@@ -11797,15 +12967,16 @@ function previewClipFrame(clip, at) {
 
 function previewAtPlayhead() {
   const at = timelineState.playhead;
-  const active = clipsAtTime(at);
-  if (!active.length) {
-    setStatus(`PLAYHEAD ${formatTimelineTime(at)} · no clip on any track`, '');
-    return;
-  }
   const composite = buildCompositePreview(at);
   if (composite) {
     renderCompositePreview(composite);
-    setStatus(`PLAYHEAD ${formatTimelineTime(at)} · ${countPreviewLayers(at)} LAYERS`, '');
+    const transitionNote = transitionsAtTime(at).length ? ' · TRANSITION' : '';
+    setStatus(`PLAYHEAD ${formatTimelineTime(at)} · ${countPreviewLayers(at)} LAYERS${transitionNote}`, '');
+    return;
+  }
+  const active = clipsAtTime(at);
+  if (!active.length) {
+    setStatus(`PLAYHEAD ${formatTimelineTime(at)} · no clip on any track`, '');
     return;
   }
   // One clip at this time: preview it directly so its animation keeps running.
@@ -11837,6 +13008,15 @@ function initLogicTimeline() {
   document.getElementById('boxDup')?.addEventListener('click', () => addLogicClip({ duplicate: true }));
   document.getElementById('boxDel')?.addEventListener('click', deleteLogicClip);
   document.getElementById('layerAdd')?.addEventListener('click', addTimelineLayer);
+  document.getElementById('transitionAdd')?.addEventListener('click', () => openTransitionDialog());
+  document.getElementById('logicTracks')?.addEventListener('click', (event) => {
+    const badge = event.target.closest('.logic-transition');
+    if (!badge) return;
+    event.preventDefault();
+    event.stopPropagation();
+    openTransitionDialog({ transitionId: badge.dataset.transitionId });
+  });
+  initTransitionDialog();
 
   document.getElementById('miDuration')?.addEventListener('change', applyInspectorDuration);
   document.getElementById('miSourceIn')?.addEventListener('change', applyInspectorSourceIn);

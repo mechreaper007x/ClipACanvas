@@ -298,8 +298,12 @@ def inject_control_script(code: str) -> str:
     return f"{script_tag}{code}"
 
 
-def build_sequence_document(clips: list[dict]) -> str:
-    """Compose layered logic-box clips into one page whose virtual clock spans the sequence."""
+def build_sequence_document(clips: list[dict], transitions: list[dict] | None = None, engine_source: str = "") -> str:
+    """Compose layered logic-box clips into one page whose virtual clock spans the sequence.
+
+    Transitions are evaluated by the shared frontend engine (embedded verbatim),
+    so the Program Monitor and the export blend from the same progress math.
+    """
     frames = []
     cursor_ms = 0
     for clip in clips:
@@ -315,6 +319,7 @@ def build_sequence_document(clips: list[dict]) -> str:
         except (TypeError, ValueError):
             track = 0
         frames.append({
+            "id": str(clip.get("id") or ""),
             "start": start_ms,
             "duration": duration_ms,
             "track": track,
@@ -325,16 +330,20 @@ def build_sequence_document(clips: list[dict]) -> str:
     total_ms = max((frame["start"] + frame["duration"] for frame in frames), default=0)
 
     frame_tags = "\n".join(
-        '<iframe class="cc-clip" data-start="{start}" data-duration="{duration}" data-track="{track}" '
+        '<iframe class="cc-clip" data-clip-id="{clip_id}" data-start="{start}" data-duration="{duration}" data-track="{track}" '
         'style="z-index:{zindex}" srcdoc="{html}"></iframe>'.format(
+            clip_id=html.escape(frame["id"], quote=True),
             start=frame["start"],
             duration=frame["duration"],
             track=frame["track"],
-            zindex=frame["track"] + 1,
+            zindex=(frame["track"] + 1) * 100,
             html=html.escape(frame["html"], quote=True),
         )
         for frame in frames
     )
+    transition_json = json.dumps(transitions or [], ensure_ascii=False).replace("<", "\\u003c")
+    safe_engine = engine_source.replace("</script", "<\\/script") if engine_source else ""
+    engine_tag = f"<script>{safe_engine}</script>" if safe_engine else ""
 
     return f"""<!doctype html>
 <html>
@@ -342,41 +351,62 @@ def build_sequence_document(clips: list[dict]) -> str:
 <meta charset="utf-8">
 <style>
   html, body {{ margin: 0; padding: 0; width: 100%; height: 100%; background: #000; overflow: hidden; }}
-  .cc-clip {{ position: absolute; inset: 0; width: 100%; height: 100%; border: 0; display: block; visibility: hidden; }}
+  .cc-clip {{ position: absolute; inset: 0; width: 100%; height: 100%; border: 0; display: block; visibility: hidden; transform-origin: center center; }}
 </style>
 </head>
 <body>
 {frame_tags}
+{engine_tag}
 <script>
 (function () {{
   var frames = Array.prototype.slice.call(document.querySelectorAll('.cc-clip'));
-  var starts = frames.map(function (frame) {{ return Number(frame.dataset.start) || 0; }});
-  var durations = frames.map(function (frame) {{ return Number(frame.dataset.duration) || 0; }});
+  var layers = frames.map(function (frame) {{
+    return {{
+      el: frame,
+      clipId: frame.getAttribute('data-clip-id') || '',
+      start: (Number(frame.dataset.start) || 0) / 1000,
+      duration: (Number(frame.dataset.duration) || 0) / 1000,
+      track: Number(frame.dataset.track) || 0
+    }};
+  }});
+  var transitions = {transition_json};
   var totalMs = {total_ms};
-  var visible = frames.map(function () {{ return false; }});
-  var lastMs = 0;
+  var runtime = window.CCTransitions || null;
+  var lastActive = [];
+
+  function fallbackActiveAt(ms) {{
+    var seconds = ms / 1000;
+    var active = [];
+    for (var index = 0; index < layers.length; index++) {{
+      var layer = layers[index];
+      if (seconds >= layer.start && seconds < layer.start + layer.duration) {{
+        active.push({{ index: index, clipId: layer.clipId, local: seconds - layer.start }});
+      }}
+    }}
+    return {{ active: active, transitions: [] }};
+  }}
 
   window.__clipacanvasSetTime = async function (seconds) {{
     var ms = Math.max(0, (Number(seconds) || 0) * 1000);
-    lastMs = ms;
+    var result;
+    if (runtime && runtime.applyAt) {{
+      result = runtime.applyAt(document.body, ms / 1000, layers, transitions);
+    }} else {{
+      result = fallbackActiveAt(ms);
+      for (var index = 0; index < layers.length; index++) {{
+        layers[index].el.style.visibility = ms / 1000 >= layers[index].start && ms / 1000 < layers[index].start + layers[index].duration ? 'visible' : 'hidden';
+      }}
+    }}
+    lastActive = result.active || [];
     var waits = [];
-    for (var index = 0; index < frames.length; index++) {{
-      var isActive = ms >= starts[index] && ms < starts[index] + durations[index];
-      if (!isActive) {{
-        if (visible[index]) {{
-          visible[index] = false;
-          frames[index].style.visibility = 'hidden';
-        }}
-        continue;
-      }}
-      if (!visible[index]) {{
-        visible[index] = true;
-        frames[index].style.visibility = 'visible';
-      }}
+    for (var cursor = 0; cursor < lastActive.length; cursor++) {{
+      var entry = lastActive[cursor];
+      var childFrame = frames[entry.index];
+      if (!childFrame) continue;
       try {{
-        var child = frames[index].contentWindow;
+        var child = childFrame.contentWindow;
         if (child && child.__clipacanvasSetTime) {{
-          child.__clipacanvasSetTime((ms - starts[index]) / 1000);
+          child.__clipacanvasSetTime(entry.local);
         }}
         if (child && child.__clipacanvasAwaitMedia) {{
           waits.push(child.__clipacanvasAwaitMedia());
@@ -391,10 +421,11 @@ def build_sequence_document(clips: list[dict]) -> str:
 
   window.__clipacanvasCaptureMeta = function () {{
     var activeAnimations = 0;
-    for (var index = 0; index < frames.length; index++) {{
-      if (lastMs < starts[index] || lastMs >= starts[index] + durations[index]) continue;
+    for (var cursor = 0; cursor < lastActive.length; cursor++) {{
       try {{
-        var child = frames[index].contentWindow;
+        var activeFrame = frames[lastActive[cursor].index];
+        if (!activeFrame) continue;
+        var child = activeFrame.contentWindow;
         if (child && child.__clipacanvasCaptureMeta) {{
           var meta = child.__clipacanvasCaptureMeta();
           activeAnimations += Math.max(0, Number(meta.activeAnimations) || 0);
@@ -514,6 +545,7 @@ def render_payload(payload: dict, output_path: str | Path, ffmpeg_exe: str | Non
             except (TypeError, ValueError):
                 clip_track = 0
             clips.append({
+                "id": str(raw_clip.get("id") or ""),
                 "code": clip_code,
                 "duration": clip_duration,
                 "start": clip_start,
@@ -591,9 +623,52 @@ def render_payload(payload: dict, output_path: str | Path, ffmpeg_exe: str | Non
             except (TypeError, ValueError):
                 continue
 
+    transition_clips = {clip["id"] for clip in clips if clip["id"]}
+    transitions: list[dict] = []
+    transition_engine = ""
+    raw_transitions = payload.get("transitions")
+    if isinstance(raw_transitions, list) and sequence_mode:
+        for raw_transition in raw_transitions[:40]:
+            if not isinstance(raw_transition, dict):
+                continue
+            from_id = str(raw_transition.get("fromClipId") or "")
+            to_id = str(raw_transition.get("toClipId") or "")
+            if not from_id or not to_id or from_id == to_id:
+                continue
+            if from_id not in transition_clips or to_id not in transition_clips:
+                continue
+            try:
+                transition_duration = min(3.0, max(0.1, float(raw_transition.get("duration") or 0.6)))
+            except (TypeError, ValueError):
+                transition_duration = 0.6
+            try:
+                transition_cut = max(0.0, float(raw_transition.get("cut") or 0))
+            except (TypeError, ValueError):
+                transition_cut = 0.0
+            try:
+                transition_track = max(0, min(7, int(raw_transition.get("track") or 0)))
+            except (TypeError, ValueError):
+                transition_track = 0
+            params = raw_transition.get("params")
+            transitions.append({
+                "id": str(raw_transition.get("id") or f"tr-{len(transitions)}")[:40],
+                "fromClipId": from_id,
+                "toClipId": to_id,
+                "type": str(raw_transition.get("type") or "dissolve")[:32],
+                "duration": transition_duration,
+                "alignment": raw_transition.get("alignment") if raw_transition.get("alignment") in ("center", "start", "end") else "center",
+                "cut": transition_cut,
+                "track": transition_track,
+                "params": params if isinstance(params, dict) else {},
+                "code": str(raw_transition.get("code") or "")[:8000],
+            })
+        if transitions:
+            engine = str(payload.get("transitionEngine") or "")
+            if 0 < len(engine) <= 80000 and "CCTransitions" in engine:
+                transition_engine = engine
+
     gpu_boost = bool(payload.get("gpuBoost") or payload.get("gpu_boost"))
-    video_codec = resolve_video_encoder(codec, ffmpeg_exe, gpu_boost)
-    # GPU boost also captures frames as high-quality JPEG: PNG encoding is the
+    video_codec = resolve_video_encoder(codec, ffmpeg_exe, gpu_boost)    # GPU boost also captures frames as high-quality JPEG: PNG encoding is the
     # biggest CPU cost in the capture loop, JPEG cuts render time noticeably.
     frame_image_format = "jpeg" if gpu_boost else "png"
     # Memory Optimization: Start FFmpeg with a pipe
@@ -744,7 +819,7 @@ def render_payload(payload: dict, output_path: str | Path, ffmpeg_exe: str | Non
                     "**/*",
                     lambda route: _handle_route(route),
                 )
-                document_html = build_sequence_document(clips) if sequence_mode else inject_control_script(code)
+                document_html = build_sequence_document(clips, transitions, transition_engine) if sequence_mode else inject_control_script(code)
                 page.set_content(document_html, wait_until="load")
                 page.evaluate(
                     """async () => {

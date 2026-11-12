@@ -262,6 +262,52 @@ LLM_TOOL_DECLARATIONS = [
         },
     },
     {
+        "name": "add_transition",
+        "description": "Add a saved visual transition on an existing cut where two clips touch on the same track. Presets: dissolve, fade-black, fade-white, dip-color, wipe, push, slide, zoom-in, zoom-out, zoom-blur, glitch, rgb-split, blur-dissolve. Defaults to the touching cut of the selected clip. For a custom transition use type \"custom\" and provide code declaring function renderTransition(ctx) that returns {outgoing, incoming, overlay} style objects for ctx.progress 0→1 (opacity, transform, filter, clipPath, backgroundColor, mixBlendMode). Custom code is validated and runs only inside the isolated preview/export page. Video clips must have enough footage handles for the requested alignment.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "type": {"type": "string", "description": "Preset id or \"custom\"."},
+                "fromClipId": {"type": "string", "description": "Optional outgoing clip id; defaults to the selected clip's touching cut."},
+                "toClipId": {"type": "string", "description": "Optional incoming clip id."},
+                "duration": {"type": "number", "description": "Length in seconds, 0.1 to 3."},
+                "alignment": {"type": "string", "enum": ["center", "start", "end"], "description": "Where the transition sits relative to the cut."},
+                "direction": {"type": "string", "enum": ["left", "right", "up", "down"], "description": "Motion/reveal direction for wipe, push and slide."},
+                "color": {"type": "string", "description": "Dip color for dip-color, e.g. #0a0f0d."},
+                "intensity": {"type": "number", "description": "Effect strength 0 to 1 for zoom, glitch, rgb-split and blur presets."},
+                "code": {"type": "string", "description": "Custom transition source when type is custom."},
+            },
+            "required": ["type"],
+        },
+    },
+    {
+        "name": "update_transition",
+        "description": "Change a saved transition's type, duration, alignment, parameters or custom code. Defaults to the transition on the selected clip's cut when transitionId is omitted. The same handle validation applies.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "transitionId": {"type": "string", "description": "Transition id from get_app_state; optional."},
+                "type": {"type": "string", "description": "New preset id or \"custom\"."},
+                "duration": {"type": "number", "description": "New length in seconds, 0.1 to 3."},
+                "alignment": {"type": "string", "enum": ["center", "start", "end"]},
+                "direction": {"type": "string", "enum": ["left", "right", "up", "down"]},
+                "color": {"type": "string"},
+                "intensity": {"type": "number"},
+                "code": {"type": "string", "description": "New custom code when type is custom."},
+            },
+        },
+    },
+    {
+        "name": "remove_transition",
+        "description": "Remove a transition from a cut. Neither clip nor its footage is modified. Defaults to the transition on the selected clip's cut.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "transitionId": {"type": "string", "description": "Transition id; optional."},
+            },
+        },
+    },
+    {
         "name": "render_video",
         "description": "Render the whole timeline (every scene, in order and by layer) to one video file with the current export settings. Can take from a few seconds to a few minutes.",
     },

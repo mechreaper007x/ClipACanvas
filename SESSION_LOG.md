@@ -3725,3 +3725,38 @@
 
 - Next: transition data model + deterministic contract, TTS provider verification, semantic analysis consent flow.
 - `dist/ClipACanvas.exe` still needs a rebuild.
+
+## 2026-11-12 (Phase 2: deterministic transition engine)
+
+### Summary
+
+- Added first-class transitions on touching cuts: `timelineState.transitions` persists in `clipacanvas.timeline.v1` with `fromClipId`, `toClipId`, `type`, `duration`, `alignment`, `params`, optional custom `code`, version. Invalid/overlapping/gapped transitions are pruned on save.
+- Added a single deterministic engine (`ccTransitionRuntime`) whose source is embedded verbatim into both the Program Monitor composite and the Playwright sequence document. Progress drives declarative CSS surface styles; no timers or wall-clock state. Incoming surfaces are forced above outgoing ones so same-track cuts composite correctly.
+- Preset library: dissolve, fade-black, fade-white, dip-color, wipe, push, slide, zoom-in, zoom-out, zoom-blur, glitch, rgb-split, blur-dissolve (13).
+- Custom transitions: `function renderTransition(ctx)` returning `{outgoing, incoming, overlay}` styles; validated and deny-listed, compiled only inside the sandboxed preview/Playwright pages, never in the app window.
+- Media boundary checks: outgoing footage past the out point and incoming handle before the in point are validated per alignment; video transitions export with real handles.
+- UI: TRANSITION toolbar button, transition dialog (type/duration/alignment/direction/color/intensity/code/remove), cut badges, midpoint scrubbing preview; playback posts time into the composite page so blends animate.
+- Agent tools: `add_transition`, `update_transition`, `remove_transition`; transitions are included in `timelineSummaryForChat` and `get_clip_context`.
+
+### Files Touched
+
+- `clipacanvas.html`, `playwright_render.py`, `serve.py`
+- `docs/EDITOR_AUDIT.md`
+- `tests/_check_transitions.py`, `tests/_check_webview_transitions.py` (new)
+- `SESSION_LOG.md`
+
+### Verification
+
+- `_check_transitions.py`: PASS — preview pixels red→purple→blue across a dissolve, playback progress, all 13 presets, custom transitions + blocked code, wipe clip-path, fade-black, gap/length/handle rejection, 1.2 s export with start/mid/end probes, persistence, dialog add/edit/remove, a real media transition with footage handles, agent tools.
+- `_check_webview_transitions.py`: PASS in WebView2 (Edg/157) — dialog add (zoom-blur), composite engine layers, 1.2 s export start/mid/end probes, restore after reload.
+- Regressions: `_check_workspace.py`, `_check_overlays.py`, `_check_project_ops.py`, `_check_bin_dragdrop.py`, `_check_e2e_flow.py`, `_check_media_timeline.py`, `_check_chat_scenes.py`, `_check_timeline_zoom.py` — all PASS.
+- Artifacts: `output/playwright/transition-export.mp4`, `transition-media.mp4`, `webview-transition.mp4`, `webview-transition-dialog.png`, `webview-transition-restored.png`.
+
+### Commits
+
+- This transition change set committed locally; not pushed.
+
+### Open Items
+
+- TTS provider abstraction and Voiceover Studio (next directive item); semantic asset analysis; overlay attachment UI buttons; frame/tick timebase.
+- `dist/ClipACanvas.exe` still needs a rebuild.

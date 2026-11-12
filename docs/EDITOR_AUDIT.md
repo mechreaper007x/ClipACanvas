@@ -2,7 +2,28 @@
 
 Date: 2026-11-12
 Branch: `main`
-Baseline: `main` at `bb4772c`; the Phase 1 additions described in the addendum below are uncommitted at the time of writing.
+Baseline: `main` at `92f548c`; the transition work described in the Phase 2 addendum is uncommitted at the time of writing.
+
+## Addendum — Phase 2 (transition engine)
+
+Verified in the working tree on 2026-11-12.
+
+### What is implemented
+
+- **Project model:** `timelineState.transitions` (max 40) persisted inside `clipacanvas.timeline.v1`. Each record: `id`, `fromClipId`, `toClipId`, `type`, `duration`, `alignment` (`center|start|end`), `params` (`direction`, `color`, `intensity`), `code` (custom only), `version`. Transitions are saved on a cut, survive reload, and are pruned when their clips disappear, stop touching, or the window overlaps another transition on the same track.
+- **Deterministic contract:** one engine (`ccTransitionRuntime` in `clipacanvas.html`) is embedded verbatim in the Program Monitor composite and in the Playwright sequence document. It receives normalized progress plus clip timing and returns declarative surface styles; there are no timers, wall-clock reads, or randomness (glitch jitter uses a `sin` hash of progress). The incoming surface is forced above the outgoing one, so same-track cuts composite correctly.
+- **Preset library (13):** dissolve, fade-black, fade-white, dip-color, wipe, push, slide, zoom-in, zoom-out, zoom-blur, glitch, rgb-split, blur-dissolve. Direction, dip color and intensity are configurable; each preset is exercised by tests.
+- **Custom transitions:** `type: "custom"` plus code declaring `function renderTransition(ctx)` returning `{outgoing, incoming, overlay}` CSS styles (`opacity`, `transform`, `filter`, `clipPath`, `backgroundColor`, `mixBlendMode`). Code is length-limited, deny-listed (`fetch`, DOM/window access, loops, `eval`, etc.), and only compiled inside the sandboxed preview page or the Playwright page — never in the app window. Invalid code is rejected at add/update time; a runtime failure falls back to a dissolve inside the isolated page.
+- **Boundary handling:** transitions require two clips touching on one track and no longer than either clip. Video clips are checked for real footage handles: outgoing needs `d/2` (center), `d` (start) or 0 (end) past its out point; incoming needs the matching pre-roll before its in point. Violations return explicit errors instead of corrupting timing.
+- **UI:** `TRANSITION` toolbar action + a dialog (type, duration, alignment, direction, color, intensity, custom code, remove). Cut badges open the dialog; preview jumps to the transition midpoint and uses the Program Monitor. Preview playback posts time into the composite page so the blend animates without reloading layers.
+- **Agent tools:** `add_transition`, `update_transition`, `remove_transition` through `projectOps`; `timelineSummaryForChat` and `get_clip_context` include transitions. The system prompt documents the presets and the custom contract.
+
+### Limitations
+
+- Custom transitions return CSS effects on the composited surfaces; they cannot rasterize the outgoing/incoming frames into per-pixel shaders without a new capture path (html2canvas-class or canvas readback), which was intentionally not added.
+- The Program Monitor composites live layers during playback, so child compositions are not seeked to an exact local time mid-transition; the blend math is identical to the export, which seeks every frame deterministically.
+- No transition keyboard shortcut and no drag-to-resize on the badge yet.
+- MCP/TUI renderer copies do not forward transitions; only the desktop `/render` path does.
 
 ## Addendum — Phase 0 (AI-native directive: compositing, transitions, asset intelligence, TTS, zoom)
 
@@ -17,9 +38,9 @@ Verified against the working tree on 2026-11-12, after `bb4772c`.
 - Dependencies/risks: same-track overlap rules apply; an overlay must sit on a higher track than its parent; chain attachment is rejected; split leaves attached children with the left half.
 
 **Transitions**
-- Implemented: nothing beyond hard cuts; the renderer starts each clip's iframe independently.
-- Required next: transition data model (source/destination/duration/alignment/type/config/code/version), deterministic `renderTransition(context)` contract, plan-level overlap handling and source-footage boundary checks, preview/export parity, preset library, generated-transition isolation.
-- Risks: per-clip iframe timing must expose frames on both sides of a cut without corrupting clip timing; no extra Chromium instance should be introduced.
+- Implemented at Phase 0 time: nothing beyond hard cuts; each clip's iframe started independently.
+- Implemented in Phase 2: transition records on cuts, deterministic preview/export engine, 13-preset library, custom `renderTransition(ctx)` code, video handle checks, timeline badges/dialog, agent tools. See the Phase 2 addendum.
+- Remaining: custom transitions cannot rasterize per-pixel source frames; MCP/TUI paths do not forward transitions.
 
 **Asset intelligence**
 - Implemented this phase: `/api/media/analyze` probes stored media with the bundled FFmpeg (duration, resolution, fps, codecs, sample rate, channels, streams, bytes), writes a cached manifest keyed by content hash under `%APPDATA%/ClipACanvas/analysis`, and returns an explicit `semantic.status: "not_analyzed"` record with empty subjects/tags/shots/transcript. The inspector shows the technical block; the asset record persists the manifest; agent tools `search_assets`, `get_asset_analysis`, `update_asset_description` expose concise summaries and human-confirmed notes separately from AI fields.
@@ -43,13 +64,13 @@ Verified against the working tree on 2026-11-12, after `bb4772c`.
 | 1 | Technical asset metadata + cached manifest | Done |
 | 1 | Structured asset access for the agent | Done (`search_assets`, `get_asset_analysis`, `update_asset_description`) |
 | 1 | Explicit overlay relationships | Done (model, ops, inspector, agent tools) |
-| 1 | Transition data structures and execution contract | Deferred (no partial/fake support added) |
+| 1 | Transition data structures and execution contract | Done (see Phase 2 addendum) |
 | 1 | TTS provider abstraction | Deferred (no provider verified yet) |
 | 1 | Improved zoom configuration | Done (presets, slider, numeric entry, anchoring) |
-| 2 | Transition library + generated transitions + overlay UI | Not started |
+| 2 | Transition library + generated transitions + overlay UI | Transitions + custom transitions done; overlay attachment UI still deferred |
 | 2 | Voiceover Studio + local/hosted TTS | Not started |
 | 3 | Semantic/visual/audio asset analysis | Not started |
-| 4 | Full workflow validation + project persistence of all new objects | Partial: overlays and analysis persist; transitions/TTS absent |
+| 4 | Full workflow validation + project persistence of all new objects | Partial: overlays, analysis and transitions persist; TTS absent |
 
 ### Dependencies and licensing notes
 
@@ -57,7 +78,7 @@ No new runtime dependencies were added. Asset probing reuses the bundled FFmpeg;
 
 ### Limitations of this phase
 
-- WebView2 coverage added for the new zoom controls, analysis inspector and overlay attachment; semantic analysis and transitions are not implemented, so they were not tested.
+- WebView2 coverage added for the new zoom controls, analysis inspector, overlay attachment and the transition dialog/preview/export (`_check_webview_transitions.py`).
 - The project timeline remains localStorage-only; analysis and `parentClipId` persist with it, but there is no project file/export yet.
 - No performance regression was measured for the extra analysis call; probing is local and runs once per content hash.
 
