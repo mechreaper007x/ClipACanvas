@@ -118,6 +118,21 @@ with tempfile.TemporaryDirectory() as tmp_name:
             wait("() => document.getElementById('projectHome').hidden === true")
             wait("() => document.getElementById('projectName').value === 'EXTERNAL FILE'")
             assert page.evaluate("activeProject && activeProject.id") == "external-file"
+
+            # Duplicate project names are refused inside the real window.
+            page.click("#projectHomeBtn")
+            wait("() => document.getElementById('projectHome').hidden === false")
+            page.click("#homeNew")
+            wait("() => document.getElementById('homeDialog').hidden === false")
+            page.fill("#homeDialogInput", "Dialog Test")
+            page.click("#homeDialogConfirm")
+            wait("() => !document.getElementById('homeDialogError').hidden")
+            error = page.inner_text("#homeDialogError")
+            print("duplicate name error:", error)
+            assert "already exists" in error
+            page.screenshot(path=str(OUT / "webview-duplicate-name.png"))
+            page.click("#homeDialogCancel")
+            wait("() => document.getElementById('homeDialog').hidden === true")
             print("WEBVIEW2 PROJECT DIALOG CHECK: OK")
             browser.close()
     finally:

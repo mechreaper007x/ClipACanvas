@@ -699,6 +699,30 @@ def _unique_project_stem(display: str, entries: list[dict]) -> str:
     return stem
 
 
+def _project_name_taken(entries: list[dict], name: str, exclude_id: str = "") -> bool:
+    target = name.strip().upper()
+    return any(
+        _project_entry_id(entry) != exclude_id
+        and str(entry.get("name") or "").strip().upper() == target
+        for entry in entries
+    )
+
+
+def _unique_project_display(display: str, entries: list[dict], exclude_id: str = "") -> str:
+    base = display.strip()[:60] or "PROJECT"
+    taken = {
+        str(entry.get("name") or "").strip().upper()
+        for entry in entries
+        if _project_entry_id(entry) != exclude_id
+    }
+    if base.upper() not in taken:
+        return base
+    counter = 2
+    while f"{base} {counter}".upper() in taken:
+        counter += 1
+    return f"{base} {counter}"
+
+
 def _session_path() -> Path:
     return _projects_dir() / PROJECT_SESSION_NAME
 
@@ -3129,6 +3153,10 @@ class ClipACanvasHandler(SimpleHTTPRequestHandler):
             file_name = str(entry.get('file') or '')
             if not PROJECT_FILE_RE.match(file_name):
                 return self._send_json({'ok': False, 'error': 'Project file name is invalid.'}, 400)
+            # A content save must never duplicate another project's name; keep
+            # the stored name and let the rename endpoint report collisions.
+            if _project_name_taken(entries, display, exclude_id=project_id):
+                display = str(entry.get('name') or display)
             doc = dict(doc)
             doc['projectId'] = project_id
             doc['projectName'] = display
@@ -3149,6 +3177,13 @@ class ClipACanvasHandler(SimpleHTTPRequestHandler):
             if session and session.get('projectId') == project_id:
                 _write_session(project_id, entry['name'], saved_at)
             return self._send_json({'ok': True, 'project': _project_entry_meta(entry)})
+        if body.get('dedupe'):
+            display = _unique_project_display(display, entries)
+        elif _project_name_taken(entries, display):
+            return self._send_json(
+                {'ok': False, 'error': f'A project named "{display}" already exists. Choose another name.'},
+                409,
+            )
         stem = _unique_project_stem(display, entries)
         filename = f'{stem}.ccproj.json'
         if not PROJECT_FILE_RE.match(filename):
@@ -3191,6 +3226,11 @@ class ClipACanvasHandler(SimpleHTTPRequestHandler):
         file_name = str((entry or {}).get('file') or '')
         if entry is None or not PROJECT_FILE_RE.match(file_name):
             return self._send_json({'ok': False, 'error': 'Project not found.'}, 404)
+        if _project_name_taken(entries, name, exclude_id=project_id):
+            return self._send_json(
+                {'ok': False, 'error': f'A project named "{name}" already exists. Choose another name.'},
+                409,
+            )
         file_path = _projects_dir() / file_name
         doc = _read_json_path(file_path)
         if not isinstance(doc, dict):

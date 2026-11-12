@@ -264,6 +264,59 @@ with tempfile.TemporaryDirectory() as tmp_name:
             assert page.evaluate("activeProject.id") == "guard-a", "card Enter should still open the project"
             print("PASS 7 nested card buttons keep keyboard events")
 
+            # ── 8. Duplicate names are refused ──────────────────────────
+            # Header rename to an existing project name is rejected and reverts.
+            page.fill("#projectName", "EXTERNAL B")
+            page.dispatch_event("#projectName", "change")
+            page.wait_for_function(
+                "() => document.getElementById('projectName').value === 'GUARD A'", timeout=10000
+            )
+            assert "already exists" in page.evaluate("document.getElementById('statusBar').textContent")
+            listing = {entry["id"]: entry for entry in api(base, "/api/projects")["projects"]}
+            assert listing["guard-a"]["name"] == "GUARD A", listing["guard-a"]
+            assert listing["external-b"]["name"] == "EXTERNAL B", listing["external-b"]
+
+            go_home(page, expected_cards=5)
+            page.click("#homeNew")
+            page.wait_for_function("() => document.getElementById('homeDialog').hidden === false")
+            page.fill("#homeDialogInput", "GUARD A")
+            page.click("#homeDialogConfirm")
+            page.wait_for_function("() => !document.getElementById('homeDialogError').hidden", timeout=10000)
+            assert "already exists" in page.inner_text("#homeDialogError")
+            assert page.evaluate("document.getElementById('homeDialog').hidden === false")
+            assert page.evaluate("document.querySelectorAll('.home-card').length") == 5
+            # Case-insensitive: the same name in another case is still taken.
+            page.fill("#homeDialogInput", "guard a")
+            page.click("#homeDialogConfirm")
+            page.wait_for_function("() => !document.getElementById('homeDialogError').hidden", timeout=10000)
+            assert "already exists" in page.inner_text("#homeDialogError")
+            page.click("#homeDialogCancel")
+            page.wait_for_function("() => document.getElementById('homeDialog').hidden === true")
+
+            # Renaming another project onto an existing name is refused.
+            card(page, "external-b").locator(".home-mini", has_text="RENAME").click()
+            page.wait_for_function("() => document.getElementById('homeDialog').hidden === false")
+            page.fill("#homeDialogInput", "GUARD A")
+            page.click("#homeDialogConfirm")
+            page.wait_for_function("() => !document.getElementById('homeDialogError').hidden", timeout=10000)
+            assert "already exists" in page.inner_text("#homeDialogError")
+            page.click("#homeDialogCancel")
+            page.wait_for_function("() => document.getElementById('homeDialog').hidden === true")
+            assert page.locator('.home-card[data-project-id="external-b"] .home-card-name').inner_text() == "EXTERNAL B"
+
+            # Importing an external file with a taken name is auto-numbered.
+            open_external(page, external_payload("Guard A", "COLLIDE MARKER"), "collide.ccproj.json")
+            wait_editor(page)
+            page.wait_for_function(
+                "() => document.getElementById('projectName').value === 'GUARD A 2'", timeout=15000
+            )
+            assert page.evaluate("activeProject.id") == "guard-a-2", page.evaluate("activeProject")
+            go_home(page, expected_cards=6)
+            imported = {entry["id"]: entry for entry in api(base, "/api/projects")["projects"]}
+            assert imported["guard-a-2"]["name"] == "GUARD A 2", imported
+            assert imported["guard-a"]["name"] == "GUARD A", imported
+            print("PASS 8 duplicate names are refused and imports are numbered")
+
             assert page.evaluate("window.__nativeConfirms") == 0, "a project flow used a native confirm dialog"
             assert not page_errors, page_errors
             browser.close()

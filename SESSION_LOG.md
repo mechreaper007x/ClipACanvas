@@ -4114,3 +4114,33 @@
 
 - Remaining review items not started: durable signature ignores full asset analysis; corrupt `index.json` yields an empty library; duplicate copies the library file instead of a newer autosave; project creation still mutates the editor before the backend confirms; 50-project index truncation; per-card recovery action; self-contained project archives.
 - `window.prompt` copy helpers (render manifest, deep link, snippet) still use native prompts and stay invisible in WebView2.
+
+## 2026-11-13 (Fix: duplicate project names are refused)
+
+### Summary
+
+- Two projects could be created with the same display name by typing it in New Project; the default name sequencing only handled the prefilled value.
+- Create and rename now reject a name already used by another project (trimmed, case-insensitive) with HTTP 409 and "A project named \"X\" already exists. Choose another name."; the Home dialog shows this inline, keeps the dialog open and selects the input. The header project-name input reverts to the current name when a rename is refused.
+- Content saves for an existing project keep the stored name if the payload carries another project's name, so autosaves can never duplicate a name.
+- External project files and recovery imports are auto-numbered instead of rejected (e.g. "GUARD A" -> "GUARD A 2"), and the opened project uses the library entry name.
+- `buildFreshProjectDocument()` is now a pure payload builder; the editor is only replaced after the backend accepts the project, so a rejected or failed create no longer blanks the hidden editor.
+
+### Files Touched
+
+- `serve.py` (`_project_name_taken`, `_unique_project_display`, create/rename/save-in-place checks)
+- `clipacanvas.html` (create/rename UI errors, header rename revert, dedupe imports, pure fresh-project payload)
+- `tests/_check_project_guard.py`, `tests/_check_webview_project_dialog.py`
+
+### Verification
+
+- `_check_project_guard.py` PASS (8 scenarios): header rename to an existing name reverts; New Project with "GUARD A" and "guard a" shows the inline error and creates nothing; renaming EXTERNAL B to GUARD A is refused; an external file named GUARD A imports as GUARD A 2.
+- `_check_project_home.py`, `_check_project_persistence.py`, `_check_project_ops.py` PASS.
+- Rebuilt `dist/ClipACanvas.exe` (04:29, 463 MB) and `dist/ClipACanvas-windows.zip`. Packaged checks PASS in the new exe: `_check_webview_project_dialog.py --exe` (duplicate error visible in WebView2) and `_check_packaged_persistence_render.py` (Project Home, 1080p render, relaunch state intact).
+
+### Commits
+
+- Local commit for this change set (no push).
+
+### Open Items
+
+- Existing duplicate-named projects in a user library are left untouched; rename one from Home. The window-placement issue (restored window opens offset on a full-screen saved size) remains unfixed.

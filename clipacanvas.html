@@ -14997,7 +14997,8 @@ async function adoptOpenedProject(payload) {
   try {
     const data = await projectLibraryAction('/api/projects', {
       name: payload?.projectName || 'OPENED PROJECT',
-      project: { ...payload, projectId: '' }
+      project: { ...payload, projectId: '' },
+      dedupe: true
     });
     return data?.project || null;
   } catch (error) {
@@ -15404,25 +15405,40 @@ async function projectLibraryAction(path, body) {
 }
 
 function buildFreshProjectDocument(name) {
-  timelineHistorySuspended = true;
-  try {
-    try {
-      localStorage.removeItem(TIMELINE_KEY);
-      localStorage.removeItem('clipacanvas.lastCode');
-    } catch (error) { console.error(error); }
-    // A new project must start blank; never seed from the editor or the last
-    // code, which still hold the previously open project behind Home.
-    loadTimelineState(false, { seedCode: '' });
-    applyActiveClipToEditor({ preview: false, timing: false });
-  } finally {
-    timelineHistorySuspended = false;
-  }
-  try { localStorage.setItem('clipacanvas.projectName', name); } catch (error) { console.error(error); }
-  const doc = buildProjectFilePayload();
-  doc.projectId = '';
-  doc.projectName = name;
-  doc.savedAt = new Date().toISOString();
-  return doc;
+  // Pure payload builder: the live editor is only replaced after the backend
+  // accepts the project, so a rejected name (or a failed request) leaves the
+  // current project untouched.
+  return {
+    format: PROJECT_FILE_FORMAT,
+    version: PROJECT_FILE_VERSION,
+    savedAt: new Date().toISOString(),
+    projectId: '',
+    projectName: name,
+    timeline: {
+      clips: [{
+        id: newClipId(),
+        name: clipSceneName(0),
+        code: '',
+        duration: estimateBoxDuration(''),
+        start: 0,
+        track: 0,
+        explicitDuration: false,
+        type: 'code',
+        assetId: '',
+        mediaUrl: '',
+        mediaName: '',
+        sourceIn: 0,
+        fit: 'contain',
+        parentClipId: '',
+        audioTrack: ''
+      }],
+      transitions: [],
+      audioTracks: defaultAudioTracks(),
+      layers: 1,
+      playhead: 0,
+      assets: []
+    }
+  };
 }
 
 function activateProjectEntry(entry, payload, options = {}) {
@@ -15433,13 +15449,14 @@ function activateProjectEntry(entry, payload, options = {}) {
   durableSaveQueued = false;
   projectOpenInProgress = true;
   try {
-    const applied = applyProjectPayload(
-      { ...payload, projectName: payload?.projectName || entry?.name || 'PROJECT' }
-    );
+    // The library entry name is authoritative: an imported file may have been
+    // auto-numbered to avoid colliding with an existing project.
+    const resolvedName = entry?.name || payload?.projectName || 'PROJECT';
+    const applied = applyProjectPayload({ ...payload, projectName: resolvedName });
     if (!applied) throw new Error('The project could not be opened.');
     activeProject = {
       id: entry.id,
-      name: String(payload?.projectName || entry.name || 'PROJECT'),
+      name: String(resolvedName),
       file: entry.file || '',
       savedAt: entry.savedAt || ''
     };
@@ -15473,7 +15490,8 @@ async function importProjectIntoLibrary(payload) {
   const name = String(payload.projectName || 'RECOVERED SESSION').trim() || 'RECOVERED SESSION';
   const data = await projectLibraryAction('/api/projects', {
     name,
-    project: { ...payload, projectId: '', savedAt: new Date().toISOString() }
+    project: { ...payload, projectId: '', savedAt: new Date().toISOString() },
+    dedupe: true
   });
   if (!data?.project?.id) throw new Error('The recovered project could not be added to the library.');
   return data.project;
@@ -15523,6 +15541,7 @@ async function openProjectById(projectId, options = {}) {
 
 async function renameActiveProject(name) {
   if (!activeProject) return;
+  const previous = activeProject.name;
   try {
     const data = await projectLibraryAction('/api/projects/rename', { id: activeProject.id, name });
     activeProject = { ...activeProject, name: data.project?.name || String(name).toUpperCase() };
@@ -15530,6 +15549,9 @@ async function renameActiveProject(name) {
     durableLastLibrarySignature = durableLastSignature;
     setStatus(`PROJECT RENAMED · ${activeProject.name}`, 'ok');
   } catch (error) {
+    applyProjectName(previous);
+    try { localStorage.setItem('clipacanvas.projectName', previous); }
+    catch (storeError) { console.error(storeError); }
     setStatus(`Project rename failed: ${error?.message || error}`, 'err');
   }
 }
@@ -15598,6 +15620,10 @@ async function submitHomeDialog() {
   const fail = (message) => {
     error.textContent = message;
     error.hidden = false;
+    if (input && !input.hidden) {
+      input.focus();
+      input.select();
+    }
   };
   error.hidden = true;
   if (!confirm || confirm.disabled) return;
