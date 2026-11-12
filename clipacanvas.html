@@ -10045,7 +10045,8 @@ function transitionsAtTime(seconds) {
   });
 }
 
-function transitionHandlesError(from, to, duration, alignment) {  const outgoingExtension = alignment === 'start' ? duration : (alignment === 'end' ? 0 : duration / 2);
+function transitionHandlesError(from, to, duration, alignment) {
+  const outgoingExtension = alignment === 'start' ? duration : (alignment === 'end' ? 0 : duration / 2);
   const incomingPreroll = alignment === 'end' ? duration : (alignment === 'start' ? 0 : duration / 2);
   if (outgoingExtension > 0 && clipIsMedia(from) && from.type === 'video') {
     const asset = clipAsset(from);
@@ -10078,7 +10079,8 @@ function customTransitionCodeError(code) {
   return '';
 }
 
-function transitionSpecError(from, to, duration, alignment, ignoreId = '') {  if (!from || !to) return 'A transition needs two clips.';
+function transitionSpecError(from, to, duration, alignment, ignoreId = '') {
+  if (!from || !to) return 'A transition needs two clips.';
   if (from.id === to.id) return 'A clip cannot transition into itself.';
   if (from.type === 'audio' || to.type === 'audio') return 'Audio clips do not have visual transitions.';
   if (Number(from.track) !== Number(to.track)) return 'Both clips must be on the same track.';
@@ -10117,7 +10119,8 @@ function pruneTransitions() {
   });
 }
 
-function transitionSummaryForChat() {  return resolvedTransitions().map(transition => {
+function transitionSummaryForChat() {
+  return resolvedTransitions().map(transition => {
     const win = transitionWindow(transition);
     return {
       id: transition.id,
