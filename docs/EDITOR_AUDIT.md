@@ -4,6 +4,24 @@ Date: 2026-11-12
 Branch: `main`
 Baseline: `main` at `b8addc5`; the speech/audio work described in the Phase 3 addendum is uncommitted at the time of writing.
 
+## Addendum — Phase 6 (typed lanes, frame stepping, project files)
+
+Verified in the working tree on 2026-11-12, after `6de97dd`.
+
+### What is implemented
+
+- **Media-clip attachment:** the media inspector now exposes the same OVERLAY LINK controls as the code inspector, so image/video clips can be attached and detached through the UI, not only the agent tools. The shared controls respect the existing rules (no audio parents, no attached overlays as parents, automatic track placement).
+- **Frame stepping:** the playhead is quantized to the project frame rate (the export `frameRate`, default 60). Arrow keys step exactly one frame; Shift+Arrow steps one second; Home/End jump to bounds. Monitor timecode already rendered `HH:MM:SS:FF` and now uses the same frame-rate helper. Stepping 60 frames at 60 fps lands exactly on 1.000 s without drift.
+- **Typed audio lanes:** A1 VOICEOVER, A2 MUSIC and A3 SFX render as dedicated 32 px rows below the V tracks; audio clips no longer appear on video rows or consume V-track layout. Audio can be dragged between lanes, reassigned from the clip inspector, dropped from the bin or files onto a lane (audio only), and keeps its wave/trim/resize/rename behavior. Deleting audio does not ripple video and video edits do not shift audio lanes; the compact row height keeps all seven rows visible without scrolling at 916 px height.
+- **Project file:** `SAVE PROJECT` / `OPEN PROJECT` in the project panel write and read a `.ccproj.json` file (`format: "clipacanvas-project"`, version 1) containing clips, transitions, audio tracks/mix, layers, playhead and the asset records (including shots/semantic analysis). The browser uses a blob download and file picker; the desktop shell uses native save/open dialogs through new `save_project_file` / `open_project_file` bridge methods. Opening validates the format/version, asks before replacing the current timeline, then re-runs analysis for assets whose cached manifests are missing or stale.
+- Tests cover frame stepping at 60/30 fps, lane rendering/drags/drops, non-audio rejection on audio lanes, save/open round trips (including the hidden file input) and that deleting audio leaves video timing untouched.
+
+### Limitations
+
+- Storage is still float seconds, not integer ticks: the playhead is frame-quantized, but clip in/out edits remain on the 0.1 s grid, and 29.97/59.94 drop-frame timecode is not implemented.
+- A project file references media files by their content-addressed `/media` URL; media is not embedded, so a project moved to another installation needs those files reimported/linked.
+- Native desktop save/open dialogs cannot be automated in tests; the WebView2 suite verifies the bridge exists and that the serialization/apply path restores clips and lanes, while the browser suite covers the full download/file-picker round trip.
+
 ## Addendum — Phase 5 (overlay attachment UI)
 
 Verified in the working tree on 2026-11-12, after `2d14579`.
@@ -126,7 +144,7 @@ Verified against the working tree on 2026-11-12, after `bb4772c`.
 | 2 | Transition library + generated transitions + overlay UI | Done (13 presets, custom code, inspector attach/detach) |
 | 2 | Voiceover Studio + local/hosted TTS | Done (SAPI, Gemini, Mistral; A1–A3 mix) |
 | 3 | Semantic/visual/audio asset analysis | Done (local shots + keyframes; consent-gated Gemini vision/transcript) |
-| 4 | Full workflow validation + project persistence of all new objects | Partial: overlays, analysis and transitions persist; TTS absent |
+| 4 | Full workflow validation + project persistence of all new objects | Done in localStorage + `.ccproj.json`; hosted-provider live checks pending |
 
 ### Dependencies and licensing notes
 

@@ -119,6 +119,52 @@ class DesktopApi:
         Path(target).write_text(code or "", encoding="utf-8")
         return {"saved": True, "path": str(target)}
 
+    def save_project_file(self, suggested_name: str, content: str):
+        try:
+            import webview
+        except ImportError as exc:
+            raise RuntimeError("pywebview is not available.") from exc
+
+        window = webview.windows[0] if getattr(webview, "windows", None) else None
+        if window is None:
+            raise RuntimeError("Desktop window is not ready.")
+
+        target_path = window.create_file_dialog(
+            webview.SAVE_DIALOG,
+            save_filename=suggested_name or "clipacanvas-project.ccproj.json",
+            file_types=("Clip.A.Canvas project (*.json)", "All files (*.*)"),
+        )
+        if not target_path:
+            return {"saved": False}
+
+        target = target_path[0] if isinstance(target_path, (list, tuple)) else target_path
+        Path(target).write_text(content or "", encoding="utf-8")
+        return {"saved": True, "path": str(target)}
+
+    def open_project_file(self):
+        try:
+            import webview
+        except ImportError as exc:
+            raise RuntimeError("pywebview is not available.") from exc
+
+        window = webview.windows[0] if getattr(webview, "windows", None) else None
+        if window is None:
+            raise RuntimeError("Desktop window is not ready.")
+
+        selected = window.create_file_dialog(
+            webview.OPEN_DIALOG,
+            file_types=("Clip.A.Canvas project (*.json;*.ccproj.json)", "All files (*.*)"),
+        )
+        if not selected:
+            return {"selected": False}
+
+        target = selected[0] if isinstance(selected, (list, tuple)) else selected
+        try:
+            content = Path(target).read_text(encoding="utf-8")
+        except Exception as exc:
+            return {"selected": False, "error": str(exc)}
+        return {"selected": True, "path": str(target), "content": content}
+
     def state_file_path(self):
         state_dir = Path(os.path.expanduser("~")) / ".clipacanvas"
         state_dir.mkdir(parents=True, exist_ok=True)

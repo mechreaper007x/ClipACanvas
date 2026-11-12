@@ -106,13 +106,17 @@ with tempfile.TemporaryDirectory() as tmp_name:
             assert art["width"] / art["height"] > 1.6 and art["width"] / art["height"] < 1.9, f"bin art not 16:9: {art}"
             assert card["width"] <= 160, f"bin card stretched: {card['width']}"
 
-            # Dragging the imported card onto the empty area below the tracks
-            # (not just the lane) must add it to the timeline.
-            wrap = page.evaluate("document.getElementById('etTracksWrap').getBoundingClientRect().toJSON()")
+            # Dragging the imported card onto an empty video lane must add it
+            # to the timeline (audio lanes only accept audio assets).
+            target_lane = page.locator('.et-row[data-track="0"] .et-lane').bounding_box()
             page.mouse.move(card["x"] + card["width"] / 2, card["y"] + card["height"] / 2)
             page.mouse.down()
             page.mouse.move(card["x"] + card["width"] / 2 + 30, card["y"] - 20, steps=5)
-            page.mouse.move(wrap["x"] + 500, wrap["y"] + wrap["height"] - 30, steps=15)
+            page.mouse.move(
+                target_lane["x"] + target_lane["width"] * 0.3,
+                target_lane["y"] + target_lane["height"] / 2,
+                steps=15,
+            )
             page.wait_for_timeout(250)
             drop_live = page.locator("#etDropHint").is_visible()
             drop_text = page.locator("#etDropHint").inner_text() if drop_live else ""

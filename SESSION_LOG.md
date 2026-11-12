@@ -3853,3 +3853,35 @@
 ### Open Items
 
 - Media clips do not expose attach buttons yet; frame/tick timebase and the `dist/ClipACanvas.exe` rebuild remain.
+
+## 2026-11-12 (Phase 6: typed lanes, frame stepping, project files)
+
+### Summary
+
+- Media clips now get the OVERLAY LINK attach/detach controls in the media inspector through shared logic with the code inspector.
+- Playhead is frame-quantized to the project frame rate; arrows step one frame, Shift+Arrow one second; timecode shares the same helper (60-frame stepping lands exactly on 1.000 s).
+- Audio clips render on dedicated A1 VOICEOVER / A2 MUSIC / A3 SFX rows below the V tracks: drag between lanes, inspector lane select, bin/file drops onto a lane, audio-only rejection elsewhere; audio no longer occupies video rows or ripples with video edits.
+- Added `.ccproj.json` project files: SAVE/OPEN PROJECT in the project panel, blob download + file picker in the browser, native dialogs via `save_project_file`/`open_project_file` in the desktop bridge; payload contains clips, transitions, audio tracks/mix, layers, playhead and assets with analysis; open confirms before replacing and refreshes stale analysis.
+
+### Files Touched
+
+- `clipacanvas.html`, `desktop_app.py`
+- `docs/EDITOR_AUDIT.md` (Phase 6 addendum, plan table)
+- `tests/_check_overlay_ui.py` (media clip coverage), `tests/_check_workspace.py`, `tests/_check_bin_dragdrop.py`, `tests/_check_e2e_flow.py` (typed-lane expectations)
+- `tests/_check_frame_lanes_project.py`, `tests/_check_webview_frame_lanes_project.py` (new)
+- `SESSION_LOG.md`
+
+### Verification
+
+- New suites PASS: frame stepping at 60/30 fps, A2→A3 drag, inspector lane switch, delete-audio no-ripple, bin drop on A2, non-audio rejection, project payload/download/apply/file-picker round trip; the same lane drag, frame step, desktop bridge and payload restore pass in WebView2 (Edg/157).
+- Regressions PASS: workspace, bin dragdrop, audio import, media timeline, TTS, overlays, overlay UI, project ops, e2e flow, transitions, chat scenes, timeline zoom, asset intelligence, asset semantics, WebView semantics/TTS/overlay UI/transitions.
+- Artifacts: `output/playwright/typed-lanes-project.png`, `webview-typed-lanes.png`, `overlay-attach.png`.
+
+### Commits
+
+- This change set committed locally; not pushed.
+
+### Open Items
+
+- Integer tick storage/29.97 drop-frame remains; project files reference local media rather than embedding it; live hosted TTS/semantic calls still need real keys.
+- `dist/ClipACanvas.exe` rebuilt in this session after the commits.

@@ -178,15 +178,15 @@ with tempfile.TemporaryDirectory() as tmp_name:
             assert abs(clip["duration"] - 1.2) < 0.15, clip
             assert clip["assetId"] == vid_id
 
-            # 5. Audio -> V3 stays audio.
+            # 5. Audio dropped over a video lane lands on the A1 audio lane.
             reset_sequence()
             reveal(2)
             begin_drag(aud_id)
             hover(aud_id, 2, 0.4)
             finish_drag()
             clip = clips_of("audio")[-1]
-            expect_start(clip, TOTAL * 0.4, "audio -> V3")
-            assert clip["track"] == 2 and clip["assetId"] == aud_id, clip
+            expect_start(clip, TOTAL * 0.4, "audio -> A1")
+            assert clip["audioTrack"] == "A1" and clip["assetId"] == aud_id, clip
             assert abs(clip["duration"] - 1.0) < 0.15, clip
             assert clip["mediaUrl"] == ids["audio"]["url"]
 
@@ -259,19 +259,16 @@ with tempfile.TemporaryDirectory() as tmp_name:
             assert clip["track"] == 2, clip
             print("overlay on occupied lane:", overlay_hint, "-> V3")
 
-            # 8. Empty area below the tracks is a valid drop surface.
+            # 8. An empty video lane below the reference clip is a valid drop surface.
             reset_sequence(ref_track=1, layers=2)
-            wrap = page.evaluate("document.getElementById('etTracksWrap').getBoundingClientRect().toJSON()")
+            reveal(0)
             begin_drag(img_id)
-            page.mouse.move(wrap["x"] + wrap["width"] * 0.6, wrap["y"] + wrap["height"] - 30, steps=14)
-            page.wait_for_timeout(120)
-            page.mouse.move(wrap["x"] + wrap["width"] * 0.6 + 1, wrap["y"] + wrap["height"] - 30)
-            page.wait_for_timeout(220)
+            hover(img_id, 0, 0.6)
             assert page.locator("#etDropHint").is_visible(), "no feedback in the empty timeline area"
             finish_drag()
             clip = clips_of("image")[-1]
             assert clip["track"] == 0, clip
-            expect_start(clip, TOTAL * 0.6, "image -> empty area")
+            expect_start(clip, TOTAL * 0.6, "image -> empty lane")
 
             # 9. Cancelled drag drops nothing and clears feedback.
             reset_sequence()

@@ -2840,6 +2840,8 @@ main.control-room #splitRight {
   background-size: 25% 100%;
 }
 .et-row:nth-child(even) .et-lane { background-color: rgba(127, 127, 127, 0.035); }
+.et-row.audio-row .et-label b { color: var(--go); }
+.et-row.audio-row .et-lane { background-color: rgba(var(--go-rgb), 0.03); }
 
 .logic-box {
   position: absolute;
@@ -3489,6 +3491,14 @@ main.control-room #splitRight {
   cursor: pointer;
 }
 .dock-link:hover { color: var(--go); }
+.project-file-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 16px;
+  padding: 0 0 4px;
+}
+.project-file-row .dock-link { font-size: 0.44rem; }
 .dock-link.import-link {
   color: var(--go);
   letter-spacing: 1.6px;
@@ -4187,11 +4197,18 @@ body.asset-dragging * { cursor: grabbing !important; user-select: none !importan
 }
 .et-lane { overflow: hidden; }
 .et-row {
-  flex: 0 0 74px;
-  min-height: 74px;
-  max-height: none;
+  flex: 1 1 0;
+  min-height: 30px;
+  max-height: 74px;
   overflow: hidden;
 }
+.et-row.audio-row {
+  flex: 0 0 32px;
+  min-height: 32px;
+  max-height: 32px;
+}
+.et-row.audio-row .logic-box { padding-top: 2px; }
+.et-row.audio-row .logic-snippet { display: none; }
 
 .et-label { flex-direction: column; gap: 0; }
 .et-label b {
@@ -4334,6 +4351,11 @@ body.asset-dragging * { cursor: grabbing !important; user-select: none !importan
           <span class="mono-dim" id="binsCount">0 ASSETS</span>
           <button type="button" class="dock-link import-link" id="mediaAdd" title="Import images, video or audio into the project bin">+ IMPORT</button>
           <button type="button" class="dock-link" onclick="showHistoryPop()" title="Open render history">RENDERS</button>
+        </div>
+        <div class="project-file-row">
+          <button type="button" class="dock-link" id="projectSave" title="Save the full project to a .ccproj.json file">SAVE PROJECT</button>
+          <button type="button" class="dock-link" id="projectOpen" title="Open a project file">OPEN PROJECT</button>
+          <input type="file" id="projectFileInput" accept=".json,.ccproj.json,application/json" hidden>
         </div>
         <input type="file" id="mediaInput" accept="image/png,image/jpeg,image/webp,image/gif,image/avif,image/bmp,video/mp4,video/webm,video/quicktime,video/ogg,audio/mpeg,audio/wav,audio/x-wav,audio/mp4,audio/aac,audio/flac,audio/ogg,audio/opus,.mp4,.m4v,.mov,.webm,.ogv,.mp3,.wav,.m4a,.aac,.flac,.oga,.opus" multiple hidden>
         <div class="bins-row" id="binsRow"></div>
@@ -4571,6 +4593,18 @@ body.asset-dragging * { cursor: grabbing !important; user-select: none !importan
               <option value="A3">A3 · SFX</option>
             </select>
           </label>
+        </div>
+        <div class="mi-analysis" id="miAttachBlock" hidden>
+          <div class="mi-analysis-head"><span>OVERLAY LINK</span><span id="miAttachStatus">—</span></div>
+          <label class="mi-field" id="miAttachField">
+            <span>PARENT CLIP</span>
+            <select id="miAttachParent"></select>
+          </label>
+          <div class="mi-actions">
+            <button type="button" id="miAttachBtn" class="timeline-btn media-btn">ATTACH AS OVERLAY</button>
+            <button type="button" id="miDetachBtn" class="timeline-btn" hidden>DETACH</button>
+          </div>
+          <p class="mi-note" id="miAttachNote"></p>
         </div>
         <div class="mi-audio-mix" id="miAudioMix" hidden>
           <div class="mi-analysis-head"><span>AUDIO MIX</span><span class="mi-static">APPLIED ON EXPORT</span></div>
@@ -9951,7 +9985,7 @@ function topClipAtTime(seconds) {
 
 function clipsOnTrack(track) {
   return timelineState.clips
-    .filter(clip => clip.track === track)
+    .filter(clip => clip.track === track && clip.type !== 'audio')
     .slice()
     .sort((a, b) => a.start - b.start);
 }
@@ -11543,37 +11577,7 @@ function fillClipInspector(clip) {
   if (parentField) parentField.hidden = !parentClip;
   const parentEl = document.getElementById('ciParent');
   if (parentEl) parentEl.textContent = parentClip ? `${parentClip.name} · V${(Number(parentClip.track) || 0) + 1}` : '—';
-  const children = timelineState.clips.filter(item => item.parentClipId === clip.id);
-  const attachStatus = document.getElementById('ciAttachStatus');
-  if (attachStatus) {
-    attachStatus.textContent = parentClip
-      ? 'ATTACHED'
-      : (children.length ? `PARENT OF ${children.length}` : 'NOT ATTACHED');
-  }
-  const attachField = document.getElementById('ciAttachField');
-  if (attachField) attachField.hidden = Boolean(parentClip);
-  const attachSelect = document.getElementById('ciAttachParent');
-  if (attachSelect && !parentClip) {
-    const options = eligibleOverlayParents(clip);
-    const previous = attachSelect.value;
-    attachSelect.innerHTML = options.length
-      ? options.map(item => `<option value="${escapeHtml(item.id)}">${escapeHtml(overlayParentLabel(item))}</option>`).join('')
-      : '<option value="">NO ELIGIBLE CLIPS</option>';
-    if (options.some(item => item.id === previous)) attachSelect.value = previous;
-  }
-  const attachBtn = document.getElementById('ciAttachBtn');
-  if (attachBtn) {
-    attachBtn.hidden = Boolean(parentClip);
-    attachBtn.disabled = Boolean(parentClip) || !eligibleOverlayParents(clip).length;
-  }
-  const detachBtn = document.getElementById('ciDetachBtn');
-  if (detachBtn) detachBtn.hidden = !parentClip;
-  const attachNote = document.getElementById('ciAttachNote');
-  if (attachNote) {
-    attachNote.textContent = parentClip
-      ? `Follows ${parentClip.name}. Moving or trimming the parent keeps them in sync.`
-      : 'Links this clip timing-wise to a parent clip. This is attachment, not motion tracking.';
-  }
+  renderOverlayLink('ci', clip);
   const duration = document.getElementById('ciDuration');
   if (duration && document.activeElement !== duration) {
     duration.value = (Math.round((Number(clip.duration) || 0.5) * 100) / 100).toFixed(2);
@@ -11599,10 +11603,67 @@ function overlayParentLabel(clip) {
   return `${clip.name || 'SCENE'} · V${(Number(clip.track) || 0) + 1} · ${formatTimelineTime(clip.start)}`;
 }
 
-function attachInspectedOverlay() {
-  const clip = activeCodeClip();
-  const select = document.getElementById('ciAttachParent');
-  const note = document.getElementById('ciAttachNote');
+function overlayLinkElements(prefix) {
+  return {
+    block: document.getElementById(`${prefix}AttachBlock`),
+    status: document.getElementById(`${prefix}AttachStatus`),
+    field: document.getElementById(`${prefix}AttachField`),
+    select: document.getElementById(`${prefix}AttachParent`),
+    attach: document.getElementById(`${prefix}AttachBtn`),
+    detach: document.getElementById(`${prefix}DetachBtn`),
+    note: document.getElementById(`${prefix}AttachNote`)
+  };
+}
+
+function renderOverlayLink(prefix, clip) {
+  const els = overlayLinkElements(prefix);
+  if (!els.block) return;
+  els.block.hidden = !clip;
+  if (!clip) return;
+  const parentClip = clip.parentClipId
+    ? timelineState.clips.find(item => item.id === clip.parentClipId) || null
+    : null;
+  const children = timelineState.clips.filter(item => item.parentClipId === clip.id);
+  if (els.status) {
+    els.status.textContent = parentClip
+      ? 'ATTACHED'
+      : (children.length ? `PARENT OF ${children.length}` : 'NOT ATTACHED');
+  }
+  if (els.field) els.field.hidden = Boolean(parentClip);
+  if (els.select && !parentClip) {
+    const options = eligibleOverlayParents(clip);
+    const previous = els.select.value;
+    els.select.innerHTML = options.length
+      ? options.map(item => `<option value="${escapeHtml(item.id)}">${escapeHtml(overlayParentLabel(item))}</option>`).join('')
+      : '<option value="">NO ELIGIBLE CLIPS</option>';
+    if (options.some(item => item.id === previous)) els.select.value = previous;
+  }
+  if (els.attach) {
+    els.attach.hidden = Boolean(parentClip);
+    els.attach.disabled = Boolean(parentClip) || !eligibleOverlayParents(clip).length;
+  }
+  if (els.detach) els.detach.hidden = !parentClip;
+  if (els.note) {
+    els.note.textContent = parentClip
+      ? `Follows ${parentClip.name}. Moving or trimming the parent keeps them in sync.`
+      : 'Links this clip timing-wise to a parent clip. This is attachment, not motion tracking.';
+  }
+}
+
+function activeOverlayTargetClip() {
+  const mediaPanel = document.getElementById('mediaInspector');
+  const mediaVisible = mediaPanel && !mediaPanel.hidden;
+  if (mediaVisible && mediaInspectorTarget) {
+    if (mediaInspectorTarget.mode !== 'clip') return null;
+    return timelineState.clips.find(item => item.id === mediaInspectorTarget.id) || null;
+  }
+  return activeCodeClip();
+}
+
+function attachInspectedOverlay(prefix = 'ci') {
+  const clip = activeOverlayTargetClip();
+  const select = document.getElementById(`${prefix}AttachParent`);
+  const note = document.getElementById(`${prefix}AttachNote`);
   if (!clip || !select?.value) return;
   const result = projectOps.attachOverlay(clip.id, select.value);
   if (!result.ok) {
@@ -11610,18 +11671,20 @@ function attachInspectedOverlay() {
     setStatus(result.error, 'err');
     return;
   }
+  refreshMediaInspector();
   renderInspector();
 }
 
-function detachInspectedOverlay() {
-  const clip = activeCodeClip();
-  const note = document.getElementById('ciAttachNote');
+function detachInspectedOverlay(prefix = 'ci') {
+  const clip = activeOverlayTargetClip();
+  const note = document.getElementById(`${prefix}AttachNote`);
   if (!clip) return;
   const result = projectOps.detachOverlay(clip.id);
   if (!result.ok) {
     if (note) note.textContent = result.error;
     return;
   }
+  refreshMediaInspector();
   renderInspector();
 }
 
@@ -12016,6 +12079,7 @@ function showMediaInspectorForClip(clip) {
     note.textContent = `${lane}starts ${formatTimelineTime(clip.start)} · ends ${formatTimelineTime(clipEnd(clip))}. Drag either edge to trim; SPLIT or S cuts at the playhead.`;
   }
   renderAssetAnalysis(clipAsset(clip));
+  renderOverlayLink('mi', clip);
   setMediaInspectorVisible(true);
   switchRightTab('inspector');
   renderProjectBin();
@@ -12077,6 +12141,7 @@ function showMediaInspectorForAsset(asset) {
       : 'INSERT INTO SCENE embeds the media in the scene (drag it on the preview to move it). REMOVE takes it back out. INSERT AT PLAYHEAD adds a separate clip/layer instead, or drop it straight onto the preview.';
   }
   renderAssetAnalysis(asset);
+  renderOverlayLink('mi', null);
   setMediaInspectorVisible(true);
   switchRightTab('inspector');
   renderProjectBin();
@@ -12326,6 +12391,45 @@ function renderTimelineRuler() {
   }).join('');
 }
 
+function timelineClipBoxHtml(clip) {
+  const index = timelineState.clips.indexOf(clip);
+  const left = timeToTimelinePct(clip.start);
+  const width = Math.max(1.5, (clip.duration / timelineViewSpan()) * 100);
+  const soloAuto = timelineState.clips.length === 1 && !clip.explicitDuration && !clipIsMedia(clip);
+  const durationLabel = soloAuto ? 'AUTO' : formatTimelineTime(clip.duration);
+  const isMedia = clipIsMedia(clip);
+  const mediaUrl = isMedia ? clipMediaUrl(clip) : '';
+  const thumbStyle = isMedia && clip.type === 'image' && mediaUrl
+    ? `;--thumb:url('${mediaUrl}')`
+    : '';
+  const classes = 'logic-box'
+    + (isMedia ? ' media' : ' code')
+    + (isMedia && clip.type === 'video' ? ' video' : '')
+    + (isMedia && clip.type === 'audio' ? ' audio' : '')
+    + (isMedia && clip.type === 'image' && mediaUrl ? ' has-thumb' : '')
+    + (clip.id === timelineState.activeId ? ' active' : '')
+    + (clip.id === timelineState.draggingId ? ' dragging' : '');
+  const sourceRange = isMedia && clip.type !== 'image' && clipSourceIn(clip) > 0
+    ? `IN ${clipSourceIn(clip).toFixed(1)}s · `
+    : '';
+  const wave = isMedia && clip.type === 'audio'
+    ? `<span class="logic-wave" aria-hidden="true">${audioWaveBars(clipAsset(clip), 56)}</span>`
+    : '';
+  const audioLaneTag = isMedia && clip.type === 'audio'
+    ? `<span class="logic-audio-lane">${audioTrackForClip(clip)}</span>`
+    : '';
+  return `<div class="${classes}" data-id="${clip.id}" title="${escapeHtml(sourceRange + formatTimelineTime(clip.start) + ' → ' + formatTimelineTime(clipEnd(clip)))}" style="left:${left}%;width:${width}%${thumbStyle}">` +
+    wave +
+    `<div class="logic-trim" title="Drag to trim the in point"></div>` +
+    `<div class="logic-box-head"><span class="logic-index">${String(index + 1).padStart(2, '0')}</span>` +
+    audioLaneTag +
+    `<span class="logic-name" title="Double-click to rename">${escapeHtml(clip.name)}</span>` +
+    `<span class="logic-dur">${durationLabel}</span></div>` +
+    `<div class="logic-snippet">${escapeHtml(clipSnippet(clip))}</div>` +
+    `<div class="logic-resize" title="Drag to trim the out point"></div>` +
+    `</div>`;
+}
+
 function renderLogicBoxes() {
   const host = document.getElementById('logicTracks');
   if (!host) return;
@@ -12333,48 +12437,11 @@ function renderLogicBoxes() {
   const rows = [];
   const transitions = resolvedTransitions();
   for (let track = timelineState.layers - 1; track >= 0; track--) {
-    const trackClips = timelineState.clips.filter(clip => clip.track === track);
+    const trackClips = timelineState.clips.filter(clip => clip.track === track && clip.type !== 'audio');
     const boxes = trackClips
       .slice()
       .sort((a, b) => a.start - b.start)
-      .map(clip => {
-        const index = timelineState.clips.indexOf(clip);
-        const left = timeToTimelinePct(clip.start);
-        const width = Math.max(1.5, (clip.duration / timelineViewSpan()) * 100);
-        const soloAuto = timelineState.clips.length === 1 && !clip.explicitDuration && !clipIsMedia(clip);
-        const durationLabel = soloAuto ? 'AUTO' : formatTimelineTime(clip.duration);
-        const isMedia = clipIsMedia(clip);
-        const mediaUrl = isMedia ? clipMediaUrl(clip) : '';
-        const thumbStyle = isMedia && clip.type === 'image' && mediaUrl
-          ? `;--thumb:url('${mediaUrl}')`
-          : '';
-        const classes = 'logic-box'
-          + (isMedia ? ' media' : ' code')
-          + (isMedia && clip.type === 'video' ? ' video' : '')
-          + (isMedia && clip.type === 'audio' ? ' audio' : '')
-          + (isMedia && clip.type === 'image' && mediaUrl ? ' has-thumb' : '')
-          + (clip.id === timelineState.activeId ? ' active' : '')
-          + (clip.id === timelineState.draggingId ? ' dragging' : '');
-        const sourceRange = isMedia && clip.type !== 'image' && clipSourceIn(clip) > 0
-          ? `IN ${clipSourceIn(clip).toFixed(1)}s · `
-          : '';
-        const wave = isMedia && clip.type === 'audio'
-          ? `<span class="logic-wave" aria-hidden="true">${audioWaveBars(clipAsset(clip), 56)}</span>`
-          : '';
-        const audioLaneTag = isMedia && clip.type === 'audio'
-          ? `<span class="logic-audio-lane">${audioTrackForClip(clip)}</span>`
-          : '';
-        return `<div class="${classes}" data-id="${clip.id}" title="${escapeHtml(sourceRange + formatTimelineTime(clip.start) + ' → ' + formatTimelineTime(clipEnd(clip)))}" style="left:${left}%;width:${width}%${thumbStyle}">` +
-          wave +
-          `<div class="logic-trim" title="Drag to trim the in point"></div>` +
-          `<div class="logic-box-head"><span class="logic-index">${String(index + 1).padStart(2, '0')}</span>` +
-          audioLaneTag +
-          `<span class="logic-name" title="Double-click to rename">${escapeHtml(clip.name)}</span>` +
-          `<span class="logic-dur">${durationLabel}</span></div>` +
-          `<div class="logic-snippet">${escapeHtml(clipSnippet(clip))}</div>` +
-          `<div class="logic-resize" title="Drag to trim the out point"></div>` +
-          `</div>`;
-      }).join('');
+      .map(clip => timelineClipBoxHtml(clip)).join('');
     const badges = transitions
       .filter(transition => transition.track === track)
       .map(transition => {
@@ -12386,6 +12453,17 @@ function renderLogicBoxes() {
     rows.push(`<div class="et-row" data-track="${track}">` +
       `<div class="et-label"><b>V${track + 1}</b><em>${trackClips.length} CLIP${trackClips.length === 1 ? '' : 'S'}</em></div>` +
       `<div class="et-lane" data-track="${track}">${boxes}${badges}</div>` +
+      `</div>`);
+  }
+  for (const audioTrack of timelineState.audioTracks) {
+    const laneClips = timelineState.clips
+      .filter(clip => clip.type === 'audio' && audioTrackForClip(clip) === audioTrack.id)
+      .sort((a, b) => a.start - b.start);
+    const boxes = laneClips.map(clip => timelineClipBoxHtml(clip)).join('');
+    const flags = `${audioTrack.mute ? ' · M' : ''}${audioTrack.solo ? ' · S' : ''}`;
+    rows.push(`<div class="et-row audio-row" data-audio-row="${audioTrack.id}">` +
+      `<div class="et-label"><b>${audioTrack.id}</b><em>${escapeHtml(audioTrack.name)} · ${laneClips.length} CLIP${laneClips.length === 1 ? '' : 'S'}${flags}</em></div>` +
+      `<div class="et-lane" data-audio-track="${audioTrack.id}">${boxes}</div>` +
       `</div>`);
   }
   host.innerHTML = rows.join('');
@@ -12785,7 +12863,7 @@ function splitClipRecord(clip, at) {
 function openInsertGap(track, at, length) {
   const created = [];
   for (const clip of timelineState.clips) {
-    if (clip.track !== track) continue;
+    if (clip.track !== track || clip.type === 'audio') continue;
     const start = Number(clip.start) || 0;
     if (start >= at - 1e-6) {
       clip.start = roundClipTime(start + length);
@@ -12804,7 +12882,7 @@ function openInsertGap(track, at, length) {
 function clearTrackRange(track, start, end) {
   const survivors = [];
   for (const clip of timelineState.clips) {
-    if (clip.track !== track) { survivors.push(clip); continue; }
+    if (clip.track !== track || clip.type === 'audio') { survivors.push(clip); continue; }
     const clipStart = Number(clip.start) || 0;
     const clipFinish = clipEnd(clip);
     if (clipFinish <= start + 1e-6 || clipStart >= end - 1e-6) {
@@ -12870,7 +12948,9 @@ function assetInsertDuration(asset) {
 
 function insertAssetClip(asset, options = {}) {
   if (!asset) return null;
-  const track = Math.max(0, Math.min(3, Number(options.track) || 0));
+  const isAudio = asset.kind === 'audio';
+  let track = Math.max(0, Math.min(3, Number(options.track) || 0));
+  if (isAudio) track = 0;
   const at = roundClipTime(Math.min(Number(options.at) || 0, TIMELINE_MAX_SECONDS - 0.5));
   const sourceIn = roundClipTime(Math.max(0, Number(options.sourceIn) || 0));
   const available = asset.kind !== 'image' && Number(asset.duration) > 0
@@ -12881,15 +12961,17 @@ function insertAssetClip(asset, options = {}) {
     : (asset.kind === 'image'
       ? MEDIA_IMAGE_SECONDS
       : Math.min(available, Number(asset.duration) || MEDIA_VIDEO_FALLBACK_SECONDS));
-  const ripple = options.mode !== 'overwrite';
+  const ripple = !isAudio && options.mode !== 'overwrite';
   const allowance = ripple ? insertGapAllowance(at) : Math.max(0, TIMELINE_MAX_SECONDS - at);
   const length = fitClipDuration(Math.min(wanted, available, allowance));
   if (!(length >= 0.5)) {
     setStatus('No room left at the playhead on this track.', 'err');
     return null;
   }
-  if (ripple) openInsertGap(track, at, length);
-  else clearTrackRange(track, at, at + length);
+  if (!isAudio) {
+    if (ripple) openInsertGap(track, at, length);
+    else clearTrackRange(track, at, at + length);
+  }
   const clip = {
     id: newClipId(),
     name: (String(asset.name || 'MEDIA').replace(/\.[a-z0-9]+$/i, '') || 'MEDIA').slice(0, 24),
@@ -12954,6 +13036,15 @@ function placeAssetClipAt(asset, track, at, options = {}) {
   syncActiveClipFromEditor(true);
   const duration = assetInsertDuration(asset);
   const length = Math.max(0.5, Math.min(duration, TIMELINE_MAX_SECONDS - at));
+  if (asset.kind === 'audio') {
+    return insertAssetClip(asset, {
+      track: 0,
+      at,
+      duration,
+      mode: 'overwrite',
+      audioTrack: options.audioTrack
+    });
+  }
   const target = overlayTrackFor(at, length, track);
   if (target < 0) {
     setStatus('All layers are occupied at that spot — move or delete a clip first.', 'err');
@@ -12981,6 +13072,7 @@ function deleteClipById(clipId) {
   }
   timelineState.clips.splice(index, 1);
   for (const item of timelineState.clips) {
+    if (clip.type === 'audio' || item.type === 'audio') continue;
     if (item.track !== clip.track) continue;
     if ((Number(item.start) || 0) >= removedEnd - 1e-6) {
       item.start = roundClipTime(Math.max(0, Number(item.start) - removedDuration));
@@ -13289,14 +13381,18 @@ const projectOps = Object.freeze({
     const track = Math.max(0, Math.min(3, Number.isFinite(Number(options.track)) ? Number(options.track) : clip.track));
     const at = roundClipTime(Math.max(0, Math.min(TIMELINE_MAX_SECONDS - clip.duration,
       Number.isFinite(Number(options.at)) ? Number(options.at) : clip.start)));
-    const clash = timelineState.clips.some(item => item.id !== clip.id
+    const clash = clip.type !== 'audio' && timelineState.clips.some(item => item.id !== clip.id
       && item.track === track
+      && item.type !== 'audio'
       && at < clipEnd(item) - 1e-6
       && at + clip.duration > Number(item.start) + 1e-6);
     if (clash) return { ok: false, error: 'Target spot is occupied on that track.' };
     const oldStart = Number(clip.start) || 0;
     clip.start = at;
-    clip.track = track;
+    clip.track = clip.type === 'audio' ? clip.track : track;
+    if (clip.type === 'audio' && ['A1', 'A2', 'A3'].includes(options.audioTrack)) {
+      clip.audioTrack = options.audioTrack;
+    }
     clip.explicitDuration = true;
     shiftAttachedOverlays(clip, clip.start - oldStart);
     timelineState.layers = Math.max(timelineState.layers, track + 1);
@@ -13493,6 +13589,11 @@ function resolveTimelineDrop(clientX, clientY, asset) {
   if (!lane) return null;
   const rect = lane.getBoundingClientRect();
   const at = roundClipTime(timelinePctToTime(((clientX - rect.left) / Math.max(1, rect.width)) * 100));
+  const audioLane = lane.dataset.audioTrack || '';
+  if (audioLane) {
+    const invalid = Boolean(asset) && asset.kind !== 'audio';
+    return { lane, at, track: 0, targetTrack: 0, audioTrack: audioLane, invalid };
+  }
   const track = Number(lane.dataset.track) || 0;
   const length = asset
     ? Math.max(0.5, Math.min(assetInsertDuration(asset), TIMELINE_MAX_SECONDS - at))
@@ -13506,13 +13607,16 @@ function showTimelineDropFeedback(drop, options = {}) {
   if (!drop) { hideDropMarker(); return; }
   drop.lane.classList.add(drop.invalid ? 'drop-invalid' : 'drop-over');
   const label = formatTimelineTime(drop.at);
+  const laneLabel = drop.audioTrack ? ` · ${drop.audioTrack}` : ` · V${drop.targetTrack + 1}`;
   showDropMarker(drop.track, timeToTimelinePct(drop.at) / 100, {
     at: drop.at,
     invalid: drop.invalid,
     label,
     message: options.file
-      ? `DROP FILE AT ${label}`
-      : (drop.invalid ? `NO FREE TRACK AT ${label}` : `DROP AT ${label} · V${drop.targetTrack + 1}`)
+      ? `DROP FILE AT ${label}${drop.audioTrack ? ` · ${drop.audioTrack}` : ''}`
+      : (drop.invalid
+        ? (drop.audioTrack ? `AUDIO FILES ONLY AT ${label}` : `NO FREE TRACK AT ${label}`)
+        : `DROP AT ${label}${laneLabel}`)
   });
 }
 
@@ -13577,11 +13681,21 @@ const PLAY_ICON = '<svg viewBox="0 0 12 12" aria-hidden="true"><path d="M3 2l7 4
 const PAUSE_ICON = '<svg viewBox="0 0 12 12" aria-hidden="true"><rect x="3" y="2" width="2.2" height="8" fill="currentColor"/><rect x="6.8" y="2" width="2.2" height="8" fill="currentColor"/></svg>';
 
 function formatTimecode(seconds) {
-  const fps = Math.max(1, Number(document.getElementById('frameRate')?.value) || 60);
+  const fps = timelineFrameRate();
   const frames = Math.round(Math.max(0, Number(seconds) || 0) * fps);
   const totalSeconds = Math.floor(frames / fps);
   const pad = (value) => String(value).padStart(2, '0');
   return `${pad(Math.floor(totalSeconds / 3600))}:${pad(Math.floor(totalSeconds / 60) % 60)}:${pad(totalSeconds % 60)}:${pad(frames % fps)}`;
+}
+
+function timelineFrameRate() {
+  const fps = Number(document.getElementById('frameRate')?.value);
+  return Math.min(240, Math.max(1, Number.isFinite(fps) && fps > 0 ? fps : 60));
+}
+
+function quantizeFrameTime(seconds, fps = timelineFrameRate()) {
+  const safe = Math.max(0, Number(seconds) || 0);
+  return Math.round((Math.round(safe * fps) / fps) * 1e6) / 1e6;
 }
 
 function updateMonitorTime() {
@@ -13754,10 +13868,139 @@ function initProjectChrome() {
   setSaveState('saved');
 }
 
+const PROJECT_FILE_FORMAT = 'clipacanvas-project';
+const PROJECT_FILE_VERSION = 1;
+
+function buildProjectFilePayload() {
+  return {
+    format: PROJECT_FILE_FORMAT,
+    version: PROJECT_FILE_VERSION,
+    savedAt: new Date().toISOString(),
+    projectName: currentProjectName(),
+    timeline: {
+      clips: timelineState.clips,
+      transitions: timelineState.transitions,
+      audioTracks: timelineState.audioTracks,
+      layers: timelineState.layers,
+      playhead: timelineState.playhead,
+      assets: timelineState.assets
+    }
+  };
+}
+
+function projectFileSlug() {
+  const name = String(currentProjectName() || 'project').trim().toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 40);
+  return name || 'project';
+}
+
+function applyProjectPayload(payload) {
+  if (!payload || payload.format !== PROJECT_FILE_FORMAT) {
+    throw new Error('Not a Clip.A.Canvas project file.');
+  }
+  if (Number(payload.version) > PROJECT_FILE_VERSION) {
+    throw new Error('This project file was made by a newer app version.');
+  }
+  const timeline = payload.timeline;
+  if (!timeline || !Array.isArray(timeline.clips)) {
+    throw new Error('Project file has no timeline.');
+  }
+  if (!window.confirm('Open this project? The current timeline will be replaced.')) return false;
+  const stored = {
+    clips: timeline.clips,
+    transitions: timeline.transitions,
+    audioTracks: timeline.audioTracks,
+    layers: timeline.layers,
+    playhead: timeline.playhead,
+    activeId: timeline.clips[0]?.id || null,
+    selectedAssetId: null,
+    assets: Array.isArray(timeline.assets) ? timeline.assets : []
+  };
+  localStorage.setItem(TIMELINE_KEY, JSON.stringify(stored));
+  const name = String(payload.projectName || '').trim();
+  if (name) {
+    try { localStorage.setItem('clipacanvas.projectName', name); } catch (error) { console.error(error); }
+    applyProjectName(name);
+  }
+  loadTimelineState();
+  applyActiveClipToEditor({ preview: true, timing: true });
+  renderLogicBoxes();
+  renderProjectBin();
+  updateStageTimeline();
+  renderInspector();
+  updateMonitorTime();
+  positionPlayhead(timelineState.playhead);
+  for (const asset of timelineState.assets) {
+    if (!asset.analysis?.technical
+        || Number(asset.analysis.analyzer?.version || 0) < ASSET_ANALYSIS_VERSION) {
+      analyzeProjectAsset(asset);
+    }
+  }
+  setSaveState('saved');
+  return true;
+}
+
+function saveProjectFile() {
+  const json = JSON.stringify(buildProjectFilePayload(), null, 2);
+  const filename = `${projectFileSlug()}.ccproj.json`;
+  setStatus('Saving project…', 'busy');
+  if (isDesktopShell() && typeof window.pywebview.api.save_project_file === 'function') {
+    window.pywebview.api.save_project_file(filename, json).then(result => {
+      setStatus(result?.saved ? `PROJECT SAVED · ${result.path || filename}` : 'Project save cancelled',
+        result?.saved ? 'ok' : '');
+    }).catch(error => setStatus(`Project save failed: ${error}`, 'err'));
+    return;
+  }
+  const blob = new Blob([json], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement('a');
+  anchor.href = url;
+  anchor.download = filename;
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 2000);
+  setStatus(`PROJECT DOWNLOADED · ${filename}`, 'ok');
+}
+
+async function openProjectFile() {
+  if (isDesktopShell() && typeof window.pywebview.api.open_project_file === 'function') {
+    try {
+      const result = await window.pywebview.api.open_project_file();
+      if (!result?.selected) { setStatus('Project open cancelled', ''); return; }
+      const payload = JSON.parse(result.content || '');
+      if (applyProjectPayload(payload)) setStatus(`PROJECT OPENED · ${result.path || ''}`, 'ok');
+    } catch (error) {
+      setStatus(`Project open failed: ${error?.message || error}`, 'err');
+    }
+    return;
+  }
+  document.getElementById('projectFileInput')?.click();
+}
+
+function initProjectFileControls() {
+  document.getElementById('projectSave')?.addEventListener('click', saveProjectFile);
+  document.getElementById('projectOpen')?.addEventListener('click', openProjectFile);
+  document.getElementById('projectFileInput')?.addEventListener('change', async (event) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file) return;
+    try {
+      const payload = JSON.parse(await file.text());
+      if (applyProjectPayload(payload)) setStatus(`PROJECT OPENED · ${file.name}`, 'ok');
+    } catch (error) {
+      setStatus(`Project open failed: ${error?.message || error}`, 'err');
+    }
+  });
+}
+
 function setPlayhead(seconds, options = {}) {
   if (playbackState.playing) stopPlayback(false);
   const total = timelineTotalSeconds();
-  const value = Math.round(Math.max(0, Math.min(total, Number(seconds) || 0)) * 100) / 100;
+  const clamped = Math.max(0, Math.min(total, Number(seconds) || 0));
+  const value = Math.min(total, quantizeFrameTime(clamped));
   timelineState.playhead = value;
   if (ensurePlayheadVisible()) renderLogicBoxes();
   positionPlayhead(value);
@@ -14128,6 +14371,8 @@ function initLogicTimeline() {
   });
   document.getElementById('miAnalyzeRun')?.addEventListener('click', runSemanticAnalysis);
   document.getElementById('miUserNoteSave')?.addEventListener('click', saveAssetUserNote);
+  document.getElementById('miAttachBtn')?.addEventListener('click', () => attachInspectedOverlay('mi'));
+  document.getElementById('miDetachBtn')?.addEventListener('click', () => detachInspectedOverlay('mi'));
 
   const mediaButton = document.getElementById('mediaAdd');
   const mediaInput = document.getElementById('mediaInput');
@@ -14297,6 +14542,20 @@ function initLogicTimeline() {
     suppressAssetClick = true;
     if (target.type === 'stage') {
       embedAssetInScene(asset, target.position);
+      return;
+    }
+    if (target.drop.audioTrack) {
+      if (asset.kind !== 'audio') {
+        setStatus('Audio lanes accept audio clips only.', 'err');
+        return;
+      }
+      insertAssetClip(asset, {
+        track: 0,
+        at: target.drop.at,
+        duration: assetInsertDuration(asset),
+        mode: 'audio-lane',
+        audioTrack: target.drop.audioTrack
+      });
       return;
     }
     placeAssetClipAt(asset, target.drop.track, target.drop.at);
@@ -14478,7 +14737,17 @@ function initLogicTimeline() {
     timelineState.draggingId = gesture.clip.id;
     const dx = event.clientX - gesture.startX;
     const lane = document.elementFromPoint(event.clientX, event.clientY)?.closest('.et-lane');
-    const track = lane
+    const audioLane = lane?.dataset.audioTrack || '';
+    if (gesture.clip.type === 'audio') {
+      if (audioLane) gesture.clip.audioTrack = audioLane;
+      const rawStart = gesture.origStart + (dx / gesture.laneWidth) * gesture.span;
+      const pointerStart = Math.max(0, Math.min(TIMELINE_MAX_SECONDS - gesture.clip.duration, rawStart));
+      gesture.clip.start = roundClipTime(snapTimelineEdge(pointerStart, gesture.clip.id, gesture.snap));
+      renderLogicBoxes();
+      updateStageTimeline();
+      return;
+    }
+    const track = lane && !audioLane
       ? Math.max(0, Math.min(3, Number(lane.dataset.track) || 0))
       : gesture.clip.track;
     if (track >= timelineState.layers) {
@@ -14546,6 +14815,15 @@ function initLogicTimeline() {
     }
     if (current.moved) {
       timelineState.draggingId = null;
+      if (current.clip.type === 'audio') {
+        current.clip.explicitDuration = true;
+        saveTimelineState(true);
+        selectLogicClip(current.clip.id, { preview: false });
+        renderLogicBoxes();
+        updateStageTimeline();
+        setStatus(`${current.clip.name} · ${audioTrackForClip(current.clip)} · ${formatTimelineTime(current.clip.start)}`, 'ok');
+        return;
+      }
       const clash = clipsOnTrack(current.clip.track).some(item =>
         item.id !== current.clip.id
         && current.clip.start < clipEnd(item) - 1e-6
@@ -14666,7 +14944,16 @@ function initLogicTimeline() {
       if (!Array.isArray(assets) || !assets.length) return;
       let cursor = drop.at;
       for (const asset of assets) {
-        const clip = placeAssetClipAt(asset, drop.track, cursor);
+        if (drop.audioTrack && asset.kind !== 'audio') continue;
+        const clip = drop.audioTrack
+          ? insertAssetClip(asset, {
+            track: 0,
+            at: cursor,
+            duration: assetInsertDuration(asset),
+            mode: 'audio-lane',
+            audioTrack: drop.audioTrack
+          })
+          : placeAssetClipAt(asset, drop.track, cursor);
         if (!clip) break;
         cursor = roundClipTime(clipEnd(clip));
       }
@@ -14697,7 +14984,7 @@ function initLogicTimeline() {
       deleteLogicClip();
     } else if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
       event.preventDefault();
-      const step = event.shiftKey ? 1 : 0.1;
+      const step = event.shiftKey ? 1 : 1 / timelineFrameRate();
       setPlayhead(timelineState.playhead + (event.key === 'ArrowRight' ? step : -step), { preview: true });
     } else if (event.key === 'Home') {
       event.preventDefault();
@@ -14954,9 +15241,10 @@ function initControlRoom() {
   document.getElementById('ciOpenCode')?.addEventListener('click', () => switchLeftTab('code'));
   document.getElementById('ciSplit')?.addEventListener('click', splitAtPlayhead);
   document.getElementById('ciDuration')?.addEventListener('change', applyClipInspectorDuration);
-  document.getElementById('ciAttachBtn')?.addEventListener('click', attachInspectedOverlay);
-  document.getElementById('ciDetachBtn')?.addEventListener('click', detachInspectedOverlay);
+  document.getElementById('ciAttachBtn')?.addEventListener('click', () => attachInspectedOverlay('ci'));
+  document.getElementById('ciDetachBtn')?.addEventListener('click', () => detachInspectedOverlay('ci'));
   initProjectChrome();
+  initProjectFileControls();
   initChatShortcut();
   initChatHistoryPopover();
   initLogicTimeline();

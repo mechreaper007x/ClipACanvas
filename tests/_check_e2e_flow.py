@@ -150,7 +150,7 @@ with tempfile.TemporaryDirectory() as tmp_name:
             reveal(3)
             assert "V4" in drag_asset("audio", 3, 0.05)
 
-            placed = page.evaluate("timelineState.clips.map(c => ({type:c.type, track:c.track, start:c.start, duration:c.duration}))")
+            placed = page.evaluate("timelineState.clips.map(c => ({type:c.type, track:c.track, audioTrack:c.audioTrack, start:c.start, duration:c.duration}))")
             print("placed clips:", placed)
             assert len(placed) == 4, placed
             image_clip = next(c for c in placed if c["type"] == "image")
@@ -158,7 +158,7 @@ with tempfile.TemporaryDirectory() as tmp_name:
             audio_clip = next(c for c in placed if c["type"] == "audio")
             assert image_clip["track"] == 1 and abs(image_clip["start"] - 0.8) < 0.2, image_clip
             assert video_clip["track"] == 2 and abs(video_clip["start"] - 2.0) < 0.2, video_clip
-            assert audio_clip["track"] == 3 and abs(audio_clip["start"] - 0.2) < 0.15, audio_clip
+            assert audio_clip["audioTrack"] == "A1" and abs(audio_clip["start"] - 0.2) < 0.15, audio_clip
             assert abs(audio_clip["duration"] - 1.0) < 0.05, audio_clip
 
             # 4. Playback and composite preview at the overlay.
