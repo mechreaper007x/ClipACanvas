@@ -3654,3 +3654,33 @@
 
 - Milestone 2: project clock/frame stepping, integer frame ticks with v1→v2 adapter, typed tracks and track controls, undo/redo, playback/export tests.
 - `dist/ClipACanvas.exe` still needs a rebuild.
+
+## 2026-11-12 (End-to-end verification and audio mux fix)
+
+### Summary
+
+- Added `tests/_check_e2e_flow.py`: one continuous user journey — import image/video/audio, add a scene from the timeline toolbar, edit code + duration in the inspector, add tracks, drag all three assets from the bin to V2/V3/V4 at explicit times, play/pause, verify the composite preview, export a 4 s 540×960 render, probe scene/image/video pixels and the audio bed, then reload and check persistence.
+- The journey exposed a real renderer bug: a 1 s audio clip truncated a 4 s export to 1.2 s because the mux used `-shortest`. Timeline audio muxing now uses an explicit `-t` window equal to `renderEnd - renderStart`; the export is exactly 4.00 s and audio still peaks at -18.5 dB. `apad` was rejected after testing because it hangs the bundled FFmpeg with `-shortest`.
+- The legacy single-`audioPath` path keeps bounded behavior (explicit `-t` when a render end exists, otherwise `-shortest`); noted in the audit.
+
+### Files Touched
+
+- `playwright_render.py`
+- `tests/_check_e2e_flow.py` (new)
+- `docs/EDITOR_AUDIT.md`
+- `SESSION_LOG.md`
+
+### Verification
+
+- `_check_e2e_flow.py`: PASS — scene green `(0,189,62)`, image overlay magenta `(252,0,251)` with green letterbox, video blue `(0,51,252)` over green, audio max volume -18.5 dB, playback advances 1.0 → 1.70, 4 clips restored after reload; exported duration 4.00 s.
+- Render/audio regressions after the mux fix: `_check_audio_import.py`, `_check_media_timeline.py`, `_check_media_overlay.py`, `_check_bin_dragdrop.py`, `renderer_feature_matrix.py` (4/4) — all PASS.
+- Artifacts: `output/playwright/e2e-workspace.png`, `e2e-final.png`, `e2e-render.mp4`.
+
+### Commits
+
+- Not committed. The previous Milestone 1 push (`58bb71c`) predates this fix; explicit permission required to commit/push it.
+
+### Open Items
+
+- Commit/push the audio mux fix + E2E suite when approved.
+- `dist/ClipACanvas.exe` still needs a rebuild.

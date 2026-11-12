@@ -648,7 +648,11 @@ def render_payload(payload: dict, output_path: str | Path, ffmpeg_exe: str | Non
 
     if audio_path and codec != "gif" and not audio_clips:
         audio_codec = "libopus" if codec in ("vp9", "vp8", "av1") else "aac"
-        ffmpeg_cmd += ["-c:a", audio_codec, "-shortest"]
+        ffmpeg_cmd += ["-c:a", audio_codec]
+        if render_end_seconds is not None:
+            ffmpeg_cmd += ["-t", f"{max(0.1, render_end_seconds - render_start_seconds):.3f}"]
+        else:
+            ffmpeg_cmd += ["-shortest"]
     elif audio_clips and codec != "gif":
         # Timeline audio is mixed under the captured frames on its own clock:
         # trim the source in/out, then delay each clip to its sequence start.
@@ -693,7 +697,14 @@ def render_payload(payload: dict, output_path: str | Path, ffmpeg_exe: str | Non
                 "-map", "[mixa]",
             ]
             audio_codec = "libopus" if codec in ("vp9", "vp8", "av1") else "aac"
-            ffmpeg_cmd += ["-c:a", audio_codec, "-shortest"]
+            ffmpeg_cmd += ["-c:a", audio_codec]
+            # Bound the mux to the captured window so a short audio clip cannot
+            # truncate the video, and silence after the last clip is kept.
+            if render_end_seconds is not None:
+                mux_duration = max(0.1, render_end_seconds - render_start_seconds)
+                ffmpeg_cmd += ["-t", f"{mux_duration:.3f}"]
+            else:
+                ffmpeg_cmd += ["-shortest"]
     ffmpeg_cmd += [str(output_path)]
 
     ffmpeg_proc = subprocess.Popen(ffmpeg_cmd, stdin=subprocess.PIPE, stderr=subprocess.PIPE)

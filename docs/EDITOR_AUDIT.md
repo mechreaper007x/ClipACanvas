@@ -53,7 +53,7 @@ Baseline: working tree contains the uncommitted Milestone 1 workspace refactor (
 - **Playback:** play/pause + timecode work and the composite refreshes at boundaries, but no frame stepping, no authoritative project clock for embedded media/audio, no A/V sync guarantees, no stop-at-end policy beyond the clock.
 - **Persistence:** prefs/keys/chat/media are server-backed; the timeline/project itself is browser localStorage only. No project file save/load/export, no schema version, no migration.
 - **AI integration:** tools mutate the timeline through direct functions; there is no shared operation layer yet and MCP cannot edit timelines.
-- **Audio:** mixing works with gain-free `amix`; no fades/volume envelopes; `-shortest` can truncate output to the last audio clip.
+- **Audio:** mixing works with gain-free `amix`; no fades/volume envelopes. Timeline audio is now bounded to the captured render window, so a short audio clip no longer truncates the export (`playwright_render.py`, mux `-t`). The legacy single-`audioPath` auto mode still relies on `-shortest`.
 - **Performance:** preview and timeline avoid per-frame document rebuilds, but each pointermove during clip move/trim rebuilds all timeline rows via `innerHTML`; bin thumbnails re-create DOM on every repaint; waveforms are not persisted.
 
 ## 3. Missing
@@ -124,6 +124,7 @@ The operation layer exposes the existing timeline actions as validated, structur
 - Timeline/project data is localStorage-only; clearing site data or moving to the packaged exe can lose a project. No project export.
 - No render cancellation: aborting the fetch leaves the render thread/Chromium/FFmpeg running; `ThreadingHTTPServer` allows concurrent renders, each with its own Chromium.
 - Floating-point seconds are rounded at several boundaries (clip start/duration, `atrim`, `adelay`), so frame-accurate edits can drift.
+- Timeline audio is now muxed with an explicit `-t` window; the legacy single-audio auto path still uses `-shortest` and can truncate a longer video to a shorter audio file.
 - The standalone `python serve.py` binds `0.0.0.0:8000` by default and CORS defaults to `*`; the desktop app binds loopback. `/api/llm/keys` requires same-origin but returns saved keys to the app.
 - Renderer loads arbitrary external URLs in unsandboxed iframes and has no explicit network timeout for page loads.
 - MCP/TUI renderer copies lag the desktop renderer (no media/audio/overlay support).
