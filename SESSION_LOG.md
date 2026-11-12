@@ -3684,3 +3684,44 @@
 
 - Commit/push the audio mux fix + E2E suite when approved.
 - `dist/ClipACanvas.exe` still needs a rebuild.
+
+## 2026-11-12 (Phase 0 audit + Phase 1: asset intelligence, overlays, zoom)
+
+### Summary
+
+- Updated `docs/EDITOR_AUDIT.md` with a Phase 0 addendum for the AI-native directive: compositing/overlays, transitions, asset intelligence, TTS and zoom; implemented vs missing, dependencies, risks and phase status.
+- Asset intelligence (technical): new `POST /api/media/analyze` probes stored media with the bundled FFmpeg and caches a manifest keyed by content hash under `%APPDATA%/ClipACanvas/analysis`. Fields: duration, resolution, fps, video/audio codec, sample rate, channels, streams, bytes. Semantic block is explicitly `not_analyzed`; no media leaves the machine.
+- Frontend: assets now carry a persisted sanitized manifest; the media inspector shows a TECHNICAL block and an explicit content-analysis status. Import and project load analyze missing assets.
+- Agent tools: `search_assets`, `get_asset_analysis`, `update_asset_description` (human notes stored separately from AI fields). LLM context now sends concise asset summaries, not full manifests.
+- Overlay relationships: `parentClipId` in the clip model with sanitize/resolve, `projectOps.attachOverlay`/`detachOverlay`/`getClipContext`; attached overlays follow parent moves and in-point trims (clamped), detach when the parent is deleted, and are rejected for audio, self and chains. Inspector shows ATTACHED TO.
+- Agent overlay tools: `create_overlay`, `update_overlay`, `attach_overlay`, `detach_overlay`, `delete_overlay`, `get_clip_context`, all through projectOps.
+- Zoom: 100–800% percent field with presets, 100–800 slider (step 5), direct numeric entry, playhead-anchored zoom, synchronized with wheel/buttons/FIT.
+
+### Files Touched
+
+- `clipacanvas.html`, `serve.py`
+- `docs/EDITOR_AUDIT.md`
+- `tests/_check_asset_intelligence.py`, `tests/_check_timeline_zoom.py`, `tests/_check_overlays.py`, `tests/_check_webview_phase1.py` (new)
+- `SESSION_LOG.md`
+
+### Verification
+
+- `_check_asset_intelligence.py`: PASS — probe for image/video/audio, inspector block, cache identity, agent tools, 404 for missing media, concise LLM context, reload persistence.
+- `_check_timeline_zoom.py`: PASS — all nine presets, anchoring, numeric/slider/buttons/FIT sync, Ctrl+wheel pointer anchor, 800% layout and no overflow at 1664/1280.
+- `_check_overlays.py`: PASS — attach, real mouse parent drag shifts overlay, trim shift, detach, delete detaches, chain/self/audio/missing rejection, reload persistence, agent tools.
+- `_check_webview_phase1.py`: PASS in the real desktop WebView2 (Edg/157) — analysis inspector, 400% zoom control, overlay attach + ATTACHED TO row.
+- Regressions: `_check_workspace.py`, `_check_project_ops.py`, `_check_chat_scenes.py`, `_check_bin_dragdrop.py`, `_check_e2e_flow.py`, `_check_media_timeline.py`, `desktop_smoke.py` — all PASS.
+
+### Not implemented (reported, not mocked)
+
+- Transitions (model/contract/library/generated transitions), TTS provider abstraction and Voiceover Studio, semantic/visual/audio analysis, frame/tick timebase, overlay attachment UI buttons, audio track semantics A1–A3.
+- No new dependencies; no TTS model weights added.
+
+### Commits
+
+- Committed as the Phase 1 change set. Push not performed; explicit permission required.
+
+### Open Items
+
+- Next: transition data model + deterministic contract, TTS provider verification, semantic analysis consent flow.
+- `dist/ClipACanvas.exe` still needs a rebuild.

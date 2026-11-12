@@ -153,6 +153,115 @@ LLM_TOOL_DECLARATIONS = [
         },
     },
     {
+        "name": "search_assets",
+        "description": "Search the project bin and return concise asset summaries with cached technical metadata. Use this before composing around imported media; omit query to list all assets.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "query": {"type": "string", "description": "Name, tag or description fragment. Empty returns every asset."},
+            },
+        },
+    },
+    {
+        "name": "get_asset_analysis",
+        "description": "Read one asset's cached analysis manifest: technical metadata, semantic status, AI description and user notes. Semantic analysis may be 'not_analyzed'; never invent visual content that is not in the manifest.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "assetId": {"type": "string", "description": "Project asset id from search_assets or get_app_state."},
+            },
+            "required": ["assetId"],
+        },
+    },
+    {
+        "name": "update_asset_description",
+        "description": "Save a human-confirmed description or note on a project asset. It is stored separately from AI analysis and must not be overwritten by generated text.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "assetId": {"type": "string", "description": "Project asset id."},
+                "description": {"type": "string", "description": "Short human-confirmed description of the asset's content or intended use."},
+                "notes": {"type": "string", "description": "Optional extra production notes."},
+            },
+            "required": ["assetId", "description"],
+        },
+    },
+    {
+        "name": "create_overlay",
+        "description": "Create an independent HTML overlay clip above existing footage on the timeline. The page must have a fully transparent background so the footage below stays visible. Optionally attach it to a parent clip. The overlay stays separately selectable and editable; this is not motion tracking.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "code": {"type": "string", "description": "Complete single-file HTML document with a transparent page background, no markdown fences."},
+                "name": {"type": "string", "description": "Short overlay name, up to 24 characters."},
+                "duration": {"type": "number", "description": "Overlay length in seconds, 0.5 to 60. Defaults to the parent clip length."},
+                "start": {"type": "number", "description": "Start time in seconds. Defaults to the parent clip start."},
+                "track": {"type": "integer", "description": "Optional V-track index 0-3. Defaults to one track above the parent."},
+                "parentClipId": {"type": "string", "description": "Optional clip id this overlay belongs to."},
+            },
+            "required": ["code"],
+        },
+    },
+    {
+        "name": "update_overlay",
+        "description": "Change an existing code overlay's code, name or duration. Imported media and code scenes are not overlays and must be edited with their own tools.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "clipId": {"type": "string", "description": "Overlay clip id."},
+                "code": {"type": "string", "description": "New complete HTML document, no markdown fences."},
+                "name": {"type": "string", "description": "New short name, up to 24 characters."},
+                "duration": {"type": "number", "description": "New length in seconds, 0.5 to 60."},
+            },
+            "required": ["clipId"],
+        },
+    },
+    {
+        "name": "attach_overlay",
+        "description": "Attach an existing overlay clip to a parent video/image/code clip so it follows the parent's timing. It stays independently editable.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "clipId": {"type": "string", "description": "Overlay clip id."},
+                "parentClipId": {"type": "string", "description": "Parent clip id."},
+            },
+            "required": ["clipId", "parentClipId"],
+        },
+    },
+    {
+        "name": "detach_overlay",
+        "description": "Detach an overlay from its parent. The overlay keeps its current position.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "clipId": {"type": "string", "description": "Overlay clip id."},
+            },
+            "required": ["clipId"],
+        },
+    },
+    {
+        "name": "delete_overlay",
+        "description": "Delete an overlay clip. Its source footage and parent clip are not modified.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "clipId": {"type": "string", "description": "Overlay clip id."},
+            },
+            "required": ["clipId"],
+        },
+    },
+    {
+        "name": "get_clip_context",
+        "description": "Read one clip's timing, track, parent/children relationships and asset analysis summary.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "clipId": {"type": "string", "description": "Timeline clip id."},
+            },
+            "required": ["clipId"],
+        },
+    },
+    {
         "name": "render_video",
         "description": "Render the whole timeline (every scene, in order and by layer) to one video file with the current export settings. Can take from a few seconds to a few minutes.",
     },
@@ -394,6 +503,128 @@ def _media_dir() -> Path:
     directory = _keys_dir() / "media"
     directory.mkdir(parents=True, exist_ok=True)
     return directory
+
+
+ANALYSIS_VERSION = 1
+_ANALYSIS_DURATION_RE = re.compile(r"Duration:\s*(\d+):(\d+):(\d+(?:\.\d+)?)")
+_ANALYSIS_VIDEO_RE = re.compile(r"Stream #\d+:\d+[^:]*: Video: ([A-Za-z0-9_\-]+)")
+_ANALYSIS_RESOLUTION_RE = re.compile(r"(?<![\d.])(\d{2,5})x(\d{2,5})(?![\d.])")
+_ANALYSIS_FPS_RE = re.compile(r"(\d+(?:\.\d+)?)\s*fps")
+_ANALYSIS_AUDIO_RE = re.compile(r"Stream #\d+:\d+[^:]*: Audio: ([A-Za-z0-9_\-]+)")
+_ANALYSIS_HZ_RE = re.compile(r"(\d+)\s*Hz")
+_ANALYSIS_CHANNELS_RE = re.compile(r",\s*(mono|stereo|quad|5\.1|7\.1)\b")
+
+
+def _analysis_dir() -> Path:
+    directory = _keys_dir() / "analysis"
+    directory.mkdir(parents=True, exist_ok=True)
+    return directory
+
+
+def _probe_media_technical(path: Path) -> dict:
+    """Read technical metadata from FFmpeg's input probe (no frame decode)."""
+    proc = subprocess.run(
+        [FFMPEG_EXE, "-hide_banner", "-i", str(path)],
+        capture_output=True, text=True, errors="replace", timeout=30,
+    )
+    output = proc.stderr or ""
+    technical: dict = {
+        "duration": None,
+        "width": None,
+        "height": None,
+        "fps": None,
+        "videoCodec": None,
+        "audioCodec": None,
+        "sampleRate": None,
+        "channels": None,
+        "streams": len(re.findall(r"Stream #\d+:\d+", output)),
+        "bytes": path.stat().st_size,
+    }
+    duration = _ANALYSIS_DURATION_RE.search(output)
+    if duration:
+        hours, minutes, seconds = duration.groups()
+        technical["duration"] = round(int(hours) * 3600 + int(minutes) * 60 + float(seconds), 3)
+    video = _ANALYSIS_VIDEO_RE.search(output)
+    if video:
+        technical["videoCodec"] = video.group(1).lower()
+        video_line = next((line for line in output.splitlines() if video.group(0) in line), "")
+        resolution = _ANALYSIS_RESOLUTION_RE.search(video_line)
+        if resolution:
+            technical["width"] = int(resolution.group(1))
+            technical["height"] = int(resolution.group(2))
+        fps = _ANALYSIS_FPS_RE.search(video_line)
+        if fps:
+            technical["fps"] = round(float(fps.group(1)), 3)
+    audio = _ANALYSIS_AUDIO_RE.search(output)
+    if audio:
+        technical["audioCodec"] = audio.group(1).lower()
+        audio_line = next((line for line in output.splitlines() if audio.group(0) in line), "")
+        hz = _ANALYSIS_HZ_RE.search(audio_line)
+        if hz:
+            technical["sampleRate"] = int(hz.group(1))
+        channels = _ANALYSIS_CHANNELS_RE.search(audio_line)
+        if channels:
+            technical["channels"] = {"mono": 1, "stereo": 2, "quad": 4, "5.1": 6, "7.1": 8}.get(channels.group(1))
+    if technical["duration"] is None and technical["videoCodec"]:
+        # Stills have no duration; FFmpeg reports a nominal 25 fps for them.
+        technical["fps"] = None
+    return technical
+
+
+def analyze_media_file(filename: str) -> dict:
+    """Return a cached technical analysis manifest for a stored media file."""
+    if not MEDIA_NAME_RE.match(filename or ""):
+        raise ValueError("Unknown media file.")
+    path = _media_dir() / filename
+    if not path.exists():
+        raise FileNotFoundError("Media file not found.")
+    cache_path = _analysis_dir() / f"{filename}.json"
+    cached = None
+    if cache_path.exists():
+        try:
+            cached = json.loads(cache_path.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            cached = None
+    if (isinstance(cached, dict)
+            and cached.get("analyzer", {}).get("version") == ANALYSIS_VERSION
+            and cached.get("asset", {}).get("bytes") == path.stat().st_size):
+        return cached
+    technical = _probe_media_technical(path)
+    content_hash = filename[len("media-"):].split(".")[0]
+    manifest = {
+        "asset": {
+            "contentHash": content_hash,
+            "filename": filename,
+            "url": f"/media/{filename}",
+            "bytes": technical["bytes"],
+        },
+        "technical": technical,
+        "semantic": {
+            "status": "not_analyzed",
+            "provider": None,
+            "description": "",
+            "subjects": [],
+            "tags": [],
+            "shots": [],
+            "transcript": [],
+            "suggestedUses": [],
+            "confidence": 0,
+        },
+        "user": {"description": "", "notes": "", "updatedAt": None},
+        "analyzer": {
+            "version": ANALYSIS_VERSION,
+            "engine": "ffmpeg-input-probe",
+            "analyzedAt": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+        },
+    }
+    try:
+        temp_path = cache_path.with_suffix(".tmp")
+        temp_path.write_text(json.dumps(manifest, indent=2), encoding="utf-8")
+        os.replace(temp_path, cache_path)
+    except OSError as exc:
+        print(f"  [SERVER] analysis cache write failed: {exc}")
+    return manifest
+
 
 
 def _resolve_timeline_audio(raw_clips) -> list[dict]:
@@ -914,6 +1145,8 @@ class ClipACanvasHandler(SimpleHTTPRequestHandler):
                 self._handle_render()
             elif self.path == '/api/media':
                 self._handle_media_upload()
+            elif self.path == '/api/media/analyze':
+                self._handle_media_analyze()
             elif self.path == '/api/llm/chat':
                 self._handle_llm_chat()
             elif self.path == '/api/llm/models':
@@ -1804,6 +2037,32 @@ class ClipACanvasHandler(SimpleHTTPRequestHandler):
             'bytes': received,
             'mime': content_type,
         })
+
+    def _handle_media_analyze(self):
+        try:
+            length = int(self.headers.get('Content-Length') or 0)
+        except ValueError:
+            length = 0
+        if length <= 0 or length > 65536:
+            return self._send_json({'ok': False, 'error': 'Invalid analysis request.'}, 400)
+        try:
+            payload = json.loads(self.rfile.read(length).decode('utf-8'))
+        except (ValueError, UnicodeDecodeError):
+            return self._send_json({'ok': False, 'error': 'Invalid JSON.'}, 400)
+        url = str((payload or {}).get('url') or '')
+        if not url.startswith('/media/'):
+            return self._send_json({'ok': False, 'error': 'Only project media can be analyzed.'}, 400)
+        filename = Path(urllib.parse.unquote(url[len('/media/'):])).name
+        try:
+            manifest = analyze_media_file(filename)
+        except FileNotFoundError:
+            return self._send_json({'ok': False, 'error': 'Media file not found.'}, 404)
+        except ValueError:
+            return self._send_json({'ok': False, 'error': 'Unknown media file.'}, 400)
+        except Exception as exc:
+            print(f"  [SERVER] analysis error: {exc}")
+            return self._send_json({'ok': False, 'error': 'Media analysis failed.'}, 500)
+        self._send_json({'ok': True, 'manifest': manifest})
 
     def _send_json(self, payload, status=200):
         data = json.dumps(payload).encode('utf-8')

@@ -2398,6 +2398,39 @@ main.control-room #splitRight {
   letter-spacing: 0.4px;
   color: var(--muted-3);
 }
+.mi-analysis {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 0 2px;
+  border-top: 1px solid var(--line-soft);
+}
+.mi-analysis[hidden] { display: none; }
+.mi-analysis-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-family: var(--mono);
+  font-size: 0.44rem;
+  letter-spacing: 1px;
+  color: var(--muted-2);
+}
+.mi-analysis-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 3px 12px;
+}
+.mi-analysis-grid div {
+  display: flex;
+  justify-content: space-between;
+  gap: 6px;
+  padding-bottom: 2px;
+  border-bottom: 1px dashed var(--line-soft);
+  font-family: var(--mono);
+  font-size: 0.44rem;
+  color: var(--ink-soft);
+}
+.mi-analysis-grid span:first-child { color: var(--muted-3); }
 
 .stage-pane {
   grid-column: 3;
@@ -3693,13 +3726,31 @@ body.asset-dragging * { cursor: grabbing !important; user-select: none !importan
   margin-left: auto;
 }
 .timeline-btn.icon { width: 20px; padding: 3px 0; text-align: center; font-size: 0.55rem; line-height: 1; }
-.timeline-zoom-label {
+.timeline-zoom-control {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.timeline-zoom-range {
+  width: 84px;
+  height: 12px;
+  accent-color: var(--go);
+  cursor: pointer;
+}
+.timeline-zoom-input {
+  width: 48px;
+  padding: 2px 3px;
+  border: 1px solid var(--line);
+  background: var(--field);
+  color: var(--ink);
   font-family: var(--mono);
-  font-size: 0.42rem;
-  letter-spacing: 0.6px;
-  color: var(--muted-3);
-  min-width: 26px;
+  font-size: 0.56rem;
   text-align: right;
+}
+.timeline-zoom-pct {
+  font-family: var(--mono);
+  font-size: 0.48rem;
+  color: var(--muted-2);
 }
 .timeline-meta { margin-left: 10px; }
 .et-drop-hint {
@@ -4076,6 +4127,10 @@ body.asset-dragging * { cursor: grabbing !important; user-select: none !importan
             <span>TRACK</span>
             <span class="mi-static" id="ciTrack">V1</span>
           </label>
+          <label class="mi-field" id="ciParentField" hidden>
+            <span>ATTACHED TO</span>
+            <span class="mi-static" id="ciParent">—</span>
+          </label>
         </div>
         <div class="mi-actions">
           <button type="button" id="ciOpenCode" class="timeline-btn media-btn">OPEN CODE</button>
@@ -4117,6 +4172,15 @@ body.asset-dragging * { cursor: grabbing !important; user-select: none !importan
             <span>STARTS</span>
             <span class="mi-static" id="miStart">—</span>
           </label>
+          <label class="mi-field" id="miParentField" hidden>
+            <span>ATTACHED TO</span>
+            <span class="mi-static" id="miParent">—</span>
+          </label>
+        </div>
+        <div class="mi-analysis" id="miAnalysis" hidden>
+          <div class="mi-analysis-head"><span>TECHNICAL</span><span id="miAnalysisStatus">—</span></div>
+          <div class="mi-analysis-grid" id="miAnalysisGrid"></div>
+          <p class="mi-note" id="miSemanticNote"></p>
         </div>
         <div class="mi-actions">
           <button type="button" id="miEmbedScene" class="timeline-btn media-btn" hidden>INSERT INTO SCENE</button>
@@ -4358,7 +4422,22 @@ body.asset-dragging * { cursor: grabbing !important; user-select: none !importan
               <button type="button" id="zoomOut" class="timeline-btn icon" title="Zoom out">−</button>
               <button type="button" id="zoomFit" class="timeline-btn" title="Fit the sequence to the view">FIT</button>
               <button type="button" id="zoomIn" class="timeline-btn icon" title="Zoom in">+</button>
-              <span class="timeline-zoom-label" id="timelineZoomLabel">1×</span>
+              <div class="timeline-zoom-control">
+                <input id="timelineZoomRange" class="timeline-zoom-range" type="range" min="100" max="800" step="5" value="100" aria-label="Timeline zoom slider">
+                <input id="timelineZoomInput" class="timeline-zoom-input" type="number" min="100" max="800" step="5" value="100" list="timelineZoomPresets" aria-label="Timeline zoom percent">
+                <datalist id="timelineZoomPresets">
+                  <option value="100"></option>
+                  <option value="125"></option>
+                  <option value="150"></option>
+                  <option value="200"></option>
+                  <option value="250"></option>
+                  <option value="300"></option>
+                  <option value="400"></option>
+                  <option value="600"></option>
+                  <option value="800"></option>
+                </datalist>
+                <span class="timeline-zoom-pct">%</span>
+              </div>
             </div>
             <span class="timeline-meta" id="timelineMeta">1 BOX · 1 LAYER · 4.00s</span>
             <span class="timeline-time" id="timelineTime">0.00s</span>
@@ -6782,6 +6861,10 @@ const CHAT_SYSTEM_PROMPT = [
   '- get_app_state: read the selected scene code, the full timeline, export settings and latest render result.',
   '- insert_animation_code: put a finished animation into the SELECTED scene (the editor); the live preview refreshes immediately. If the selected clip is imported media, a new blank code scene is created instead; imported media is never converted or overwritten.',
   '- add_scene: create an additional scene as its own logic box on the timeline, with its own complete HTML animation. The app appends it, selects it and previews it.',
+  '- search_assets and get_asset_analysis: inspect the project bin before composing around imported media. They return cached technical metadata, AI descriptions and an explicit semantic status. When the status is "not_analyzed", do not claim to see what the footage shows.',
+  '- update_asset_description: save a human-confirmed description or production note on an asset. Keep it separate from AI-generated analysis and never overwrite it with generated text.',
+  '- create_overlay, update_overlay, delete_overlay, attach_overlay, detach_overlay: build HTML overlays on their own track above footage. Overlay pages must use a fully transparent background. parentClipId makes an overlay follow its parent clip\'s timing while staying independently editable. This is attachment, not motion tracking — never claim to track objects in the footage.',
+  '- get_clip_context: read a clip\'s timing, track, parent/children relationships and asset analysis before changing it.',
   '- set_export_settings: change export settings, only for settings the user explicitly requested in their latest message.',
   '- render_video: render the whole timeline (every scene, in order and by layer) to one video file with the current settings.',
   'Before each tool call, write one short action line in plain text (max 8 words, present tense), such as "Writing the canvas animation…" or "Rendering the final video…". The app shows that line live in the chat while the tool runs; do not repeat it in your final answer.',
@@ -8261,6 +8344,18 @@ function summarizeChatToolResult(name, result) {
     const scene = result.scene || {};
     return `${scene.name || 'scene'} · ${scene.layer || 'V1'} · ${formatTimelineTime(scene.duration || 0)}`;
   }
+  if (name === 'search_assets') return `${result.count || 0} asset${result.count === 1 ? '' : 's'}`;
+  if (name === 'get_asset_analysis') return result.asset?.name || 'asset analysis';
+  if (name === 'update_asset_description') return 'asset note saved';
+  if (name === 'create_overlay') {
+    const clip = result.context?.clip || {};
+    return `${clip.name || 'overlay'} · V${(Number(clip.track) || 0) + 1}`;
+  }
+  if (name === 'update_overlay') return result.changes?.name || 'overlay updated';
+  if (name === 'attach_overlay') return 'overlay attached';
+  if (name === 'detach_overlay') return 'overlay detached';
+  if (name === 'delete_overlay') return 'overlay deleted';
+  if (name === 'get_clip_context') return result.clip?.name || 'clip context';
   if (name === 'render_video') {
     if (result.queued) return 'queued until code verification';
     return `${result.fps || '—'} FPS · ${compactRenderSeconds(result.duration)} · ${String(result.format || 'mp4').toUpperCase()}`;
@@ -8368,6 +8463,134 @@ async function executeChatTool(call) {
     };
   }
 
+  if (name === 'search_assets') {
+    const query = String(args.query || '').trim().toLowerCase();
+    const matches = timelineState.assets
+      .filter(asset => {
+        if (!query) return true;
+        const haystack = [
+          asset.name,
+          asset.kind,
+          asset.analysis?.user?.description || '',
+          asset.analysis?.semantic?.description || '',
+          ...(asset.analysis?.semantic?.tags || [])
+        ].join(' ').toLowerCase();
+        return haystack.includes(query);
+      })
+      .slice(0, 12)
+      .map(assetTechnicalSummary);
+    return { ok: true, count: matches.length, assets: matches };
+  }
+
+  if (name === 'get_asset_analysis') {
+    const asset = timelineState.assets.find(item => item.id === String(args.assetId || ''));
+    if (!asset) return { ok: false, error: 'Asset not found.' };
+    if (!asset.analysis) await analyzeProjectAsset(asset);
+    return {
+      ok: true,
+      asset: assetTechnicalSummary(asset),
+      manifest: asset.analysis || null,
+      analysisError: asset.analysisError || '',
+      semanticAvailable: Boolean(asset.analysis?.semantic?.status && asset.analysis.semantic.status !== 'not_analyzed')
+    };
+  }
+
+  if (name === 'update_asset_description') {
+    const asset = timelineState.assets.find(item => item.id === String(args.assetId || ''));
+    if (!asset) return { ok: false, error: 'Asset not found.' };
+    const description = String(args.description || '').trim().slice(0, 2000);
+    if (!description) return { ok: false, error: 'description is required' };
+    if (!asset.analysis) await analyzeProjectAsset(asset);
+    if (!asset.analysis) return { ok: false, error: 'Analysis record unavailable.' };
+    asset.analysis.user = {
+      description,
+      notes: String(args.notes || '').trim().slice(0, 2000),
+      updatedAt: Date.now()
+    };
+    saveTimelineState(true);
+    refreshMediaInspector();
+    return { ok: true, asset: assetTechnicalSummary(asset) };
+  }
+
+  if (name === 'create_overlay') {
+    const code = String(args.code || '').trim();
+    if (!code) return { ok: false, error: 'code is required' };
+    const parent = args.parentClipId
+      ? timelineState.clips.find(item => item.id === String(args.parentClipId))
+      : null;
+    if (args.parentClipId && !parent) return { ok: false, error: 'Parent clip not found.' };
+    const start = Number.isFinite(Number(args.start))
+      ? Number(args.start)
+      : (parent ? parent.start : timelineState.playhead);
+    const duration = Number.isFinite(Number(args.duration))
+      ? Number(args.duration)
+      : (parent ? parent.duration : DEFAULT_SCENE_SECONDS);
+    const track = Math.max(0, Math.min(3, Number.isFinite(Number(args.track))
+      ? Number(args.track)
+      : (parent ? parent.track + 1 : timelineState.layers)));
+    const created = projectOps.createComposition({
+      code,
+      name: args.name || (parent ? `${parent.name} OVER` : 'OVERLAY'),
+      duration,
+      start,
+      track
+    });
+    if (!created.ok) return created;
+    if (parent) {
+      const attached = projectOps.attachOverlay(created.clipId, parent.id);
+      if (!attached.ok) {
+        projectOps.deleteClip(created.clipId);
+        return attached;
+      }
+    }
+    return { ok: true, context: projectOps.getClipContext(created.clipId) };
+  }
+
+  if (name === 'update_overlay') {
+    const clip = timelineState.clips.find(item => item.id === String(args.clipId || ''));
+    if (!clip) return { ok: false, error: 'Clip not found.' };
+    if (clipIsMedia(clip)) return { ok: false, error: 'Only code overlays can be updated.' };
+    const changes = {};
+    if (typeof args.code === 'string' && args.code.trim()) {
+      clip.code = args.code;
+      changes.codeCharacters = clip.code.length;
+    }
+    if (args.name) {
+      clip.name = String(args.name).trim().slice(0, 24) || clip.name;
+      changes.name = clip.name;
+    }
+    if (Number.isFinite(Number(args.duration)) && Number(args.duration) >= 0.5) {
+      clip.duration = fitClipDuration(Math.min(Number(args.duration), TIMELINE_MAX_SECONDS - clip.start));
+      clip.explicitDuration = true;
+      changes.duration = clip.duration;
+    }
+    if (!Object.keys(changes).length) return { ok: false, error: 'No changes provided.' };
+    timelineState.activeId = clip.id;
+    timelineState.selectedAssetId = null;
+    saveTimelineState(true);
+    applyActiveClipToEditor({ preview: true });
+    renderLogicBoxes();
+    renderProjectBin();
+    updateStageTimeline();
+    return { ok: true, clipId: clip.id, changes, context: projectOps.getClipContext(clip.id) };
+  }
+
+  if (name === 'attach_overlay') {
+    return projectOps.attachOverlay(String(args.clipId || ''), String(args.parentClipId || ''));
+  }
+
+  if (name === 'detach_overlay') {
+    return projectOps.detachOverlay(String(args.clipId || ''));
+  }
+
+  if (name === 'delete_overlay') {
+    return projectOps.deleteClip(String(args.clipId || ''));
+  }
+
+  if (name === 'get_clip_context') {
+    return projectOps.getClipContext(String(args.clipId || ''));
+  }
+
   if (name === 'render_video') {
     if (chatTurnRendered) {
       return {
@@ -8453,6 +8676,15 @@ const CHAT_TOOL_ACTIONS = {
   set_export_settings: 'Updating export settings…',
   insert_animation_code: 'Writing the animation code…',
   add_scene: 'Adding a new scene…',
+  search_assets: 'Searching project assets…',
+  get_asset_analysis: 'Reading asset analysis…',
+  update_asset_description: 'Saving asset notes…',
+  create_overlay: 'Building the overlay…',
+  update_overlay: 'Updating the overlay…',
+  attach_overlay: 'Attaching the overlay…',
+  detach_overlay: 'Detaching the overlay…',
+  delete_overlay: 'Deleting the overlay…',
+  get_clip_context: 'Reading clip context…',
   render_video: 'Rendering the video…'
 };
 
@@ -9131,6 +9363,24 @@ function timelineTotalSeconds() {
   return Math.max(0.5, Math.min(TIMELINE_MAX_SECONDS, end));
 }
 
+function assetTechnicalSummary(asset) {
+  if (!asset) return null;
+  const technical = asset.analysis?.technical || {};
+  return {
+    id: asset.id,
+    name: asset.name,
+    type: asset.kind,
+    durationSeconds: asset.duration ? Math.round(asset.duration * 10) / 10 : null,
+    resolution: technical.width && technical.height ? `${technical.width}x${technical.height}` : null,
+    fps: technical.fps || null,
+    videoCodec: technical.videoCodec || null,
+    audioCodec: technical.audioCodec || null,
+    analyzed: Boolean(asset.analysis?.technical),
+    semanticStatus: asset.analysis?.semantic?.status || 'not_analyzed',
+    description: asset.analysis?.user?.description || asset.analysis?.semantic?.description || ''
+  };
+}
+
 function timelineSummaryForChat() {
   const active = activeClip();
   return {
@@ -9138,12 +9388,7 @@ function timelineSummaryForChat() {
     layers: timelineState.layers,
     playheadSeconds: Math.round((Number(timelineState.playhead) || 0) * 10) / 10,
     selectedSceneId: active?.id || null,
-    projectAssets: timelineState.assets.map(asset => ({
-      id: asset.id,
-      name: asset.name,
-      type: asset.kind,
-      durationSeconds: asset.duration ? Math.round(asset.duration * 10) / 10 : null
-    })),
+    projectAssets: timelineState.assets.map(assetTechnicalSummary),
     scenes: timelineState.clips.map((clip, index) => ({
       index: index + 1,
       id: clip.id,
@@ -9174,7 +9419,9 @@ function saveTimelineState(immediate = false) {
           kind: asset.kind,
           url: asset.url,
           duration: asset.duration ?? null,
-          addedAt: asset.addedAt || 0
+          addedAt: asset.addedAt || 0,
+          analysis: asset.analysis || null,
+          analysisError: asset.analysisError || ''
         })),
         clips: timelineState.clips.map(clip => ({
           id: clip.id,
@@ -9189,7 +9436,8 @@ function saveTimelineState(immediate = false) {
           mediaUrl: clip.mediaUrl || '',
           mediaName: clip.mediaName || '',
           sourceIn: clipSourceIn(clip),
-          fit: clip.fit === 'cover' ? 'cover' : 'contain'
+          fit: clip.fit === 'cover' ? 'cover' : 'contain',
+          parentClipId: clip.parentClipId || ''
         }))
       }));
       setSaveState('saved');
@@ -9199,6 +9447,75 @@ function saveTimelineState(immediate = false) {
   timelineSaveTimer = null;
   if (immediate) write();
   else timelineSaveTimer = setTimeout(write, 250);
+}
+
+function sanitizeAssetAnalysis(raw) {
+  if (!raw || typeof raw !== 'object') return null;
+  const num = (value) => {
+    if (value === null || value === undefined || value === '') return null;
+    const parsed = Number(value);
+    return Number.isFinite(parsed) && parsed >= 0 ? parsed : null;
+  };
+  const text = (value, max = 200) => (typeof value === 'string' ? value.slice(0, max) : '');
+  const list = (value, max = 16) => (Array.isArray(value)
+    ? value.filter(item => typeof item === 'string').slice(0, max).map(item => item.slice(0, 160))
+    : []);
+  const technical = raw.technical && typeof raw.technical === 'object' ? raw.technical : null;
+  if (!technical) return null;
+  return {
+    asset: {
+      contentHash: text(raw.asset?.contentHash, 40),
+      filename: text(raw.asset?.filename, 100),
+      url: text(raw.asset?.url, 300),
+      bytes: num(raw.asset?.bytes)
+    },
+    technical: {
+      duration: num(technical.duration),
+      width: num(technical.width),
+      height: num(technical.height),
+      fps: num(technical.fps),
+      videoCodec: technical.videoCodec ? text(technical.videoCodec, 24) : null,
+      audioCodec: technical.audioCodec ? text(technical.audioCodec, 24) : null,
+      sampleRate: num(technical.sampleRate),
+      channels: num(technical.channels),
+      streams: num(technical.streams),
+      bytes: num(technical.bytes)
+    },
+    semantic: {
+      status: text(raw.semantic?.status, 24) || 'not_analyzed',
+      provider: raw.semantic?.provider ? text(raw.semantic.provider, 40) : null,
+      description: text(raw.semantic?.description, 2000),
+      subjects: list(raw.semantic?.subjects),
+      tags: list(raw.semantic?.tags, 24),
+      shots: Array.isArray(raw.semantic?.shots)
+        ? raw.semantic.shots.slice(0, 60).map(shot => ({
+          start: num(shot?.start),
+          end: num(shot?.end),
+          description: text(shot?.description, 300)
+        })).filter(shot => shot.description || shot.start !== null)
+        : [],
+      transcript: Array.isArray(raw.semantic?.transcript)
+        ? raw.semantic.transcript.slice(0, 200).map(segment => ({
+          start: num(segment?.start),
+          end: num(segment?.end),
+          text: text(segment?.text, 500),
+          speaker: text(segment?.speaker, 40)
+        })).filter(segment => segment.text)
+        : [],
+      suggestedUses: list(raw.semantic?.suggestedUses, 12),
+      confidence: Math.max(0, Math.min(1, Number(raw.semantic?.confidence) || 0))
+    },
+    user: {
+      description: text(raw.user?.description, 2000),
+      notes: text(raw.user?.notes, 2000),
+      updatedAt: num(raw.user?.updatedAt)
+    },
+    analyzer: {
+      version: num(raw.analyzer?.version),
+      engine: text(raw.analyzer?.engine, 40),
+      analyzedAt: text(raw.analyzer?.analyzedAt, 40)
+    }
+  };
 }
 
 function loadTimelineState() {
@@ -9219,7 +9536,9 @@ function loadTimelineState() {
       duration: Number.isFinite(Number(asset.duration)) && Number(asset.duration) > 0
         ? Number(asset.duration)
         : null,
-      addedAt: Number(asset.addedAt) || 0
+      addedAt: Number(asset.addedAt) || 0,
+      analysis: sanitizeAssetAnalysis(asset.analysis),
+      analysisError: typeof asset.analysisError === 'string' ? asset.analysisError.slice(0, 160) : ''
     }))
     .filter(asset => {
       if (!asset.url || assetIds.has(asset.id)) return false;
@@ -9281,9 +9600,22 @@ function loadTimelineState() {
         mediaUrl: hasMedia ? mediaUrl : '',
         mediaName,
         sourceIn,
-        fit: clip.fit === 'cover' ? 'cover' : 'contain'
+        fit: clip.fit === 'cover' ? 'cover' : 'contain',
+        parentClipId: typeof clip.parentClipId === 'string' ? clip.parentClipId : ''
       };
     });
+  const loadedIds = new Set(timelineState.clips.map(clip => clip.id));
+  for (const clip of timelineState.clips) {
+    const parentId = clip.parentClipId;
+    if (!parentId || parentId === clip.id || !loadedIds.has(parentId)) {
+      clip.parentClipId = '';
+    }
+  }
+  const loadedById = new Map(timelineState.clips.map(clip => [clip.id, clip]));
+  for (const clip of timelineState.clips) {
+    const parent = clip.parentClipId ? loadedById.get(clip.parentClipId) : null;
+    if (!parent || parent.parentClipId) clip.parentClipId = '';
+  }
   if (!timelineState.clips.length && !(stored && Array.isArray(stored.clips))) {
     const seed = timelineSeedCode();
     timelineState.clips.push({
@@ -9628,6 +9960,13 @@ function fillClipInspector(clip) {
   if (end) end.textContent = formatTimelineTime(clipEnd(clip));
   const track = document.getElementById('ciTrack');
   if (track) track.textContent = `V${(Number(clip.track) || 0) + 1}`;
+  const parentClip = clip.parentClipId
+    ? timelineState.clips.find(item => item.id === clip.parentClipId)
+    : null;
+  const parentField = document.getElementById('ciParentField');
+  if (parentField) parentField.hidden = !parentClip;
+  const parentEl = document.getElementById('ciParent');
+  if (parentEl) parentEl.textContent = parentClip ? `${parentClip.name} · V${(Number(parentClip.track) || 0) + 1}` : '—';
   const duration = document.getElementById('ciDuration');
   if (duration && document.activeElement !== duration) {
     duration.value = (Math.round((Number(clip.duration) || 0.5) * 100) / 100).toFixed(2);
@@ -9655,6 +9994,53 @@ function inspectorArtHtml(asset) {
   return `<img src="${escapeHtml(asset.url)}" alt="">`;
 }
 
+function renderAssetAnalysis(asset) {
+  const box = document.getElementById('miAnalysis');
+  const grid = document.getElementById('miAnalysisGrid');
+  const status = document.getElementById('miAnalysisStatus');
+  const note = document.getElementById('miSemanticNote');
+  if (!box || !grid) return;
+  const analysis = asset?.analysis;
+  if (!analysis?.technical) {
+    box.hidden = false;
+    if (status) status.textContent = asset?.analysisError ? 'UNAVAILABLE' : 'PENDING';
+    grid.innerHTML = '';
+    if (note) {
+      note.textContent = asset?.analysisError
+        ? `Metadata unavailable: ${asset.analysisError}`
+        : 'Reading technical metadata…';
+    }
+    return;
+  }
+  const technical = analysis.technical;
+  const rows = [];
+  const add = (label, value) => {
+    if (value === null || value === undefined || value === '' || value === false) return;
+    rows.push(`<div><span>${label}</span><span>${escapeHtml(String(value))}</span></div>`);
+  };
+  add('SIZE', technical.bytes ? `${(technical.bytes / (1024 * 1024)).toFixed(2)} MB` : '');
+  add('DURATION', technical.duration !== null ? `${Number(technical.duration).toFixed(2)}s` : (asset.kind === 'image' ? 'STILL' : ''));
+  add('RESOLUTION', technical.width && technical.height ? `${technical.width}×${technical.height}` : '');
+  add('FPS', technical.fps ? Number(technical.fps).toFixed(2) : '');
+  add('VIDEO', technical.videoCodec || '');
+  add('AUDIO', technical.audioCodec || '');
+  add('SAMPLE RATE', technical.sampleRate ? `${technical.sampleRate} Hz` : '');
+  add('CHANNELS', technical.channels ? `${technical.channels} ch` : '');
+  add('STREAMS', technical.streams || '');
+  grid.innerHTML = rows.join('');
+  box.hidden = false;
+  if (status) status.textContent = `v${analysis.analyzer?.version || 1}`;
+  const semantic = analysis.semantic || {};
+  const userDescription = analysis.user?.description || '';
+  if (note) {
+    note.textContent = userDescription
+      ? `USER NOTE · ${userDescription}`
+      : (semantic.status === 'not_analyzed'
+        ? 'CONTENT ANALYSIS NOT RUN · technical metadata only.'
+        : `${String(semantic.status || 'ANALYZED').toUpperCase()}${semantic.description ? ` · ${semantic.description}` : ''}`);
+  }
+}
+
 function showMediaInspectorForClip(clip) {
   if (!clipIsMedia(clip)) { hideMediaInspector(); return; }
   const asset = clipAsset(clip) || {
@@ -9673,6 +10059,13 @@ function showMediaInspectorForClip(clip) {
   if (miTrack) miTrack.textContent = `V${(Number(clip.track) || 0) + 1}`;
   const miStart = document.getElementById('miStart');
   if (miStart) miStart.textContent = formatTimelineTime(clip.start);
+  const parentClip = clip.parentClipId
+    ? timelineState.clips.find(item => item.id === clip.parentClipId)
+    : null;
+  const parentField = document.getElementById('miParentField');
+  if (parentField) parentField.hidden = !parentClip;
+  const parentEl = document.getElementById('miParent');
+  if (parentEl) parentEl.textContent = parentClip ? `${parentClip.name} · V${(Number(parentClip.track) || 0) + 1}` : '—';
   const available = document.getElementById('miAvailable');
   if (available) {
     available.textContent = clip.type === 'image'
@@ -9710,6 +10103,7 @@ function showMediaInspectorForClip(clip) {
   if (note) {
     note.textContent = `V${(Number(clip.track) || 0) + 1} · starts ${formatTimelineTime(clip.start)} · ends ${formatTimelineTime(clipEnd(clip))}. Drag either edge to trim; SPLIT or S cuts at the playhead.`;
   }
+  renderAssetAnalysis(clipAsset(clip));
   setMediaInspectorVisible(true);
   switchRightTab('inspector');
   renderProjectBin();
@@ -9767,6 +10161,7 @@ function showMediaInspectorForAsset(asset) {
       ? 'Project audio. INSERT AT PLAYHEAD adds it as a clip; drag it onto a track to place it.'
       : 'INSERT INTO SCENE embeds the media in the scene (drag it on the preview to move it). REMOVE takes it back out. INSERT AT PLAYHEAD adds a separate clip/layer instead, or drop it straight onto the preview.';
   }
+  renderAssetAnalysis(asset);
   setMediaInspectorVisible(true);
   switchRightTab('inspector');
   renderProjectBin();
@@ -10165,7 +10560,8 @@ function createSceneClip(options = {}) {
     mediaUrl: '',
     mediaName: '',
     sourceIn: 0,
-    fit: 'contain'
+    fit: 'contain',
+    parentClipId: ''
   };
   timelineState.clips.push(clip);
   timelineState.layers = Math.max(timelineState.layers, track + 1);
@@ -10242,7 +10638,8 @@ function addLogicClip(options = {}) {
     mediaUrl: sourceMedia ? (source.mediaUrl || '') : '',
     mediaName: sourceMedia ? (source.mediaName || '') : '',
     sourceIn: sourceMedia ? clipSourceIn(source) : 0,
-    fit: sourceMedia ? (source.fit === 'cover' ? 'cover' : 'contain') : 'contain'
+    fit: sourceMedia ? (source.fit === 'cover' ? 'cover' : 'contain') : 'contain',
+    parentClipId: ''
   };
   const index = timelineState.clips.findIndex(item => item.id === timelineState.activeId);
   timelineState.clips.splice(index >= 0 ? index + 1 : timelineState.clips.length, 0, clip);
@@ -10332,10 +10729,39 @@ function addProjectAsset(info, duration) {
     duration: kind === 'image'
       ? null
       : Math.max(0.5, Math.min(TIMELINE_MAX_SECONDS, Number(duration) || MEDIA_VIDEO_FALLBACK_SECONDS)),
-    addedAt: Date.now()
+    addedAt: Date.now(),
+    bytes: Number(info?.bytes) > 0 ? Number(info.bytes) : null,
+    mime: String(info?.mime || ''),
+    analysis: null,
+    analysisError: ''
   };
   timelineState.assets.push(asset);
   return asset;
+}
+
+// Technical analysis is cached server-side by content hash; semantic analysis
+// is not run automatically and stays explicitly "not_analyzed".
+async function analyzeProjectAsset(asset) {
+  if (!asset?.url || !asset.url.startsWith('/media/')) return null;
+  if (asset.analysis?.technical) return asset.analysis;
+  try {
+    const response = await fetch('/api/media/analyze', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url: asset.url })
+    });
+    const payload = await response.json();
+    if (!payload.ok || !payload.manifest) throw new Error(payload.error || 'Analysis failed');
+    asset.analysis = sanitizeAssetAnalysis(payload.manifest);
+    asset.analysisError = '';
+    saveTimelineState();
+    refreshMediaInspector();
+    return asset.analysis;
+  } catch (error) {
+    asset.analysisError = String(error?.message || error).slice(0, 160);
+    console.error(error);
+    return null;
+  }
 }
 
 async function importMediaFiles(fileList) {
@@ -10359,6 +10785,7 @@ async function importMediaFiles(fileList) {
           lastAsset = asset;
           importedAssets.push(asset);
           if (timelineState.assets.length > before) added += 1;
+          await analyzeProjectAsset(asset);
         }
       } catch (error) {
         setStatus(`Media import failed: ${error?.message || error}`, 'err');
@@ -10412,7 +10839,8 @@ function splitClipRecord(clip, at) {
     mediaUrl: clip.mediaUrl || '',
     mediaName: clip.mediaName || '',
     sourceIn: rightSourceIn,
-    fit: clip.fit === 'cover' ? 'cover' : 'contain'
+    fit: clip.fit === 'cover' ? 'cover' : 'contain',
+    parentClipId: clip.parentClipId || ''
   };
   clip.duration = roundClipTime(offset);
   clip.explicitDuration = true;
@@ -10542,7 +10970,8 @@ function insertAssetClip(asset, options = {}) {
     mediaUrl: asset.url,
     mediaName: asset.name,
     sourceIn,
-    fit: (options.fit || mediaInsertFit) === 'cover' ? 'cover' : 'contain'
+    fit: (options.fit || mediaInsertFit) === 'cover' ? 'cover' : 'contain',
+    parentClipId: ''
   };
   timelineState.clips.push(clip);
   timelineState.layers = Math.max(timelineState.layers, track + 1);
@@ -10610,6 +11039,9 @@ function deleteClipById(clipId) {
   if (index < 0) return { error: 'Clip not found.' };
   const removedEnd = clipEnd(clip);
   const removedDuration = Math.max(0.5, Number(clip.duration) || 0.5);
+  for (const item of timelineState.clips) {
+    if (item.parentClipId === clip.id) item.parentClipId = '';
+  }
   timelineState.clips.splice(index, 1);
   for (const item of timelineState.clips) {
     if (item.track !== clip.track) continue;
@@ -10683,6 +11115,18 @@ function addTimelineLayer() {
   setStatus(`Layer V${timelineState.layers} added — drag a box onto it`, 'ok');
 }
 
+// Attached overlays follow their parent when it moves or its in-point changes.
+// The shift is clamped to the sequence so the overlay never leaves the timeline.
+function shiftAttachedOverlays(parent, delta) {
+  if (!parent || !delta) return;
+  for (const child of timelineState.clips) {
+    if (child.parentClipId !== parent.id) continue;
+    const next = (Number(child.start) || 0) + delta;
+    child.start = roundClipTime(Math.max(0, Math.min(TIMELINE_MAX_SECONDS - child.duration, next)));
+    child.explicitDuration = true;
+  }
+}
+
 // Structured project operations. UI actions, tests and future agents all use
 // these validated calls so the timeline has one mutation/persist/preview path.
 const projectOps = Object.freeze({
@@ -10729,6 +11173,77 @@ const projectOps = Object.freeze({
     return { ok: true, clipId: clip.id };
   },
 
+  getClipContext(clipId) {
+    const clip = timelineState.clips.find(item => item.id === clipId);
+    if (!clip) return { ok: false, error: 'Clip not found.' };
+    const parent = clip.parentClipId
+      ? timelineState.clips.find(item => item.id === clip.parentClipId) || null
+      : null;
+    const summarize = (item) => ({
+      id: item.id,
+      name: item.name,
+      type: item.type,
+      track: item.track,
+      start: Number(item.start) || 0,
+      duration: Number(item.duration) || 0,
+      parentClipId: item.parentClipId || ''
+    });
+    return {
+      ok: true,
+      clip: summarize(clip),
+      parent: parent ? summarize(parent) : null,
+      children: timelineState.clips.filter(item => item.parentClipId === clip.id).map(summarize),
+      asset: assetTechnicalSummary(clipAsset(clip))
+    };
+  },
+
+  attachOverlay(overlayId, parentId) {
+    const overlay = timelineState.clips.find(item => item.id === overlayId);
+    const parent = timelineState.clips.find(item => item.id === parentId);
+    if (!overlay || !parent) return { ok: false, error: 'Clip not found.' };
+    if (overlay.id === parent.id) return { ok: false, error: 'A clip cannot be its own parent.' };
+    if (overlay.type === 'audio' || parent.type === 'audio') {
+      return { ok: false, error: 'Audio clips cannot be attached overlays.' };
+    }
+    if (parent.parentClipId) return { ok: false, error: 'An attached overlay cannot be a parent.' };
+    if (overlay.parentClipId && overlay.parentClipId !== parent.id) {
+      return { ok: false, error: 'Overlay is already attached to another clip.' };
+    }
+    let track = overlay.track;
+    if (track <= parent.track) {
+      const above = overlayTrackFor(overlay.start, overlay.duration, parent.track + 1, overlay.id);
+      if (above < 0) return { ok: false, error: 'No free track above the parent clip.' };
+      track = above;
+    }
+    overlay.parentClipId = parent.id;
+    overlay.track = track;
+    timelineState.layers = Math.max(timelineState.layers, track + 1);
+    timelineState.activeId = overlay.id;
+    timelineState.selectedAssetId = null;
+    saveTimelineState(true);
+    applyActiveClipToEditor({ preview: true });
+    renderLogicBoxes();
+    renderProjectBin();
+    updateStageTimeline();
+    setStatus(`Attached ${overlay.name} to ${parent.name}`, 'ok');
+    return { ok: true, clipId: overlay.id, parentId: parent.id, track };
+  },
+
+  detachOverlay(overlayId) {
+    const overlay = timelineState.clips.find(item => item.id === overlayId);
+    if (!overlay) return { ok: false, error: 'Clip not found.' };
+    if (!overlay.parentClipId) return { ok: false, error: 'This clip is not attached.' };
+    const parent = timelineState.clips.find(item => item.id === overlay.parentClipId);
+    overlay.parentClipId = '';
+    timelineState.activeId = overlay.id;
+    saveTimelineState(true);
+    applyActiveClipToEditor({ preview: true });
+    renderLogicBoxes();
+    updateStageTimeline();
+    setStatus(`Detached ${overlay.name}${parent ? ` from ${parent.name}` : ''}`, 'ok');
+    return { ok: true, clipId: overlay.id };
+  },
+
   createTrack() {
     if (timelineState.layers >= 4) return { ok: false, error: 'Layer limit is 4.' };
     addTimelineLayer();
@@ -10770,9 +11285,11 @@ const projectOps = Object.freeze({
       && at < clipEnd(item) - 1e-6
       && at + clip.duration > Number(item.start) + 1e-6);
     if (clash) return { ok: false, error: 'Target spot is occupied on that track.' };
+    const oldStart = Number(clip.start) || 0;
     clip.start = at;
     clip.track = track;
     clip.explicitDuration = true;
+    shiftAttachedOverlays(clip, clip.start - oldStart);
     timelineState.layers = Math.max(timelineState.layers, track + 1);
     timelineState.activeId = clip.id;
     timelineState.selectedAssetId = null;
@@ -10820,6 +11337,7 @@ const projectOps = Object.freeze({
     clip.start = roundClipTime(start);
     clip.duration = fitClipDuration(end - start);
     clip.explicitDuration = true;
+    shiftAttachedOverlays(clip, clip.start - oldStart);
     timelineState.activeId = clip.id;
     timelineState.selectedAssetId = null;
     saveTimelineState(true);
@@ -10990,9 +11508,20 @@ function showTimelineDropFeedback(drop, options = {}) {
 }
 
 function updateTimelineZoomLabel() {
-  const label = document.getElementById('timelineZoomLabel');
-  if (!label) return;
-  label.textContent = timelineView.zoom <= 1.001 ? '1×' : `${timelineView.zoom.toFixed(1)}×`;
+  const percent = Math.round(timelineView.zoom * 100);
+  const input = document.getElementById('timelineZoomInput');
+  if (input && document.activeElement !== input) input.value = String(percent);
+  const range = document.getElementById('timelineZoomRange');
+  if (range) range.value = String(percent);
+}
+
+function setTimelineZoomPercent(percent) {
+  const value = Number(percent);
+  if (!Number.isFinite(value) || value <= 0) {
+    updateTimelineZoomLabel();
+    return;
+  }
+  setTimelineZoom(value / 100);
 }
 
 function setTimelineZoom(zoom) {
@@ -11299,6 +11828,9 @@ function initLogicTimeline() {
   renderLogicBoxes();
   renderProjectBin();
   updateStageTimeline();
+  for (const asset of timelineState.assets) {
+    if (!asset.analysis?.technical) analyzeProjectAsset(asset);
+  }
 
   document.getElementById('boxAdd')?.addEventListener('click', () => addLogicClip());
   document.getElementById('boxSplit')?.addEventListener('click', splitAtPlayhead);
@@ -11326,6 +11858,15 @@ function initLogicTimeline() {
   document.getElementById('zoomIn')?.addEventListener('click', () => setTimelineZoom(timelineView.zoom * 1.5));
   document.getElementById('zoomOut')?.addEventListener('click', () => setTimelineZoom(timelineView.zoom / 1.5));
   document.getElementById('zoomFit')?.addEventListener('click', fitTimelineView);
+  document.getElementById('timelineZoomInput')?.addEventListener('change', (event) => {
+    setTimelineZoomPercent(event.target.value);
+  });
+  document.getElementById('timelineZoomInput')?.addEventListener('keydown', (event) => {
+    if (event.key === 'Enter') event.target.blur();
+  });
+  document.getElementById('timelineZoomRange')?.addEventListener('input', (event) => {
+    setTimelineZoomPercent(event.target.value);
+  });
   const wheelTargets = [
     document.getElementById('etTracksWrap'),
     document.getElementById('timelineRuler')
@@ -11708,6 +12249,9 @@ function initLogicTimeline() {
     gesture = null;
     if (current.mode === 'resize' || current.mode === 'trim-left') {
       if (current.moved) {
+        if (current.mode === 'trim-left') {
+          shiftAttachedOverlays(current.clip, current.clip.start - current.origStart);
+        }
         saveTimelineState(true);
         applyActiveClipToEditor({ preview: false, timing: false });
         refreshMediaInspector();
@@ -11730,6 +12274,7 @@ function initLogicTimeline() {
         setStatus('Move blocked — the target spot is occupied on that track.', 'err');
       } else {
         if (current.clip.start > 0 || current.clip.track > 0) current.clip.explicitDuration = true;
+        shiftAttachedOverlays(current.clip, current.clip.start - current.origStart);
         setStatus(`${current.clip.name} · V${current.clip.track + 1} · ${formatTimelineTime(current.clip.start)}`, 'ok');
       }
       saveTimelineState(true);

@@ -2,7 +2,64 @@
 
 Date: 2026-11-12
 Branch: `main`
-Baseline: working tree contains the uncommitted Milestone 1 workspace refactor (layout, bin drag, dock timeline) plus the pointer drag controller. No commits were made during this audit. All claims below were read from the working tree; tests were not run for this report.
+Baseline: `main` at `bb4772c`; the Phase 1 additions described in the addendum below are uncommitted at the time of writing.
+
+## Addendum — Phase 0 (AI-native directive: compositing, transitions, asset intelligence, TTS, zoom)
+
+Verified against the working tree on 2026-11-12, after `bb4772c`.
+
+### Feature-by-feature state
+
+**Video compositing and overlays**
+- Implemented: layered tracks (V1–V4), independent image/video/code clips, per-clip media wrappers, drag/insert/drop overlay policy, Program Monitor composite, deterministic iframe layering in the export (z-index by track).
+- Implemented this phase: `parentClipId` in the project model with sanitize/resolve on load, `projectOps.attachOverlay`/`detachOverlay`/`getClipContext`, predictable overlay shifts when a parent moves or its in-point is trimmed, detach on parent delete, and agent tools `create_overlay`/`update_overlay`/`delete_overlay`/`attach_overlay`/`detach_overlay`/`get_clip_context`.
+- Not implemented: object tracking (explicitly out of scope and not claimed), UI buttons for attachment (operations are available to the agent/API), overlay transforms/keyframes.
+- Dependencies/risks: same-track overlap rules apply; an overlay must sit on a higher track than its parent; chain attachment is rejected; split leaves attached children with the left half.
+
+**Transitions**
+- Implemented: nothing beyond hard cuts; the renderer starts each clip's iframe independently.
+- Required next: transition data model (source/destination/duration/alignment/type/config/code/version), deterministic `renderTransition(context)` contract, plan-level overlap handling and source-footage boundary checks, preview/export parity, preset library, generated-transition isolation.
+- Risks: per-clip iframe timing must expose frames on both sides of a cut without corrupting clip timing; no extra Chromium instance should be introduced.
+
+**Asset intelligence**
+- Implemented this phase: `/api/media/analyze` probes stored media with the bundled FFmpeg (duration, resolution, fps, codecs, sample rate, channels, streams, bytes), writes a cached manifest keyed by content hash under `%APPDATA%/ClipACanvas/analysis`, and returns an explicit `semantic.status: "not_analyzed"` record with empty subjects/tags/shots/transcript. The inspector shows the technical block; the asset record persists the manifest; agent tools `search_assets`, `get_asset_analysis`, `update_asset_description` expose concise summaries and human-confirmed notes separately from AI fields.
+- Not implemented: visual/semantic analysis, shot segmentation, keyframe extraction, transcription, provider selection/consent, user-facing description editor.
+- Dependencies/risks: no media bytes leave the machine in this phase; FFmpeg's input probe is used because FFprobe is not bundled; image fps is suppressed because FFmpeg reports a nominal 25 fps for stills.
+
+**Text-to-speech**
+- Implemented: nothing. No provider abstraction or audio-track semantics exist yet.
+- Required next: `TTSProvider` interface and capability registry, local provider detection on the target hardware, at least one verified local and one verified hosted provider using official documentation, cache keyed by text/model/voice/language/speed, Voiceover Studio, A1/A2/A3 track semantics.
+- Risks: model weights/licences and memory limits on a 16 GB / GTX 1650 laptop; API endpoints must be verified, never invented; keys must stay behind the existing backend key store.
+
+**Timeline zoom and precision**
+- Implemented before this phase: zoom 1–8×, wheel zoom anchored at the pointer, playhead-anchored zoom buttons, horizontal scroll, fit, 5-mark ruler.
+- Implemented this phase: percent control with the required 100/125/150/200/250/300/400/600/800 presets, a 100–800 slider (step 5), direct numeric entry, playhead-anchored zoom, and control sync with wheel/buttons/FIT. Tested at 1664×916 and 1280×720 without document overflow.
+- Not implemented: frame/tick timebase, frame stepping; edits remain float-seconds rounded at 0.01–0.1 s boundaries. Not claimed as frame-accurate.
+
+### Implementation plan and status
+
+| Phase | Item | Status |
+|-------|------|--------|
+| 1 | Technical asset metadata + cached manifest | Done |
+| 1 | Structured asset access for the agent | Done (`search_assets`, `get_asset_analysis`, `update_asset_description`) |
+| 1 | Explicit overlay relationships | Done (model, ops, inspector, agent tools) |
+| 1 | Transition data structures and execution contract | Deferred (no partial/fake support added) |
+| 1 | TTS provider abstraction | Deferred (no provider verified yet) |
+| 1 | Improved zoom configuration | Done (presets, slider, numeric entry, anchoring) |
+| 2 | Transition library + generated transitions + overlay UI | Not started |
+| 2 | Voiceover Studio + local/hosted TTS | Not started |
+| 3 | Semantic/visual/audio asset analysis | Not started |
+| 4 | Full workflow validation + project persistence of all new objects | Partial: overlays and analysis persist; transitions/TTS absent |
+
+### Dependencies and licensing notes
+
+No new runtime dependencies were added. Asset probing reuses the bundled FFmpeg; analysis caching uses JSON files under the existing app data directory. TTS model weights, if added, will require explicit licence review before bundling.
+
+### Limitations of this phase
+
+- WebView2 coverage added for the new zoom controls, analysis inspector and overlay attachment; semantic analysis and transitions are not implemented, so they were not tested.
+- The project timeline remains localStorage-only; analysis and `parentClipId` persist with it, but there is no project file/export yet.
+- No performance regression was measured for the extra analysis call; probing is local and runs once per content hash.
 
 ## 1. What is already implemented
 
