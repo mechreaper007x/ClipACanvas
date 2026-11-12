@@ -4139,7 +4139,7 @@
 
 ### Commits
 
-- Local commit for this change set (no push).
+- `ca0df1c` - `fix: refuse duplicate project names on create and rename` (local only, no push).
 
 ### Open Items
 
