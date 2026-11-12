@@ -85,10 +85,15 @@ with tempfile.TemporaryDirectory() as tmp_name:
                 "() => document.querySelectorAll('#projectLibraryList .project-row').length === 1",
                 timeout=15000,
             )
-            page.on("dialog", lambda dialog: dialog.accept())
             page.evaluate("timelineState.clips = timelineState.clips.slice(0, 1); saveTimelineState(true); renderLogicBoxes(); updateStageTimeline();")
             page.wait_for_function("() => timelineState.clips.length === 1", timeout=5000)
             page.click("#projectLibraryList .project-row")
+            page.wait_for_function(
+                "() => !document.getElementById('appDialog').hidden"
+                " && document.getElementById('appDialogTitle').textContent === 'OPEN PROJECT'",
+                timeout=10000,
+            )
+            page.click("#appDialogConfirm")
             page.wait_for_function("() => timelineState.clips.length === 2", timeout=15000)
             print("library reopen clips:", page.evaluate("timelineState.clips.length"),
                   "name:", page.evaluate("document.getElementById('projectName').value"))

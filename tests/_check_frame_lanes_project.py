@@ -179,7 +179,6 @@ with tempfile.TemporaryDirectory() as tmp_name:
                 renderLogicBoxes(); renderProjectBin(); updateStageTimeline();
             }""")
             assert page.evaluate("timelineState.clips.length") == 0
-            page.once("dialog", lambda dialog: dialog.accept())
             page.evaluate("(payload) => applyProjectPayload(payload)", downloaded)
             page.wait_for_timeout(700)
             restored = page.evaluate("""() => ({
@@ -200,8 +199,13 @@ with tempfile.TemporaryDirectory() as tmp_name:
             }""")
             project_file = tmp / "roundtrip.ccproj.json"
             project_file.write_text(json.dumps(downloaded), encoding="utf-8")
-            page.once("dialog", lambda dialog: dialog.accept())
             page.set_input_files("#projectFileInput", str(project_file))
+            page.wait_for_function(
+                "() => !document.getElementById('appDialog').hidden"
+                " && document.getElementById('appDialogTitle').textContent === 'OPEN PROJECT'",
+                timeout=10000,
+            )
+            page.click("#appDialogConfirm")
             page.wait_for_timeout(900)
             assert page.evaluate("timelineState.clips.length") == saved_clips
             assert page.evaluate("timelineState.assets.length") == 3

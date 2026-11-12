@@ -908,6 +908,13 @@ def main() -> int:
         page.locator("#chatHistoryList .chat-history-row").first.hover()
         chat_del_label = page.locator("#chatHistoryList .chat-history-row").first.locator(".chat-history-del").text_content() == "DELETE"
         page.locator("#chatHistoryList .chat-history-row").first.locator(".chat-history-del").click()
+        page.wait_for_function(
+            "() => !document.getElementById('appDialog').hidden"
+            " && document.getElementById('appDialogTitle').textContent === 'DELETE CHAT'",
+            timeout=10000,
+        )
+        page.click("#appDialogConfirm")
+        page.wait_for_function("() => document.getElementById('appDialog').hidden === true", timeout=10000)
         page.wait_for_timeout(500)
         chat_history_rows_after_delete = page.locator("#chatHistoryList .chat-history-row").count()
         chat_history_titles_after_delete = page.locator("#chatHistoryList .chat-history-title").all_inner_texts()

@@ -4082,3 +4082,35 @@
 ### Open Items
 
 - The project created before the fix (`untitled-project.ccproj.json`) still contains the copied scene; delete it from Project Home to start clean.
+
+## 2026-11-13 (Fix: unsaved-work guard, in-app dialogs, sequenced project names)
+
+### Summary
+
+- Opening an external project file no longer silently replaces unsaved editor work. When the active project differs from its library copy, the app offers SAVE AND CONTINUE / DON'T SAVE / CANCEL; cancel keeps the editor and the library untouched.
+- All project confirmations now use the in-app `#appDialog` (title, note, CANCEL / optional DON'T SAVE / primary), because WebView2/pywebview renders no native `window.confirm`/`alert`. Replaced native dialogs in project open (editor library row, external file), unsaved guard, failed-save return Home, chat delete and the desktop "video saved" message. Removed the dead native confirm inside `applyProjectPayload`.
+- New projects prefill sequenced names: UNTITLED PROJECT, UNTITLED PROJECT 2, UNTITLED PROJECT 3 (first free slot, based on the loaded library).
+- Project cards ignore Enter/Space that originate from their nested OPEN/RENAME/DUPLICATE/DELETE buttons, so keyboard use triggers only the focused action.
+- The guard also runs for the in-editor PROJECT library list; Home card opens skip it because returning Home already saved.
+
+### Files Touched
+
+- `clipacanvas.html` (`#appDialog` markup + CSS, `appConfirm`/`appAlert`/`initAppDialog`, `guardProjectReplacement`, `nextProjectName`, `applyExternalProject`, `openProjectById`, `returnToProjectHome`, card keydown, chat delete, desktop save alert)
+- `tests/_check_project_guard.py` (new), `tests/_check_webview_project_dialog.py` (new)
+- `tests/_check_project_persistence.py`, `tests/_check_frame_lanes_project.py`, `tests/desktop_smoke.py` (expect the in-app dialog instead of a native one)
+
+### Verification
+
+- `_check_project_guard.py` PASS: names sequence to 2/3; unsaved edit + external file shows UNSAVED CHANGES; cancel keeps project, file and library; DON'T SAVE opens without writing; SAVE AND CONTINUE persists first; library-row open uses the in-app OPEN PROJECT dialog; Escape cancels; Enter on a card button does not open the project; zero native confirms.
+- `_check_project_home.py`, `_check_project_persistence.py`, `_check_project_ops.py`, `_check_timeline_history.py`, `_check_frame_lanes_project.py`, `_check_workspace.py`, `desktop_smoke.py` PASS.
+- Real WebView2 source window (CDP) PASS: the dialog is visible over the editor; cancel and don't-save both behave.
+- Rebuilt `dist/ClipACanvas.exe` (03:52, 463 MB) and `dist/ClipACanvas-windows.zip` (03:53). Packaged checks PASS in the new exe: `_check_webview_project_dialog.py --exe` and `_check_packaged_persistence_render.py` (Project Home launch, 4 clips, 1920x1080 + audio render, relaunch state intact).
+
+### Commits
+
+- Local commit created for this change set (no push).
+
+### Open Items
+
+- Remaining review items not started: durable signature ignores full asset analysis; corrupt `index.json` yields an empty library; duplicate copies the library file instead of a newer autosave; project creation still mutates the editor before the backend confirms; 50-project index truncation; per-card recovery action; self-contained project archives.
+- `window.prompt` copy helpers (render manifest, deep link, snippet) still use native prompts and stay invisible in WebView2.

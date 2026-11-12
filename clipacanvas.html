@@ -4572,6 +4572,7 @@ body.asset-dragging * { cursor: grabbing !important; user-select: none !importan
   padding: 20px;
 }
 .home-dialog-back[hidden] { display: none; }
+.app-dialog { z-index: 100000; }
 .home-dialog {
   width: min(480px, 94vw);
   background: var(--panel-3);
@@ -4682,6 +4683,18 @@ body.asset-dragging * { cursor: grabbing !important; user-select: none !importan
     <div class="home-foot">
       <span id="homeStatus" class="home-status"></span>
       <span class="home-foot-note">PROJECTS · APPDATA\CLIPACANVAS\PROJECTS</span>
+    </div>
+  </div>
+</div>
+
+<div id="appDialog" class="home-dialog-back app-dialog" hidden>
+  <div class="home-dialog" role="dialog" aria-modal="true" aria-labelledby="appDialogTitle">
+    <h2 id="appDialogTitle">CONFIRM</h2>
+    <p id="appDialogNote"></p>
+    <div class="home-dialog-actions">
+      <button type="button" id="appDialogCancel" class="home-btn">CANCEL</button>
+      <button type="button" id="appDialogAlt" class="home-btn danger" hidden>DON'T SAVE</button>
+      <button type="button" id="appDialogConfirm" class="home-btn primary">OK</button>
     </div>
   </div>
 </div>
@@ -7723,10 +7736,7 @@ async function saveVideoFromDesktopShell(filename) {
   document.getElementById('btnDownload').disabled = true;
   document.getElementById('btnDownload').classList.remove('blink');
   setStatus(`Saved to ${result.path}`, 'ok');
-  
-  // Show a clear success message to the user
-  alert(`Success!\n\nYour video has been saved to:\n${result.path}`);
-  
+  await appAlert('VIDEO SAVED', `Your video has been saved to: ${result.path}`);
   return true;
 }
 
@@ -8184,7 +8194,13 @@ async function deleteChatSession(id) {
   const session = chatState.sessions.find(s => s.id === id);
   if (!session) return;
   const label = (session.title || 'New chat').trim().slice(0, 44);
-  if (!window.confirm(`Delete chat "${label}"?`)) return;
+  const answer = await appConfirm({
+    title: 'DELETE CHAT',
+    message: `Delete "${label}"? This cannot be undone.`,
+    confirmLabel: 'DELETE',
+    danger: true
+  });
+  if (answer !== 'confirm') return;
   try {
     await fetch(`/api/llm/chatlog?id=${encodeURIComponent(id)}`, { method: 'DELETE' });
   } catch (error) {
@@ -14712,7 +14728,7 @@ async function restoreDurableProject() {
       projectRestoreState = 'local-newer';
       return false;
     }
-    const applied = applyProjectPayload(payload, { confirm: false });
+    const applied = applyProjectPayload(payload);
     projectRestoreState = applied ? 'restored' : 'failed';
     if (applied) setStatus(`PROJECT RESTORED · ${payload.projectName || 'UNTITLED PROJECT'} · DISK AUTOSAVE`, 'ok');
     return applied;
@@ -14847,7 +14863,7 @@ function projectFileSlug() {
   return name || 'project';
 }
 
-function applyProjectPayload(payload, options = {}) {
+function applyProjectPayload(payload) {
   if (!payload || payload.format !== PROJECT_FILE_FORMAT) {
     throw new Error('Not a Clip.A.Canvas project file.');
   }
@@ -14858,7 +14874,6 @@ function applyProjectPayload(payload, options = {}) {
   if (!timeline || !Array.isArray(timeline.clips)) {
     throw new Error('Project file has no timeline.');
   }
-  if (options.confirm !== false && !window.confirm('Open this project? The current timeline will be replaced.')) return false;
   const stored = {
     savedAt: payload.savedAt || new Date().toISOString(),
     clips: timeline.clips,
@@ -14928,18 +14943,40 @@ async function openProjectFile() {
       const result = await window.pywebview.api.open_project_file();
       if (!result?.selected) { setStatus('Project open cancelled', ''); return; }
       const payload = JSON.parse(result.content || '');
-      const entry = await adoptOpenedProject(payload);
-      if (entry) {
-        activateProjectEntry(entry, payload, { recoveredFromAutosave: Boolean(entry.adoptedExisting) });
-      } else if (applyProjectPayload(payload)) {
-        setStatus(`PROJECT OPENED · ${result.path || ''}`, 'ok');
-      }
+      await applyExternalProject(payload, result.path || '');
     } catch (error) {
       setStatus(`Project open failed: ${error?.message || error}`, 'err');
     }
     return;
   }
   document.getElementById('projectFileInput')?.click();
+}
+
+async function applyExternalProject(payload, label = '') {
+  if (!payload || payload.format !== PROJECT_FILE_FORMAT) {
+    throw new Error('Not a Clip.A.Canvas project file.');
+  }
+  if (!(await guardProjectReplacement())) {
+    setStatus('Project open cancelled', '');
+    return false;
+  }
+  const entry = await adoptOpenedProject(payload);
+  if (entry) {
+    activateProjectEntry(entry, payload, { recoveredFromAutosave: Boolean(entry.adoptedExisting) });
+    return true;
+  }
+  const answer = await appConfirm({
+    title: 'OPEN PROJECT',
+    message: `Open ${label || payload.projectName || 'this project'}? The current timeline will be replaced.`,
+    confirmLabel: 'OPEN'
+  });
+  if (answer !== 'confirm') {
+    setStatus('Project open cancelled', '');
+    return false;
+  }
+  const applied = applyProjectPayload(payload);
+  if (applied) setStatus(`PROJECT OPENED · ${label || payload.projectName || ''}`, 'ok');
+  return applied;
 }
 
 async function adoptOpenedProject(payload) {
@@ -14980,12 +15017,7 @@ function initProjectFileControls() {
     if (!file) return;
     try {
       const payload = JSON.parse(await file.text());
-      const entry = await adoptOpenedProject(payload);
-      if (entry) {
-        activateProjectEntry(entry, payload, { recoveredFromAutosave: Boolean(entry.adoptedExisting) });
-      } else if (applyProjectPayload(payload)) {
-        setStatus(`PROJECT OPENED · ${file.name}`, 'ok');
-      }
+      await applyExternalProject(payload, file.name);
     } catch (error) {
       setStatus(`Project open failed: ${error?.message || error}`, 'err');
     }
@@ -15003,6 +15035,7 @@ let homeDialogProjectName = '';
 let homeRecoveryDismissed = false;
 let projectHomeSession = null;
 let projectHomeLegacy = null;
+let projectHomeProjects = [];
 
 function projectHomeEnabled() {
   if (!durableProjectsEnabled()) return false;
@@ -15057,6 +15090,7 @@ async function loadProjectHome() {
     const data = await fetchProjectHomeData();
     projectHomeSession = data.session;
     projectHomeLegacy = data.legacy;
+    projectHomeProjects = data.projects;
     renderProjectHome(data.projects);
     if (!data.projects.length) setHomeStatus('No projects on this machine yet.');
   } catch (error) {
@@ -15132,6 +15166,7 @@ function buildProjectHomeCard(entry) {
   });
   card.addEventListener('keydown', (event) => {
     if (event.key !== 'Enter' && event.key !== ' ') return;
+    if (event.target.closest('button')) return;
     event.preventDefault();
     openProjectById(entry.id);
   });
@@ -15195,9 +15230,18 @@ async function returnToProjectHome() {
     const entry = await saveProjectToLibrary();
     if (!entry) {
       const saved = await pushDurableProjectSave();
-      if (!saved && !window.confirm('The latest changes could not be saved. Return to Project Home anyway?')) {
-        setStatus('Project Home cancelled — the project was not saved.', 'err');
-        return;
+      if (!saved) {
+        const answer = await appConfirm({
+          title: 'SAVE FAILED',
+          message: 'The latest changes could not be saved to the project library. Return to Project Home anyway?',
+          confirmLabel: 'RETURN ANYWAY',
+          cancelLabel: 'STAY',
+          danger: true
+        });
+        if (answer !== 'confirm') {
+          setStatus('Project Home cancelled — the project was not saved.', 'err');
+          return;
+        }
       }
     }
   }
@@ -15221,7 +15265,7 @@ function openHomeDialog(mode, entry = null) {
     title.textContent = 'NEW PROJECT';
     note.textContent = 'Name the project. It starts from a fresh timeline and is saved on this machine.';
     input.hidden = false;
-    input.value = 'UNTITLED PROJECT';
+    input.value = nextProjectName();
     confirm.textContent = 'CREATE';
     confirm.className = 'home-btn primary';
   } else if (mode === 'rename') {
@@ -15251,6 +15295,100 @@ function openHomeDialog(mode, entry = null) {
 function closeHomeDialog() {
   const dialog = document.getElementById('homeDialog');
   if (dialog) dialog.hidden = true;
+}
+
+// WebView2 renders no native confirm/alert dialogs, so destructive or
+// state-replacing actions use this in-app dialog instead.
+let appDialogResolve = null;
+
+function appConfirm(options = {}) {
+  const dialog = document.getElementById('appDialog');
+  if (!dialog) return Promise.resolve('confirm');
+  if (appDialogResolve) closeAppDialog('cancel');
+  const title = document.getElementById('appDialogTitle');
+  const note = document.getElementById('appDialogNote');
+  const cancel = document.getElementById('appDialogCancel');
+  const alt = document.getElementById('appDialogAlt');
+  const confirm = document.getElementById('appDialogConfirm');
+  if (title) title.textContent = String(options.title || 'CONFIRM').toUpperCase();
+  if (note) note.textContent = String(options.message || '');
+  if (cancel) {
+    cancel.textContent = options.cancelLabel || 'CANCEL';
+    cancel.hidden = Boolean(options.hideCancel);
+  }
+  if (alt) {
+    alt.textContent = options.altLabel || "DON'T SAVE";
+    alt.hidden = !options.altLabel;
+  }
+  if (confirm) {
+    confirm.textContent = options.confirmLabel || 'OK';
+    confirm.className = `home-btn ${options.danger ? 'danger' : 'primary'}`;
+  }
+  dialog.hidden = false;
+  const focusTarget = options.altLabel || options.hideCancel ? confirm : cancel;
+  if (focusTarget) requestAnimationFrame(() => focusTarget.focus());
+  return new Promise((resolve) => { appDialogResolve = resolve; });
+}
+
+function closeAppDialog(result = 'cancel') {
+  const dialog = document.getElementById('appDialog');
+  if (dialog) dialog.hidden = true;
+  const resolve = appDialogResolve;
+  appDialogResolve = null;
+  if (resolve) resolve(result);
+}
+
+function appAlert(title, message) {
+  return appConfirm({ title, message, confirmLabel: 'OK', hideCancel: true });
+}
+
+function initAppDialog() {
+  const dialog = document.getElementById('appDialog');
+  if (!dialog) return;
+  document.getElementById('appDialogConfirm')?.addEventListener('click', () => closeAppDialog('confirm'));
+  document.getElementById('appDialogAlt')?.addEventListener('click', () => closeAppDialog('alt'));
+  document.getElementById('appDialogCancel')?.addEventListener('click', () => closeAppDialog('cancel'));
+  dialog.addEventListener('pointerdown', (event) => {
+    if (event.target === dialog) closeAppDialog('cancel');
+  });
+  document.addEventListener('keydown', (event) => {
+    if (dialog.hidden || event.key !== 'Escape') return;
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    closeAppDialog('cancel');
+  }, true);
+}
+
+function activeProjectHasUnsavedChanges() {
+  if (!activeProject) return false;
+  return durableContentSignature() !== durableLastLibrarySignature;
+}
+
+async function guardProjectReplacement() {
+  if (!activeProjectHasUnsavedChanges()) return true;
+  const answer = await appConfirm({
+    title: 'UNSAVED CHANGES',
+    message: `${activeProject.name || 'This project'} has changes that are not saved to the project library yet. Save them before the editor is replaced?`,
+    confirmLabel: 'SAVE AND CONTINUE',
+    altLabel: "DON'T SAVE"
+  });
+  if (answer === 'cancel') return false;
+  if (answer === 'alt') return true;
+  const entry = await saveProjectToLibrary();
+  if (!entry) {
+    await appAlert('SAVE FAILED', 'The current project could not be saved, so the other project was not opened.');
+    return false;
+  }
+  return true;
+}
+
+function nextProjectName() {
+  const base = 'UNTITLED PROJECT';
+  const taken = new Set(projectHomeProjects.map(entry => String(entry.name || '').toUpperCase()));
+  if (!taken.has(base)) return base;
+  let index = 2;
+  while (taken.has(`${base} ${index}`)) index += 1;
+  return `${base} ${index}`;
 }
 
 async function projectLibraryAction(path, body) {
@@ -15296,8 +15434,7 @@ function activateProjectEntry(entry, payload, options = {}) {
   projectOpenInProgress = true;
   try {
     const applied = applyProjectPayload(
-      { ...payload, projectName: payload?.projectName || entry?.name || 'PROJECT' },
-      { confirm: false }
+      { ...payload, projectName: payload?.projectName || entry?.name || 'PROJECT' }
     );
     if (!applied) throw new Error('The project could not be opened.');
     activeProject = {
@@ -15344,7 +15481,10 @@ async function importProjectIntoLibrary(payload) {
 
 async function openProjectById(projectId, options = {}) {
   if (!projectId) return;
-  if (options.confirm && !window.confirm('Open this project? The current timeline will be replaced.')) return;
+  if (!projectHomeVisible && !(await guardProjectReplacement())) {
+    setHomeStatus('Project open cancelled', '');
+    return;
+  }
   setHomeStatus('Opening project…', '');
   try {
     const endpoint = options.recover ? 'recover' : 'open';
@@ -15355,6 +15495,17 @@ async function openProjectById(projectId, options = {}) {
       throw new Error(data?.error || `The project could not be opened (HTTP ${response.status}).`);
     }
     const payload = data.project;
+    if (options.confirm) {
+      const answer = await appConfirm({
+        title: 'OPEN PROJECT',
+        message: `Open ${payload.projectName || projectId}? The current timeline will be replaced.`,
+        confirmLabel: 'OPEN'
+      });
+      if (answer !== 'confirm') {
+        setHomeStatus('');
+        return;
+      }
+    }
     const entry = data.entry || await importProjectIntoLibrary(payload);
     activateProjectEntry(entry, payload, { recoveredFromAutosave: Boolean(options.recover) && !data.legacy });
     if (!projectHomeEnabled() && activeProject) {
@@ -15492,6 +15643,7 @@ async function submitHomeDialog() {
 }
 
 function initProjectHome() {
+  initAppDialog();
   const homeButton = document.getElementById('projectHomeBtn');
   if (homeButton) {
     homeButton.hidden = !projectHomeEnabled();
