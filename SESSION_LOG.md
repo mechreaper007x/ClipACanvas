@@ -3920,3 +3920,4 @@
 ### Open Items
 
 - Rebuild `dist/ClipACanvas.exe` so it includes the live provider fixes; Mistral 3.0 remains account-rate-limited.
+- Rebuilt `dist/ClipACanvas.exe`/zip after the hosted fixes and verified through the packaged server: new Mistral models/voices are present and a live Gemini TTS request returned a 2.6 s WAV.
