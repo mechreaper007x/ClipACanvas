@@ -1,9 +1,10 @@
-"""Packaged WebView2 check: durable project restore + 1080p A/V export.
+"""Packaged WebView2 check: Project Home, durable project state + 1080p A/V export.
 
 Launches dist/ClipACanvas.exe twice with an isolated data dir and CDP enabled.
-First run builds a two-image film with two audio lanes, renders 1920x1080 and
-writes the MP4. Second run verifies the project (name, clips, assets) is still
-there without any localStorage carry-over.
+First run creates a project from Project Home, builds a two-image film with two
+audio lanes, renders 1920x1080 and writes the MP4. Second run verifies the app
+returns to Project Home and the project (name, clips, assets) reopens intact
+without any localStorage carry-over.
 """
 import json
 import os
@@ -126,6 +127,15 @@ with tempfile.TemporaryDirectory() as tmp_name:
         with sync_playwright() as pw:
             browser, page = attach(pw)
             assert page.evaluate("isDesktopShell()"), "packaged page is not the desktop shell"
+            page.wait_for_function("() => document.getElementById('projectHome').hidden === false", timeout=30000)
+            print("launched into Project Home")
+            page.click("#homeNew")
+            page.wait_for_function("() => document.getElementById('homeDialog').hidden === false")
+            page.fill("#homeDialogInput", "Packaged Film")
+            page.click("#homeDialogConfirm")
+            page.wait_for_function("() => document.getElementById('projectHome').hidden === true", timeout=30000)
+            page.wait_for_timeout(800)
+            assert page.evaluate("activeProject && activeProject.id === 'packaged-film'"), "project id missing"
             assert page.evaluate("typeof undoTimeline === 'function' && typeof redoTimeline === 'function'"), "undo not packaged"
             assert page.evaluate("Boolean(document.getElementById('projectLibrary') && document.getElementById('boxUndo'))"), "project library/undo UI missing"
             print("attached:", page.title())
@@ -162,12 +172,25 @@ with tempfile.TemporaryDirectory() as tmp_name:
             page.click("#boxRedo")
             page.wait_for_function("() => timelineState.transitions.length === 1", timeout=5000)
             page.wait_for_timeout(1200)
-            autosave = data_dir / "projects" / "autosave.ccproj.json"
-            assert autosave.exists(), "autosave file missing"
+            deadline = time.time() + 20
+            autosave = None
+            while time.time() < deadline:
+                candidates = list((data_dir / "projects").glob("*.autosave.ccproj.json"))
+                if candidates:
+                    try:
+                        saved = json.loads(candidates[0].read_text(encoding="utf-8"))
+                    except (OSError, ValueError):
+                        saved = None
+                    if saved and saved.get("projectName") == "PACKAGED FILM" \
+                            and len(saved["timeline"]["clips"]) == 4:
+                        autosave = candidates[0]
+                        break
+                page.wait_for_timeout(250)
+            assert autosave is not None, "per-project autosave file missing"
             saved = json.loads(autosave.read_text(encoding="utf-8"))
-            print("autosave name:", saved.get("projectName"), "clips:", len(saved["timeline"]["clips"]))
-            assert saved.get("projectName") == "PACKAGED FILM", saved.get("projectName")
-            assert len(saved["timeline"]["clips"]) == 4
+            print("autosave:", autosave.name, "name:", saved.get("projectName"),
+                  "clips:", len(saved["timeline"]["clips"]))
+            assert saved.get("projectId") == "packaged-film", saved.get("projectId")
             page.evaluate("saveProjectToLibrary()")
             page.wait_for_function(
                 "() => document.querySelectorAll('#projectLibraryList .project-row').length >= 1",
@@ -219,11 +242,17 @@ with tempfile.TemporaryDirectory() as tmp_name:
     finally:
         kill_all()
 
-    # Second launch: the project must come back from disk.
+    # Second launch: the app must open Project Home; the project is intact.
     proc = launch(data_dir)
     try:
         with sync_playwright() as pw:
             browser, page = attach(pw)
+            page.wait_for_function("() => document.getElementById('projectHome').hidden === false", timeout=60000)
+            page.wait_for_function(
+                "() => document.querySelectorAll('.home-card').length >= 1", timeout=30000,
+            )
+            assert page.evaluate("activeProject === null"), "relaunch must not auto-open a project"
+            page.click('.home-card[data-project-id="packaged-film"]')
             page.wait_for_function(
                 "() => timelineState.clips.length === 4 && timelineState.assets.length === 4",
                 timeout=60000,
@@ -234,9 +263,11 @@ with tempfile.TemporaryDirectory() as tmp_name:
                 assets: timelineState.assets.length,
                 lanes: timelineState.clips.filter(c => c.type === 'audio').map(c => c.audioTrack).sort(),
                 bins: document.getElementById('binsCount').textContent,
-                stored: Boolean(localStorage.getItem('clipacanvas.timeline.v1'))
+                stored: Boolean(localStorage.getItem('clipacanvas.timeline.v1')),
+                homeHidden: document.getElementById('projectHome').hidden
             })""")
             print("relaunch state:", state)
+            assert state["homeHidden"] is True, state
             assert state["name"] == "PACKAGED FILM", state
             assert state["clips"] == 4 and state["assets"] == 4, state
             assert state["lanes"] == ["A2", "A3"], state

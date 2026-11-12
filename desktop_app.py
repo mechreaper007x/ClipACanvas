@@ -258,7 +258,7 @@ def main() -> int:
 
     window = webview.create_window(
         "Clip.A.Canvas",
-        f"{url}/clipacanvas.html",
+        f"{url}/clipacanvas.html?desktop=1",
         js_api=api,
         width=initial_width,
         height=initial_height,

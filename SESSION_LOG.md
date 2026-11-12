@@ -4022,3 +4022,38 @@
 - No agent tools yet for TTS voiceover or placing bin audio/assets on A1–A3; the 54 s challenge still needs those via the manual UI.
 - The observed 60 s composition cap and the malformed 0.5 s clip when inserting exactly at 60 s remain unfixed.
 - `07716b3` - durable projects, undo/redo, and hidden stepwise production plans (pushed to `origin/main`).
+
+## 2026-11-13 (Task 01: Project Home and project management)
+
+### Summary
+
+- The desktop app now launches into a Project Home launcher (new project, recent projects with modified/edited state, open project file, recover last session) instead of dropping straight into the editor. Browser/dev surfaces keep the editor-first flow unless `?home=1` is passed.
+- Projects carry a stable id and every project keeps its own autosave file, so autosaves can no longer overwrite another project. The library index is enriched with `recoverable`, `autosaveSavedAt` and `missing` metadata.
+- Added project management: create with a name dialog, open, rename (file identity preserved), duplicate (new id and file), delete with confirmation (removes the project file and its autosave), legacy `autosave.ccproj.json` recovery imported as a library project, and crash recovery from per-project autosaves.
+- Returning Home saves the library copy first and skips the pagehide beacon while Home is visible, so leaving the editor neither loses work nor creates false recovery prompts. Invalid project files and missing media report errors without breaking the launcher.
+- The desktop window loads `clipacanvas.html?desktop=1`; the boot decision no longer depends on pywebview API injection timing.
+
+### Files Touched
+
+- `clipacanvas.html`, `serve.py`, `desktop_app.py`
+- `tests/_check_project_home.py` (new), `tests/_check_packaged_persistence_render.py`
+
+### Verification
+
+- `_check_project_home.py` PASS: 10 scenarios — empty first launch, create, independent projects + autosave isolation, open, rename/duplicate, delete cancel + confirm, crash recovery, restart to Home, v1 compatibility + legacy recovery + invalid file, missing media.
+- Real desktop window (pywebview/WebView2 over CDP) PASS: Home on launch, create project, back Home, relaunch to Home with no auto-open, reopen project intact.
+- Regressions PASS: `_check_project_persistence`, `_check_timeline_history`, `_check_workspace`, `_check_frame_lanes_project`, `_check_project_ops`, `_check_film_export`, `_check_media_timeline`, `desktop_smoke`.
+
+### Build
+
+- Rebuilt `dist/ClipACanvas.exe` (02:42, 463 MB) and `dist/ClipACanvas-windows.zip` (02:43) with Python 3.11.
+- `_check_packaged_persistence_render.py` PASS against the rebuilt exe: launches into Project Home, creates "Packaged Film" from the launcher, writes `packaged-film.autosave.ccproj.json`, renders 1920x1080 30 fps with A2 music + A3 SFX (pixel and volume probes), relaunches to Home with no auto-open, and reopens the project with 4 clips / 4 assets / lanes intact.
+- `dist/ClipACanvas-Setup.exe`, `SHA256SUMS.txt` and `RELEASE_NOTES.md` were not refreshed (installer and release assets are a separate step).
+
+### Commits
+
+- None (task forbids commit/push).
+
+### Open Items
+
+- Project files still reference media by URL; media cleanup on delete is out of scope. Opening a file for an already-known project targets that project and replaces its library copy on return Home (explicit user action).

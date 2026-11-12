@@ -4347,9 +4347,357 @@ body.asset-dragging * { cursor: grabbing !important; user-select: none !importan
   .dock-keys { display: none; }
 }
 
+/* ── PROJECT HOME ───────────────────────────────────────── */
+.project-home {
+  position: fixed;
+  inset: 0;
+  z-index: 9000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: clamp(18px, 3.4vw, 52px);
+  background:
+    radial-gradient(1100px 620px at 16% 4%, rgba(var(--go-rgb), 0.08), transparent 62%),
+    radial-gradient(900px 520px at 92% 100%, rgba(var(--go-rgb), 0.04), transparent 60%),
+    var(--bg);
+}
+.project-home[hidden] { display: none; }
+.home-shell {
+  width: min(1680px, 94vw);
+  height: min(900px, 92vh);
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  gap: clamp(14px, 2vw, 26px);
+}
+.home-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding-bottom: clamp(12px, 1.6vh, 20px);
+  border-bottom: 1px solid var(--line-soft);
+}
+.home-brand { display: flex; align-items: center; gap: clamp(12px, 1.6vw, 22px); min-width: 0; }
+.home-logo { height: clamp(26px, 3vw, 42px); width: auto; display: block; }
+.home-brand-text { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.home-kicker {
+  font-family: var(--mono);
+  font-size: clamp(0.55rem, 0.62vw, 0.66rem);
+  letter-spacing: 4px;
+  color: var(--go);
+}
+.home-sub {
+  font-family: var(--mono);
+  font-size: clamp(0.55rem, 0.6vw, 0.64rem);
+  letter-spacing: 1.5px;
+  color: var(--muted);
+}
+.home-head-actions { display: flex; gap: 8px; }
+.home-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) clamp(270px, 23vw, 360px);
+  gap: clamp(16px, 2.2vw, 34px);
+  min-height: 0;
+}
+.home-projects { display: flex; flex-direction: column; min-height: 0; }
+.home-section-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.home-section-head .eyebrow { font-size: clamp(0.6rem, 0.65vw, 0.7rem); letter-spacing: 3px; }
+.home-section-head .spacer { flex: 1; }
+.home-list {
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-right: 6px;
+  min-height: 0;
+}
+.home-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 16px;
+  padding: clamp(14px, 1.6vw, 20px) clamp(16px, 1.8vw, 22px);
+  background: var(--panel);
+  border: 1px solid var(--line-soft);
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+.home-card:hover,
+.home-card:focus-visible {
+  border-color: rgba(var(--go-rgb), 0.45);
+  background: var(--panel-2);
+  outline: none;
+}
+.home-card.current { border-left: 2px solid var(--go); }
+.home-card-main { min-width: 0; display: flex; flex-direction: column; gap: 7px; }
+.home-card-title { display: flex; align-items: center; gap: 10px; min-width: 0; flex-wrap: wrap; }
+.home-card-name {
+  font-family: var(--display);
+  font-size: clamp(0.82rem, 1.05vw, 1rem);
+  letter-spacing: 1.5px;
+  color: var(--ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+.home-badge {
+  font-family: var(--mono);
+  font-size: 0.55rem;
+  letter-spacing: 2px;
+  padding: 3px 7px;
+  border: 1px solid var(--line-strong);
+  color: var(--muted);
+  white-space: nowrap;
+}
+.home-badge.current { border-color: rgba(var(--go-rgb), 0.55); color: var(--go); }
+.home-badge.recover { border-color: var(--burn); color: var(--burn); }
+.home-badge.broken { border-color: var(--danger-ink); color: var(--danger-ink); }
+.home-card-meta {
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+  font-family: var(--mono);
+  font-size: clamp(0.56rem, 0.62vw, 0.66rem);
+  letter-spacing: 1.4px;
+  color: var(--muted);
+}
+.home-card-actions { display: flex; gap: 2px; opacity: 0; transition: opacity 0.12s ease; }
+.home-card:hover .home-card-actions,
+.home-card:focus-within .home-card-actions { opacity: 1; }
+.home-mini {
+  font-family: var(--mono);
+  font-size: 0.58rem;
+  letter-spacing: 1.6px;
+  padding: 7px 9px;
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+.home-mini:hover { color: var(--ink); border-color: var(--line-strong); }
+.home-mini.danger:hover { color: var(--danger-ink); border-color: var(--danger-ink); }
+.home-empty {
+  margin: auto 0;
+  border: 1px dashed var(--line-strong);
+  padding: clamp(34px, 7vh, 72px) clamp(20px, 4vw, 56px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  text-align: center;
+}
+.home-empty[hidden] { display: none; }
+.home-empty b { font-family: var(--display); font-size: clamp(0.85rem, 1.1vw, 1rem); letter-spacing: 4px; color: var(--ink-soft); }
+.home-empty span { font-family: var(--mono); font-size: clamp(0.6rem, 0.66vw, 0.7rem); letter-spacing: 1px; color: var(--muted); max-width: 46ch; line-height: 1.8; }
+.home-rail {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  border-left: 1px solid var(--line-soft);
+  padding-left: clamp(14px, 2vw, 28px);
+  min-height: 0;
+  overflow-y: auto;
+}
+.home-action {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  padding: clamp(16px, 1.8vw, 22px);
+  background: var(--panel);
+  border: 1px solid var(--line-soft);
+  color: var(--ink);
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+.home-action:hover { border-color: rgba(var(--go-rgb), 0.5); background: var(--panel-2); }
+.home-action.primary {
+  background: linear-gradient(135deg, rgba(var(--go-rgb), 0.14), transparent 62%), var(--panel);
+  border-color: rgba(var(--go-rgb), 0.42);
+}
+.home-action b { font-family: var(--display); font-size: clamp(0.8rem, 0.95vw, 0.95rem); letter-spacing: 2.4px; }
+.home-action span.action-note { font-family: var(--mono); font-size: clamp(0.56rem, 0.62vw, 0.66rem); letter-spacing: 0.6px; line-height: 1.75; color: var(--muted); }
+.home-action-kicker {
+  font-family: var(--mono);
+  font-size: 0.55rem !important;
+  letter-spacing: 3px !important;
+  color: var(--go) !important;
+}
+.home-recover {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  padding: clamp(16px, 1.8vw, 22px);
+  border: 1px dashed rgba(var(--go-rgb), 0.55);
+  background: rgba(var(--go-rgb), 0.04);
+}
+.home-recover[hidden] { display: none; }
+.home-recover b { font-family: var(--display); font-size: clamp(0.78rem, 0.9vw, 0.9rem); letter-spacing: 2px; }
+.home-recover span { font-family: var(--mono); font-size: clamp(0.56rem, 0.62vw, 0.66rem); letter-spacing: 0.8px; color: var(--muted); line-height: 1.7; }
+.home-recover-actions { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 4px; }
+.home-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding-top: clamp(10px, 1.3vh, 16px);
+  border-top: 1px solid var(--line-soft);
+  font-family: var(--mono);
+  font-size: clamp(0.55rem, 0.6vw, 0.64rem);
+  letter-spacing: 1px;
+  color: var(--muted);
+  min-height: 26px;
+}
+.home-foot-note { opacity: 0.7; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.home-status.ok { color: var(--go); }
+.home-status.err { color: var(--danger-ink); }
+
+.home-dialog-back {
+  position: fixed;
+  inset: 0;
+  z-index: 9100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.74);
+  padding: 20px;
+}
+.home-dialog-back[hidden] { display: none; }
+.home-dialog {
+  width: min(480px, 94vw);
+  background: var(--panel-3);
+  border: 1px solid var(--line-strong);
+  padding: clamp(20px, 2.4vw, 28px);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.home-dialog h2 { font-family: var(--display); font-size: clamp(0.78rem, 0.95vw, 0.9rem); letter-spacing: 3px; color: var(--ink); }
+.home-dialog p { font-family: var(--mono); font-size: clamp(0.62rem, 0.7vw, 0.72rem); color: var(--muted); line-height: 1.8; }
+.home-dialog input {
+  background: var(--field);
+  border: 1px solid var(--field-line);
+  color: var(--ink);
+  font-family: var(--display);
+  font-size: clamp(0.78rem, 0.9vw, 0.9rem);
+  letter-spacing: 2px;
+  padding: 13px 15px;
+  text-transform: uppercase;
+  outline: none;
+  width: 100%;
+}
+.home-dialog input:focus { border-color: var(--go); }
+.home-dialog input[hidden] { display: none; }
+.home-dialog-error { min-height: 1em; font-family: var(--mono); font-size: 0.64rem; letter-spacing: 0.6px; color: var(--danger-ink); }
+.home-dialog-error[hidden] { display: none; }
+.home-dialog-actions { display: flex; justify-content: flex-end; gap: 8px; }
+.home-btn {
+  font-family: var(--mono);
+  font-size: 0.64rem;
+  letter-spacing: 2px;
+  padding: 11px 16px;
+  border: 1px solid var(--line-strong);
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+.home-btn:hover { color: var(--ink); }
+.home-btn.primary { background: var(--go); border-color: var(--go); color: #0a0a0a; font-weight: 600; }
+.home-btn.primary:disabled { opacity: 0.5; cursor: default; }
+.home-btn.danger { border-color: var(--danger-ink); color: var(--danger-ink); }
+.home-btn.danger:hover { background: rgba(255, 90, 90, 0.12); }
+
+@media (max-width: 1080px) {
+  .home-shell { height: 94vh; }
+  .home-body { grid-template-columns: 1fr; overflow-y: auto; }
+  .home-projects { min-height: 260px; }
+  .home-rail { border-left: 0; padding-left: 0; flex-direction: row; flex-wrap: wrap; overflow: visible; }
+  .home-action { flex: 1 1 240px; }
+  .home-recover { flex: 1 1 240px; }
+  .home-foot-note { display: none; }
+}
 </style>
 </head>
 <body>
+
+<div id="projectHome" class="project-home" hidden>
+  <div class="home-shell">
+    <div class="home-head">
+      <div class="home-brand">
+        <img class="home-logo" src="logo_neon_overlay.png" alt="Clip.A.Canvas">
+        <div class="home-brand-text">
+          <span class="home-kicker">PROJECT HOME</span>
+          <span class="home-sub">CREATE · OPEN · RECOVER</span>
+        </div>
+      </div>
+      <div class="home-head-actions">
+        <button type="button" id="homeOpenFile" class="home-btn">OPEN PROJECT FILE</button>
+      </div>
+    </div>
+    <div class="home-body">
+      <section class="home-projects">
+        <div class="home-section-head">
+          <span class="eyebrow">RECENT PROJECTS</span>
+          <span class="mono-dim" id="homeProjectCount">0</span>
+          <span class="spacer"></span>
+          <button type="button" id="homeRefresh" class="dock-link" title="Refresh the project list">REFRESH</button>
+        </div>
+        <div id="homeProjectList" class="home-list"></div>
+        <div id="homeEmpty" class="home-empty" hidden>
+          <b>NO PROJECTS YET</b>
+          <span>Create a project to start a timeline, or open an existing .ccproj.json file. Projects stay on this machine under your AppData folder.</span>
+          <button type="button" id="homeEmptyNew" class="home-btn primary">NEW PROJECT</button>
+        </div>
+      </section>
+      <aside class="home-rail">
+        <button type="button" id="homeNew" class="home-action primary">
+          <span class="home-action-kicker">START FRESH</span>
+          <b>NEW PROJECT</b>
+          <span class="action-note">Name the project, then build on a starter timeline and open the editor.</span>
+        </button>
+        <button type="button" id="homeOpen" class="home-action">
+          <b>OPEN PROJECT</b>
+          <span class="action-note">Load a .ccproj.json file from disk. It is imported into the project library.</span>
+        </button>
+        <div id="homeRecover" class="home-recover" hidden>
+          <span class="home-action-kicker">RECOVERABLE SESSION</span>
+          <b id="homeRecoverName">LAST SESSION</b>
+          <span id="homeRecoverMeta">An autosave newer than the saved project was found.</span>
+          <div class="home-recover-actions">
+            <button type="button" id="homeRecoverBtn" class="home-btn primary">RECOVER</button>
+            <button type="button" id="homeRecoverDismiss" class="home-btn">DISMISS</button>
+          </div>
+        </div>
+      </aside>
+    </div>
+    <div class="home-foot">
+      <span id="homeStatus" class="home-status"></span>
+      <span class="home-foot-note">PROJECTS · APPDATA\CLIPACANVAS\PROJECTS</span>
+    </div>
+  </div>
+</div>
+
+<div id="homeDialog" class="home-dialog-back" hidden>
+  <div class="home-dialog" role="dialog" aria-modal="true" aria-labelledby="homeDialogTitle">
+    <h2 id="homeDialogTitle">NEW PROJECT</h2>
+    <p id="homeDialogNote"></p>
+    <input id="homeDialogInput" type="text" maxlength="60" spellcheck="false" autocomplete="off" placeholder="PROJECT NAME" aria-label="Project name">
+    <div id="homeDialogError" class="home-dialog-error" hidden></div>
+    <div class="home-dialog-actions">
+      <button type="button" id="homeDialogCancel" class="home-btn">CANCEL</button>
+      <button type="button" id="homeDialogConfirm" class="home-btn primary">CREATE</button>
+    </div>
+  </div>
+</div>
 
 <header class="command-bar">
   <div class="wordmark">
@@ -4360,6 +4708,7 @@ body.asset-dragging * { cursor: grabbing !important; user-select: none !importan
     <span class="save-state" id="saveState"><i></i><span id="saveStateText">SAVED</span></span>
   </div>
   <div class="head-actions">
+    <button type="button" id="projectHomeBtn" class="head-btn" title="Project Home — create, open or manage projects" hidden>PROJECTS</button>
     <button class="btn btn-download btn-xs head-export" id="btnDownload" onclick="downloadVideo()" disabled>DOWNLOAD</button>
     <button class="btn btn-convert btn-xs head-export" id="btnConvert" onclick="startConvert()">EXPORT</button>
     <button type="button" id="layoutBtn" class="head-btn head-icon" title="Reset panel layout" aria-label="Reset panel layout"><svg viewBox="0 0 14 14" aria-hidden="true"><rect x="1.5" y="2" width="11" height="10" fill="none" stroke="currentColor" stroke-width="1.1"/><path d="M5 2v10M10 2v10" stroke="currentColor" stroke-width="1.1"/></svg></button>
@@ -6752,6 +7101,7 @@ function applySavedSettingsFromObject(settings) {
 }
 
 window.addEventListener('keydown', (event) => {
+  if (projectHomeVisible) return;
   const modifier = event.ctrlKey || event.metaKey;
   if (!modifier) {
     if (event.key === 'Escape') { closeResultFullscreen(); hideShortcutHelp(); hideSettings(); hideHistoryPop(); closeComposerModelMenu(); }
@@ -10083,6 +10433,7 @@ function syncAssistantModelLabels() {
 
 function initChatShortcut() {
   document.addEventListener('keydown', (event) => {
+    if (projectHomeVisible) return;
     if (!(event.metaKey || event.ctrlKey) || event.key.toLowerCase() !== 'k') return;
     event.preventDefault();
     switchRightTab('assistant');
@@ -14247,10 +14598,15 @@ function initProjectChrome() {
   applyProjectName(name);
   const input = document.getElementById('projectName');
   const commit = () => {
-    applyProjectName(input?.value);
-    try { localStorage.setItem('clipacanvas.projectName', currentProjectName()); }
+    const next = currentProjectName();
+    applyProjectName(next);
+    try { localStorage.setItem('clipacanvas.projectName', next); }
     catch (error) { console.error(error); }
-    queuePrefsSave();
+    if (activeProject && next && next !== String(activeProject.name || '').toUpperCase()) {
+      renameActiveProject(next);
+    } else {
+      queuePrefsSave();
+    }
   };
   input?.addEventListener('change', commit);
   input?.addEventListener('blur', commit);
@@ -14259,14 +14615,19 @@ function initProjectChrome() {
 
 // ── DURABLE PROJECT STORE ────────────────────────────────
 // The WebView runs with a private profile, so localStorage is wiped between
-// launches. The full project (timeline, assets, name) is mirrored to
-// %APPDATA%/ClipACanvas/projects/autosave.ccproj.json by the local server and
-// restored on boot. The same endpoint backs the named project library.
+// launches. Projects live in %APPDATA%/ClipACanvas/projects: the library holds
+// one document per project, and each project keeps its own autosave file so
+// two projects can never overwrite each other's recovery state.
 let durableSaveTimer = null;
 let durableSaveInFlight = false;
 let durableSaveQueued = false;
 let durableSaveDeferred = false;
 let projectRestoreState = 'idle';
+let activeProject = null;
+let projectOpenInProgress = false;
+let projectHomeVisible = false;
+let durableLastSignature = '';
+let durableLastLibrarySignature = '';
 
 function durableProjectsEnabled() {
   if (isDesktopShell()) return true;
@@ -14277,9 +14638,19 @@ function projectRestoreSettled() {
   return projectRestoreState !== 'idle' && projectRestoreState !== 'loading';
 }
 
+function durableContentSignature() {
+  const notes = timelineState.assets
+    .map(asset => `${asset.id}:${asset.analysis?.user?.description || ''}`)
+    .join(';');
+  return `${currentProjectName()}|${timelineHistorySnapshot()}|${notes}`;
+}
+
 function scheduleDurableProjectSave() {
-  if (!durableProjectsEnabled()) return;
-  if (!projectRestoreSettled()) { durableSaveDeferred = true; return; }
+  if (!durableProjectsEnabled() || projectOpenInProgress || projectHomeVisible) return;
+  if (!activeProject) {
+    if (projectHomeEnabled()) return;
+    if (!projectRestoreSettled()) { durableSaveDeferred = true; return; }
+  }
   if (durableSaveTimer) clearTimeout(durableSaveTimer);
   durableSaveTimer = setTimeout(() => {
     durableSaveTimer = null;
@@ -14288,9 +14659,17 @@ function scheduleDurableProjectSave() {
 }
 
 async function pushDurableProjectSave() {
-  if (!durableProjectsEnabled()) return false;
-  if (!projectRestoreSettled()) { durableSaveDeferred = true; return false; }
+  if (!durableProjectsEnabled() || projectOpenInProgress || projectHomeVisible) return false;
+  if (!activeProject) {
+    if (projectHomeEnabled()) return false;
+    if (!projectRestoreSettled()) { durableSaveDeferred = true; return false; }
+  }
   if (durableSaveInFlight) { durableSaveQueued = true; return false; }
+  const signature = activeProject ? durableContentSignature() : '';
+  if (activeProject && durableLastSignature && signature === durableLastSignature) {
+    setSaveState('saved');
+    return true;
+  }
   durableSaveInFlight = true;
   try {
     const response = await fetch(buildApiUrl('/api/project'), {
@@ -14299,6 +14678,7 @@ async function pushDurableProjectSave() {
       body: JSON.stringify(buildProjectFilePayload())
     });
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    if (activeProject) durableLastSignature = signature;
     setSaveState('saved');
     return true;
   } catch (error) {
@@ -14353,17 +14733,25 @@ async function restoreDurableProject() {
 
 async function saveProjectToLibrary() {
   if (!durableProjectsEnabled()) return null;
+  if (!activeProject && projectHomeEnabled()) return null;
   try {
+    const body = {
+      name: currentProjectName(),
+      project: buildProjectFilePayload()
+    };
+    if (activeProject) body.id = activeProject.id;
     const response = await fetch(buildApiUrl('/api/projects'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        name: currentProjectName(),
-        project: buildProjectFilePayload()
-      })
+      body: JSON.stringify(body)
     });
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     const data = await response.json();
+    if (activeProject && data?.project) {
+      activeProject = { ...activeProject, name: data.project.name, savedAt: data.project.savedAt };
+      durableLastSignature = durableContentSignature();
+      durableLastLibrarySignature = durableLastSignature;
+    }
     if (data?.project) refreshProjectLibrary();
     return data?.project || null;
   } catch (error) {
@@ -14415,23 +14803,13 @@ async function refreshProjectLibrary() {
 
 async function openLibraryProject(projectId) {
   if (!projectId) return;
-  try {
-    const response = await fetch(buildApiUrl(`/api/projects/open?id=${encodeURIComponent(projectId)}`));
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    const data = await response.json();
-    if (!data?.project) throw new Error('Project not found.');
-    if (!window.confirm('Open this project? The current timeline will be replaced.')) return;
-    if (applyProjectPayload(data.project)) {
-      setStatus(`PROJECT OPENED · ${data.entry?.name || projectId}`, 'ok');
-      refreshProjectLibrary();
-    }
-  } catch (error) {
-    setStatus(`Project open failed: ${error?.message || error}`, 'err');
-  }
+  await openProjectById(projectId, { confirm: true });
 }
 
 window.addEventListener('pagehide', () => {
-  if (!durableProjectsEnabled() || !projectRestoreSettled()) return;
+  if (!durableProjectsEnabled() || projectOpenInProgress || projectHomeVisible) return;
+  if (!activeProject && (projectHomeEnabled() || !projectRestoreSettled())) return;
+  if (activeProject && durableContentSignature() === durableLastLibrarySignature) return;
   try {
     const blob = new Blob([JSON.stringify(buildProjectFilePayload())], { type: 'application/json' });
     navigator.sendBeacon(buildApiUrl('/api/project'), blob);
@@ -14443,7 +14821,7 @@ const PROJECT_FILE_VERSION = 1;
 
 function buildProjectFilePayload() {
   try { syncActiveClipFromEditor(true); } catch (error) { console.error(error); }
-  return {
+  const payload = {
     format: PROJECT_FILE_FORMAT,
     version: PROJECT_FILE_VERSION,
     savedAt: new Date().toISOString(),
@@ -14457,6 +14835,8 @@ function buildProjectFilePayload() {
       assets: timelineState.assets
     }
   };
+  if (activeProject?.id) payload.projectId = activeProject.id;
+  return payload;
 }
 
 function projectFileSlug() {
@@ -14548,13 +14928,45 @@ async function openProjectFile() {
       const result = await window.pywebview.api.open_project_file();
       if (!result?.selected) { setStatus('Project open cancelled', ''); return; }
       const payload = JSON.parse(result.content || '');
-      if (applyProjectPayload(payload)) setStatus(`PROJECT OPENED · ${result.path || ''}`, 'ok');
+      const entry = await adoptOpenedProject(payload);
+      if (entry) {
+        activateProjectEntry(entry, payload, { recoveredFromAutosave: Boolean(entry.adoptedExisting) });
+      } else if (applyProjectPayload(payload)) {
+        setStatus(`PROJECT OPENED · ${result.path || ''}`, 'ok');
+      }
     } catch (error) {
       setStatus(`Project open failed: ${error?.message || error}`, 'err');
     }
     return;
   }
   document.getElementById('projectFileInput')?.click();
+}
+
+async function adoptOpenedProject(payload) {
+  if (!durableProjectsEnabled() || !projectHomeEnabled()) return null;
+  const knownId = String(payload?.projectId || '');
+  if (knownId) {
+    try {
+      const response = await fetch(buildApiUrl('/api/projects'));
+      if (response.ok) {
+        const data = await response.json();
+        const match = (data?.projects || []).find(item => item.id === knownId);
+        if (match) return { ...match, adoptedExisting: true };
+      }
+    } catch (error) {
+      console.error('project lookup failed:', error);
+    }
+  }
+  try {
+    const data = await projectLibraryAction('/api/projects', {
+      name: payload?.projectName || 'OPENED PROJECT',
+      project: { ...payload, projectId: '' }
+    });
+    return data?.project || null;
+  } catch (error) {
+    console.error('opened project could not be added to the library:', error);
+    return null;
+  }
 }
 
 function initProjectFileControls() {
@@ -14568,10 +14980,545 @@ function initProjectFileControls() {
     if (!file) return;
     try {
       const payload = JSON.parse(await file.text());
-      if (applyProjectPayload(payload)) setStatus(`PROJECT OPENED · ${file.name}`, 'ok');
+      const entry = await adoptOpenedProject(payload);
+      if (entry) {
+        activateProjectEntry(entry, payload, { recoveredFromAutosave: Boolean(entry.adoptedExisting) });
+      } else if (applyProjectPayload(payload)) {
+        setStatus(`PROJECT OPENED · ${file.name}`, 'ok');
+      }
     } catch (error) {
       setStatus(`Project open failed: ${error?.message || error}`, 'err');
     }
+  });
+}
+
+// ── PROJECT HOME ─────────────────────────────────────────
+// Desktop launches into the launcher; browser/dev surfaces keep the editor
+// first flow unless Project Home is explicitly requested.
+const PROJECT_HOME_FLAG_KEY = 'clipacanvas.projectHomeEnabled';
+let projectHomeLoading = false;
+let homeDialogMode = 'new';
+let homeDialogProjectId = '';
+let homeDialogProjectName = '';
+let homeRecoveryDismissed = false;
+let projectHomeSession = null;
+let projectHomeLegacy = null;
+
+function projectHomeEnabled() {
+  if (!durableProjectsEnabled()) return false;
+  if (isDesktopShell()) return true;
+  try {
+    const params = new URLSearchParams(window.location.search);
+    return params.get('home') === '1'
+      || params.get('desktop') === '1'
+      || localStorage.getItem(PROJECT_HOME_FLAG_KEY) === '1';
+  } catch (error) { return false; }
+}
+
+function setHomeStatus(text, tone = '') {
+  const el = document.getElementById('homeStatus');
+  if (!el) return;
+  el.textContent = text || '';
+  el.className = `home-status${tone ? ` ${tone}` : ''}`;
+}
+
+function homeDateTime(iso) {
+  const date = new Date(iso || '');
+  if (Number.isNaN(date.getTime())) return '';
+  const now = new Date();
+  const time = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  return date.toDateString() === now.toDateString()
+    ? time
+    : `${date.toLocaleDateString([], { month: 'short', day: 'numeric' })}, ${time}`;
+}
+
+async function fetchProjectHomeData() {
+  const [listResponse, sessionResponse] = await Promise.all([
+    fetch(buildApiUrl('/api/projects')),
+    fetch(buildApiUrl('/api/projects/session'))
+  ]);
+  if (!listResponse.ok) throw new Error(`Project list failed (HTTP ${listResponse.status}).`);
+  const listData = await listResponse.json();
+  let sessionData = {};
+  if (sessionResponse.ok) {
+    try { sessionData = await sessionResponse.json(); } catch (error) { sessionData = {}; }
+  }
+  return {
+    projects: Array.isArray(listData?.projects) ? listData.projects : [],
+    session: sessionData?.session || null,
+    legacy: sessionData?.legacy || null
+  };
+}
+
+async function loadProjectHome() {
+  if (!projectHomeEnabled() || projectHomeLoading) return;
+  projectHomeLoading = true;
+  try {
+    const data = await fetchProjectHomeData();
+    projectHomeSession = data.session;
+    projectHomeLegacy = data.legacy;
+    renderProjectHome(data.projects);
+    if (!data.projects.length) setHomeStatus('No projects on this machine yet.');
+  } catch (error) {
+    console.error('project home load failed:', error);
+    renderProjectHome([]);
+    setHomeStatus(error?.message || 'Project list could not be loaded.', 'err');
+  } finally {
+    projectHomeLoading = false;
+  }
+}
+
+function homeCardMeta(entry) {
+  const parts = [entry.savedAt ? `MODIFIED ${homeDateTime(entry.savedAt)}` : 'MODIFIED —'];
+  if (entry.recoverable) parts.push(`EDITED ${homeDateTime(entry.autosaveSavedAt)}`);
+  if (entry.missing) parts.push('FILE MISSING');
+  return parts.join(' · ');
+}
+
+function homeBadge(label, tone) {
+  const badge = document.createElement('span');
+  badge.className = `home-badge${tone ? ` ${tone}` : ''}`;
+  badge.textContent = label;
+  return badge;
+}
+
+function homeCardButton(label, onClick, extra = '') {
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.className = `home-mini${extra ? ` ${extra}` : ''}`;
+  button.textContent = label;
+  button.addEventListener('click', (event) => {
+    event.stopPropagation();
+    onClick();
+  });
+  return button;
+}
+
+function buildProjectHomeCard(entry) {
+  const card = document.createElement('article');
+  card.className = 'home-card';
+  if (activeProject?.id === entry.id) card.classList.add('current');
+  card.tabIndex = 0;
+  card.dataset.projectId = entry.id || '';
+  card.setAttribute('role', 'button');
+  card.setAttribute('aria-label', `Open ${entry.name || 'project'}`);
+  const main = document.createElement('div');
+  main.className = 'home-card-main';
+  const title = document.createElement('div');
+  title.className = 'home-card-title';
+  const name = document.createElement('span');
+  name.className = 'home-card-name';
+  name.textContent = entry.name || 'PROJECT';
+  title.appendChild(name);
+  if (activeProject?.id === entry.id) title.appendChild(homeBadge('CURRENT', 'current'));
+  if (entry.recoverable) title.appendChild(homeBadge('RECOVERABLE', 'recover'));
+  if (entry.missing) title.appendChild(homeBadge('FILE MISSING', 'broken'));
+  const meta = document.createElement('span');
+  meta.className = 'home-card-meta';
+  meta.textContent = homeCardMeta(entry);
+  main.append(title, meta);
+  const actions = document.createElement('div');
+  actions.className = 'home-card-actions';
+  actions.append(
+    homeCardButton('OPEN', () => openProjectById(entry.id)),
+    homeCardButton('RENAME', () => openHomeDialog('rename', entry)),
+    homeCardButton('DUPLICATE', () => duplicateProject(entry)),
+    homeCardButton('DELETE', () => openHomeDialog('delete', entry), 'danger')
+  );
+  card.append(main, actions);
+  card.addEventListener('click', (event) => {
+    if (event.target.closest('button')) return;
+    openProjectById(entry.id);
+  });
+  card.addEventListener('keydown', (event) => {
+    if (event.key !== 'Enter' && event.key !== ' ') return;
+    event.preventDefault();
+    openProjectById(entry.id);
+  });
+  return card;
+}
+
+function renderProjectHome(projects) {
+  const list = document.getElementById('homeProjectList');
+  const empty = document.getElementById('homeEmpty');
+  const count = document.getElementById('homeProjectCount');
+  if (count) count.textContent = String(projects.length);
+  if (list) list.textContent = '';
+  if (empty) empty.hidden = projects.length > 0 || Boolean(projectHomeLegacy);
+  if (!list) return;
+  for (const entry of projects) list.appendChild(buildProjectHomeCard(entry));
+  renderHomeRecovery();
+}
+
+function renderHomeRecovery() {
+  const box = document.getElementById('homeRecover');
+  const name = document.getElementById('homeRecoverName');
+  const meta = document.getElementById('homeRecoverMeta');
+  const button = document.getElementById('homeRecoverBtn');
+  if (!box) return;
+  const session = projectHomeSession?.recoverable ? projectHomeSession : null;
+  const legacy = projectHomeLegacy;
+  const candidate = legacy || session;
+  if (!candidate || homeRecoveryDismissed) { box.hidden = true; return; }
+  box.hidden = false;
+  if (name) name.textContent = String(candidate.name || 'LAST SESSION').toUpperCase();
+  if (meta) {
+    const source = legacy ? 'Unsaved session autosave' : 'Autosave newer than the saved project';
+    meta.textContent = `${source} · ${homeDateTime(candidate.savedAt)}`;
+  }
+  if (button) button.dataset.recoverId = legacy ? 'legacy' : String(session.projectId || '');
+}
+
+function showProjectHome(options = {}) {
+  if (!projectHomeEnabled()) return false;
+  projectHomeVisible = true;
+  if (playbackState.playing) stopPlayback(false);
+  const home = document.getElementById('projectHome');
+  if (home) home.hidden = false;
+  if (options.refresh !== false) {
+    setHomeStatus('');
+    loadProjectHome();
+  }
+  return true;
+}
+
+function hideProjectHome() {
+  projectHomeVisible = false;
+  const home = document.getElementById('projectHome');
+  if (home) home.hidden = true;
+}
+
+async function returnToProjectHome() {
+  if (!projectHomeEnabled()) return;
+  if (activeProject && durableContentSignature() !== durableLastLibrarySignature) {
+    setStatus('Saving project…', 'busy');
+    const entry = await saveProjectToLibrary();
+    if (!entry) {
+      const saved = await pushDurableProjectSave();
+      if (!saved && !window.confirm('The latest changes could not be saved. Return to Project Home anyway?')) {
+        setStatus('Project Home cancelled — the project was not saved.', 'err');
+        return;
+      }
+    }
+  }
+  showProjectHome();
+}
+
+function openHomeDialog(mode, entry = null) {
+  homeDialogMode = mode;
+  homeDialogProjectId = entry?.id || '';
+  homeDialogProjectName = entry?.name || '';
+  const dialog = document.getElementById('homeDialog');
+  const title = document.getElementById('homeDialogTitle');
+  const note = document.getElementById('homeDialogNote');
+  const input = document.getElementById('homeDialogInput');
+  const confirm = document.getElementById('homeDialogConfirm');
+  const error = document.getElementById('homeDialogError');
+  if (!dialog) return;
+  error.hidden = true;
+  error.textContent = '';
+  if (mode === 'new') {
+    title.textContent = 'NEW PROJECT';
+    note.textContent = 'Name the project. It starts from a fresh timeline and is saved on this machine.';
+    input.hidden = false;
+    input.value = 'UNTITLED PROJECT';
+    confirm.textContent = 'CREATE';
+    confirm.className = 'home-btn primary';
+  } else if (mode === 'rename') {
+    title.textContent = 'RENAME PROJECT';
+    note.textContent = 'The project file keeps its identity; only the display name changes.';
+    input.hidden = false;
+    input.value = entry?.name || '';
+    confirm.textContent = 'RENAME';
+    confirm.className = 'home-btn primary';
+  } else {
+    title.textContent = 'DELETE PROJECT';
+    note.textContent = `Delete ${entry?.name || 'this project'}? The project file and its autosave are removed from this machine. This cannot be undone.`;
+    input.hidden = true;
+    input.value = '';
+    confirm.textContent = 'DELETE';
+    confirm.className = 'home-btn danger';
+  }
+  dialog.hidden = false;
+  if (!input.hidden) {
+    input.focus();
+    input.select();
+  } else {
+    confirm.focus();
+  }
+}
+
+function closeHomeDialog() {
+  const dialog = document.getElementById('homeDialog');
+  if (dialog) dialog.hidden = true;
+}
+
+async function projectLibraryAction(path, body) {
+  const response = await fetch(buildApiUrl(path), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+  });
+  let data = {};
+  try { data = await response.json(); } catch (error) { data = {}; }
+  if (!response.ok || data?.ok === false) throw new Error(data?.error || `HTTP ${response.status}`);
+  return data;
+}
+
+function buildFreshProjectDocument(name) {
+  timelineHistorySuspended = true;
+  try {
+    try { localStorage.removeItem(TIMELINE_KEY); } catch (error) { console.error(error); }
+    loadTimelineState(false);
+    applyActiveClipToEditor({ preview: false, timing: false });
+  } finally {
+    timelineHistorySuspended = false;
+  }
+  try { localStorage.setItem('clipacanvas.projectName', name); } catch (error) { console.error(error); }
+  const doc = buildProjectFilePayload();
+  doc.projectId = '';
+  doc.projectName = name;
+  doc.savedAt = new Date().toISOString();
+  return doc;
+}
+
+function activateProjectEntry(entry, payload, options = {}) {
+  if (durableSaveTimer) {
+    clearTimeout(durableSaveTimer);
+    durableSaveTimer = null;
+  }
+  durableSaveQueued = false;
+  projectOpenInProgress = true;
+  try {
+    const applied = applyProjectPayload(
+      { ...payload, projectName: payload?.projectName || entry?.name || 'PROJECT' },
+      { confirm: false }
+    );
+    if (!applied) throw new Error('The project could not be opened.');
+    activeProject = {
+      id: entry.id,
+      name: String(payload?.projectName || entry.name || 'PROJECT'),
+      file: entry.file || '',
+      savedAt: entry.savedAt || ''
+    };
+    durableLastSignature = durableContentSignature();
+    // A recovered autosave is newer than the project file, so the library copy
+    // stays stale until the user returns Home; force that save then.
+    durableLastLibrarySignature = options.recoveredFromAutosave ? '' : durableLastSignature;
+    applyProjectName(activeProject.name);
+    try { localStorage.setItem('clipacanvas.projectName', activeProject.name); }
+    catch (error) { console.error(error); }
+    hideProjectHome();
+    refreshProjectLibrary();
+    setStatus(`PROJECT OPENED · ${activeProject.name}`, 'ok');
+  } finally {
+    projectOpenInProgress = false;
+  }
+  checkProjectMediaHealth(activeProject);
+}
+
+async function createProjectFromHome(name) {
+  const display = String(name || '').trim().slice(0, 60);
+  if (!display) throw new Error('Enter a project name.');
+  const doc = buildFreshProjectDocument(display);
+  const data = await projectLibraryAction('/api/projects', { name: display, project: doc });
+  const entry = data.project;
+  if (!entry?.id) throw new Error('The project could not be created.');
+  activateProjectEntry(entry, { ...doc, projectId: entry.id, projectName: display, savedAt: entry.savedAt });
+}
+
+async function importProjectIntoLibrary(payload) {
+  const name = String(payload.projectName || 'RECOVERED SESSION').trim() || 'RECOVERED SESSION';
+  const data = await projectLibraryAction('/api/projects', {
+    name,
+    project: { ...payload, projectId: '', savedAt: new Date().toISOString() }
+  });
+  if (!data?.project?.id) throw new Error('The recovered project could not be added to the library.');
+  return data.project;
+}
+
+async function openProjectById(projectId, options = {}) {
+  if (!projectId) return;
+  if (options.confirm && !window.confirm('Open this project? The current timeline will be replaced.')) return;
+  setHomeStatus('Opening project…', '');
+  try {
+    const endpoint = options.recover ? 'recover' : 'open';
+    const response = await fetch(buildApiUrl(`/api/projects/${endpoint}?id=${encodeURIComponent(projectId)}`));
+    let data = {};
+    try { data = await response.json(); } catch (error) { data = {}; }
+    if (!response.ok || !data?.project) {
+      throw new Error(data?.error || `The project could not be opened (HTTP ${response.status}).`);
+    }
+    const payload = data.project;
+    const entry = data.entry || await importProjectIntoLibrary(payload);
+    activateProjectEntry(entry, payload, { recoveredFromAutosave: Boolean(options.recover) && !data.legacy });
+    if (!projectHomeEnabled() && activeProject) {
+      // Editor-first surfaces (plain browser/dev) keep the legacy single-slot
+      // autosave; opening from the in-editor library must not switch stores.
+      activeProject = null;
+      durableLastSignature = '';
+      durableLastLibrarySignature = '';
+    }
+    setHomeStatus('');
+  } catch (error) {
+    setHomeStatus(error?.message || 'The project could not be opened.', 'err');
+  }
+}
+
+async function renameActiveProject(name) {
+  if (!activeProject) return;
+  try {
+    const data = await projectLibraryAction('/api/projects/rename', { id: activeProject.id, name });
+    activeProject = { ...activeProject, name: data.project?.name || String(name).toUpperCase() };
+    durableLastSignature = durableContentSignature();
+    durableLastLibrarySignature = durableLastSignature;
+    setStatus(`PROJECT RENAMED · ${activeProject.name}`, 'ok');
+  } catch (error) {
+    setStatus(`Project rename failed: ${error?.message || error}`, 'err');
+  }
+}
+
+async function renameProjectInLibrary(projectId, name) {
+  const data = await projectLibraryAction('/api/projects/rename', { id: projectId, name });
+  if (activeProject?.id === projectId) {
+    activeProject = { ...activeProject, name: data.project?.name || String(name).toUpperCase() };
+    applyProjectName(name);
+  }
+  setHomeStatus(`RENAMED · ${data.project?.name || String(name).toUpperCase()}`, 'ok');
+  return data.project;
+}
+
+async function duplicateProject(entry) {
+  setHomeStatus(`Duplicating ${entry.name || 'project'}…`, '');
+  try {
+    const data = await projectLibraryAction('/api/projects/duplicate', { id: entry.id });
+    setHomeStatus(`DUPLICATED · ${data.project?.name || 'PROJECT COPY'}`, 'ok');
+    await loadProjectHome();
+  } catch (error) {
+    setHomeStatus(error?.message || 'The project could not be duplicated.', 'err');
+  }
+}
+
+async function deleteProjectInLibrary(projectId) {
+  const label = homeDialogProjectName || projectId.toUpperCase();
+  const data = await projectLibraryAction('/api/projects/delete', { id: projectId });
+  if (activeProject?.id === projectId) {
+    activeProject = null;
+    durableLastSignature = '';
+    durableLastLibrarySignature = '';
+  }
+  setHomeStatus(`DELETED · ${label}`, 'ok');
+  return data;
+}
+
+async function recoverProjectSession() {
+  const button = document.getElementById('homeRecoverBtn');
+  const id = button?.dataset.recoverId || (projectHomeLegacy ? 'legacy' : '');
+  if (!id) return;
+  await openProjectById(id, { recover: true });
+}
+
+async function checkProjectMediaHealth(project) {
+  const urls = Array.from(new Set(timelineState.assets.map(asset => asset.url).filter(Boolean)));
+  if (!urls.length) return;
+  let missing = 0;
+  await Promise.all(urls.slice(0, 80).map(async (url) => {
+    try {
+      const response = await fetch(url, { method: 'HEAD' });
+      if (!response.ok) missing += 1;
+    } catch (error) {
+      missing += 1;
+    }
+  }));
+  if (missing > 0) {
+    setStatus(`${project?.name || 'PROJECT'} · ${missing} MEDIA FILE${missing === 1 ? '' : 'S'} MISSING FROM DISK`, 'err');
+  }
+}
+
+async function submitHomeDialog() {
+  const confirm = document.getElementById('homeDialogConfirm');
+  const error = document.getElementById('homeDialogError');
+  const input = document.getElementById('homeDialogInput');
+  const fail = (message) => {
+    error.textContent = message;
+    error.hidden = false;
+  };
+  error.hidden = true;
+  if (!confirm || confirm.disabled) return;
+  if (homeDialogMode === 'new') {
+    const name = String(input?.value || '').trim().slice(0, 60);
+    if (!name) return fail('Enter a project name.');
+    confirm.disabled = true;
+    try {
+      await createProjectFromHome(name);
+      closeHomeDialog();
+    } catch (err) {
+      fail(err?.message || 'The project could not be created.');
+    } finally {
+      confirm.disabled = false;
+    }
+    return;
+  }
+  if (homeDialogMode === 'rename') {
+    const name = String(input?.value || '').trim().slice(0, 60);
+    if (!name) return fail('Enter a project name.');
+    confirm.disabled = true;
+    try {
+      await renameProjectInLibrary(homeDialogProjectId, name);
+      closeHomeDialog();
+      await loadProjectHome();
+    } catch (err) {
+      fail(err?.message || 'The project could not be renamed.');
+    } finally {
+      confirm.disabled = false;
+    }
+    return;
+  }
+  confirm.disabled = true;
+  try {
+    await deleteProjectInLibrary(homeDialogProjectId);
+    closeHomeDialog();
+    await loadProjectHome();
+  } catch (err) {
+    fail(err?.message || 'The project could not be deleted.');
+  } finally {
+    confirm.disabled = false;
+  }
+}
+
+function initProjectHome() {
+  const homeButton = document.getElementById('projectHomeBtn');
+  if (homeButton) {
+    homeButton.hidden = !projectHomeEnabled();
+    homeButton.addEventListener('click', () => returnToProjectHome());
+  }
+  document.getElementById('homeNew')?.addEventListener('click', () => openHomeDialog('new'));
+  document.getElementById('homeEmptyNew')?.addEventListener('click', () => openHomeDialog('new'));
+  document.getElementById('homeOpen')?.addEventListener('click', openProjectFile);
+  document.getElementById('homeOpenFile')?.addEventListener('click', openProjectFile);
+  document.getElementById('homeRefresh')?.addEventListener('click', loadProjectHome);
+  document.getElementById('homeRecoverBtn')?.addEventListener('click', recoverProjectSession);
+  document.getElementById('homeRecoverDismiss')?.addEventListener('click', () => {
+    homeRecoveryDismissed = true;
+    renderHomeRecovery();
+    const empty = document.getElementById('homeEmpty');
+    const list = document.getElementById('homeProjectList');
+    if (empty && !list?.childElementCount) empty.hidden = false;
+  });
+  document.getElementById('homeDialogCancel')?.addEventListener('click', closeHomeDialog);
+  document.getElementById('homeDialogConfirm')?.addEventListener('click', submitHomeDialog);
+  const dialog = document.getElementById('homeDialog');
+  dialog?.addEventListener('pointerdown', (event) => {
+    if (event.target === dialog) closeHomeDialog();
+  });
+  document.getElementById('homeDialogInput')?.addEventListener('keydown', (event) => {
+    if (event.key !== 'Enter') return;
+    event.preventDefault();
+    submitHomeDialog();
+  });
+  document.addEventListener('keydown', (event) => {
+    if (event.key !== 'Escape') return;
+    if (dialog && !dialog.hidden) closeHomeDialog();
   });
 }
 
@@ -15550,6 +16497,7 @@ function initLogicTimeline() {
   });
 
   document.addEventListener('keydown', (event) => {
+    if (projectHomeVisible) return;
     const target = event.target;
     if (target && (target.closest('input, textarea, select, [contenteditable="true"]') || target.closest('.monaco-editor'))) return;
     if (event.ctrlKey || event.metaKey) {
@@ -15844,7 +16792,13 @@ function initControlRoom() {
   initChatShortcut();
   initChatHistoryPopover();
   initLogicTimeline();
-  restoreDurableProject();
+  initProjectHome();
+  if (projectHomeEnabled()) {
+    projectRestoreState = 'project-home';
+    showProjectHome();
+  } else {
+    restoreDurableProject();
+  }
   renderProjectBin();
   switchRightTab('inspector');
   const latestRun = readRunHistory()[0];

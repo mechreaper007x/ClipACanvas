@@ -24,6 +24,7 @@ import platform
 import urllib.request
 import urllib.error
 import urllib.parse
+from datetime import datetime, timezone
 from pathlib import Path
 from http.server import ThreadingHTTPServer, SimpleHTTPRequestHandler
 
@@ -563,7 +564,10 @@ def _media_dir() -> Path:
 PROJECT_FORMAT = "clipacanvas-project"
 PROJECT_VERSION = 1
 PROJECT_AUTOSAVE_NAME = "autosave.ccproj.json"
+PROJECT_SESSION_NAME = "session.json"
+PROJECT_AUTOSAVE_SUFFIX = ".autosave.ccproj.json"
 PROJECT_FILE_RE = re.compile(r"^(?!autosave)[a-z0-9][a-z0-9-]{0,63}\.ccproj\.json$")
+PROJECT_ID_RE = re.compile(r"^[a-z0-9][a-z0-9-]{0,63}$")
 PROJECT_MAX_BYTES = 8 * 1024 * 1024
 
 
@@ -587,6 +591,10 @@ def _write_text_atomic(path: Path, text: str) -> None:
     temp = path.with_name(f".{path.name}.{os.urandom(4).hex()}.tmp")
     temp.write_text(text, encoding="utf-8")
     os.replace(temp, path)
+
+
+def _now_iso() -> str:
+    return datetime.now(timezone.utc).isoformat(timespec="milliseconds").replace("+00:00", "Z")
 
 
 def _validate_project_doc(doc) -> str:
@@ -621,6 +629,91 @@ def _read_project_index() -> list[dict]:
 
 def _write_project_index(entries: list[dict]) -> None:
     _write_text_atomic(_projects_dir() / "index.json", json.dumps(entries, indent=2))
+
+
+def _project_autosave_path(project_id: str) -> Path:
+    return _projects_dir() / f"{project_id}{PROJECT_AUTOSAVE_SUFFIX}"
+
+
+def _read_json_path(path: Path):
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+
+
+def _project_saved_at(path: Path) -> str:
+    doc = _read_json_path(path)
+    if isinstance(doc, dict) and isinstance(doc.get("savedAt"), str):
+        return doc["savedAt"]
+    try:
+        stamp = datetime.fromtimestamp(path.stat().st_mtime, timezone.utc)
+        return stamp.isoformat(timespec="milliseconds").replace("+00:00", "Z")
+    except OSError:
+        return ""
+
+
+def _project_entry_id(entry: dict) -> str:
+    value = str(entry.get("id") or "")
+    if PROJECT_ID_RE.match(value):
+        return value
+    match = re.match(r"^([a-z0-9][a-z0-9-]{0,63})\.ccproj\.json$", str(entry.get("file") or ""))
+    return match.group(1) if match else ""
+
+
+def _find_project_entry(entries: list[dict], project_id: str):
+    return next((entry for entry in entries if _project_entry_id(entry) == project_id), None)
+
+
+def _project_entry_meta(entry: dict) -> dict:
+    project_id = _project_entry_id(entry)
+    file_name = str(entry.get("file") or "")
+    file_path = _projects_dir() / file_name
+    doc = _read_json_path(file_path) if PROJECT_FILE_RE.match(file_name) else None
+    readable = isinstance(doc, dict)
+    saved_at = ""
+    if readable:
+        saved_at = doc.get("savedAt") if isinstance(doc.get("savedAt"), str) else _project_saved_at(file_path)
+    autosave_saved_at = _project_saved_at(_project_autosave_path(project_id)) if project_id else ""
+    recoverable = bool(autosave_saved_at) and (not saved_at or autosave_saved_at > saved_at)
+    return {
+        "id": project_id,
+        "name": str(entry.get("name") or "PROJECT"),
+        "file": file_name,
+        "savedAt": saved_at or str(entry.get("savedAt") or ""),
+        "createdAt": str(entry.get("createdAt") or ""),
+        "autosaveSavedAt": autosave_saved_at,
+        "recoverable": recoverable,
+        "missing": not readable,
+    }
+
+
+def _unique_project_stem(display: str, entries: list[dict]) -> str:
+    slug = re.sub(r"[^a-z0-9]+", "-", display.lower()).strip("-")[:48] or "project"
+    used = {str(entry.get("file") or "") for entry in entries}
+    stem = slug
+    counter = 2
+    while f"{stem}.ccproj.json" in used:
+        stem = f"{slug}-{counter}"
+        counter += 1
+    return stem
+
+
+def _session_path() -> Path:
+    return _projects_dir() / PROJECT_SESSION_NAME
+
+
+def _read_session():
+    session = _read_json_path(_session_path())
+    return session if isinstance(session, dict) else None
+
+
+def _write_session(project_id: str, name: str, saved_at: str) -> None:
+    _write_text_atomic(_session_path(), json.dumps({
+        "projectId": project_id,
+        "name": name,
+        "savedAt": saved_at,
+    }, ensure_ascii=False))
 
 
 ANALYSIS_VERSION = 2
@@ -2002,6 +2095,10 @@ class ClipACanvasHandler(SimpleHTTPRequestHandler):
             parsed = urllib.parse.urlparse(self.path)
             if parsed.path == '/api/projects/open':
                 return self._handle_projects_open(urllib.parse.parse_qs(parsed.query))
+            if parsed.path == '/api/projects/recover':
+                return self._handle_projects_recover(urllib.parse.parse_qs(parsed.query))
+            if parsed.path == '/api/projects/session':
+                return self._handle_projects_session()
             if parsed.path == '/render/frames':
                 return self._handle_render_frames(urllib.parse.parse_qs(parsed.query))
             if parsed.path.startswith('/api/media/frames/'):
@@ -2037,6 +2134,12 @@ class ClipACanvasHandler(SimpleHTTPRequestHandler):
                 self._handle_agent_plan_post()
             elif self.path == '/api/projects':
                 self._handle_projects_post()
+            elif self.path == '/api/projects/rename':
+                self._handle_projects_rename()
+            elif self.path == '/api/projects/duplicate':
+                self._handle_projects_duplicate()
+            elif self.path == '/api/projects/delete':
+                self._handle_projects_delete()
             elif self.path == '/api/media':
                 self._handle_media_upload()
             elif self.path == '/api/media/analyze':
@@ -2932,11 +3035,30 @@ class ClipACanvasHandler(SimpleHTTPRequestHandler):
         error = _validate_project_doc(doc)
         if error:
             return self._send_json({'ok': False, 'error': error}, 400)
+        project_id = str(doc.get('projectId') or '').strip()
+        if project_id:
+            if not PROJECT_ID_RE.match(project_id):
+                return self._send_json({'ok': False, 'error': 'Invalid project id.'}, 400)
+            entry = _find_project_entry(_read_project_index(), project_id)
+            if entry is None:
+                return self._send_json({'ok': False, 'error': 'Project is not in the project library.'}, 409)
+            try:
+                _write_text_atomic(_project_autosave_path(project_id), json.dumps(doc, ensure_ascii=False))
+                _write_session(project_id, str(entry.get('name') or ''), str(doc.get('savedAt') or ''))
+            except OSError as exc:
+                return self._send_json({'ok': False, 'error': f'Project autosave failed: {exc}'}, 500)
+            return self._send_json({
+                'ok': True,
+                'projectId': project_id,
+                'savedAt': str(doc.get('savedAt') or ''),
+                'bytes': len(raw),
+            })
+        # Legacy single-slot autosave for surfaces that are not project-aware.
         try:
             _write_text_atomic(_projects_dir() / PROJECT_AUTOSAVE_NAME, json.dumps(doc, ensure_ascii=False))
         except OSError as exc:
             return self._send_json({'ok': False, 'error': f'Project autosave failed: {exc}'}, 500)
-        self._send_json({'ok': True, 'savedAt': str(doc.get('savedAt') or ''), 'bytes': len(raw)})
+        self._send_json({'ok': True, 'savedAt': str(doc.get('savedAt') or ''), 'bytes': len(raw), 'legacy': True})
 
     def _handle_project_get(self):
         path = _projects_dir() / PROJECT_AUTOSAVE_NAME
@@ -2947,7 +3069,41 @@ class ClipACanvasHandler(SimpleHTTPRequestHandler):
         self._send_json({'ok': True, 'project': doc})
 
     def _handle_projects_get(self):
-        self._send_json({'ok': True, 'projects': _read_project_index()})
+        entries = _read_project_index()
+        self._send_json({'ok': True, 'projects': [_project_entry_meta(entry) for entry in entries]})
+
+    def _handle_projects_session(self):
+        entries = _read_project_index()
+        session = _read_session()
+        payload = None
+        if session:
+            project_id = str(session.get('projectId') or '')
+            valid_id = bool(PROJECT_ID_RE.match(project_id))
+            entry = _find_project_entry(entries, project_id) if valid_id else None
+            saved_at = _project_saved_at(_projects_dir() / str(entry.get('file'))) if entry else ''
+            autosave_saved_at = _project_saved_at(_project_autosave_path(project_id)) if valid_id else ''
+            recoverable = bool(autosave_saved_at) and (not saved_at or autosave_saved_at > saved_at)
+            payload = {
+                'projectId': project_id,
+                'name': str((entry or {}).get('name') or session.get('name') or 'LAST SESSION'),
+                'savedAt': autosave_saved_at or str(session.get('savedAt') or ''),
+                'recoverable': recoverable,
+                'missing': entry is None,
+            }
+        legacy = None
+        legacy_doc = _read_json_path(_projects_dir() / PROJECT_AUTOSAVE_NAME)
+        if isinstance(legacy_doc, dict) and legacy_doc.get('format') == PROJECT_FORMAT:
+            legacy_saved = legacy_doc.get('savedAt') if isinstance(legacy_doc.get('savedAt'), str) else ''
+            # Compare against recorded save times only; a corrupt file's mtime
+            # must not hide a genuinely newer legacy autosave.
+            newest = max((str(entry.get('savedAt') or _project_entry_meta(entry)['savedAt']) for entry in entries), default='')
+            if legacy_saved and legacy_saved > newest:
+                legacy = {
+                    'legacy': True,
+                    'name': str(legacy_doc.get('projectName') or 'LAST SESSION'),
+                    'savedAt': legacy_saved,
+                }
+        self._send_json({'ok': True, 'session': payload, 'legacy': legacy})
 
     def _handle_projects_post(self):
         raw = self._read_project_body()
@@ -2963,40 +3119,215 @@ class ClipACanvasHandler(SimpleHTTPRequestHandler):
         error = _validate_project_doc(doc)
         if error:
             return self._send_json({'ok': False, 'error': error}, 400)
-        display = str(body.get('name') or doc.get('projectName') or 'project').strip()[:60] or 'project'
-        slug = re.sub(r'[^a-z0-9]+', '-', display.lower()).strip('-')[:48] or 'project'
         entries = _read_project_index()
-        used = {entry['file'] for entry in entries}
-        stem = slug
-        counter = 2
-        while f'{stem}.ccproj.json' in used:
-            stem = f'{slug}-{counter}'
-            counter += 1
+        project_id = str(body.get('id') or '').strip()
+        display = str(body.get('name') or doc.get('projectName') or 'project').strip()[:60] or 'project'
+        if project_id:
+            entry = _find_project_entry(entries, project_id)
+            if entry is None:
+                return self._send_json({'ok': False, 'error': 'Project not found.'}, 404)
+            file_name = str(entry.get('file') or '')
+            if not PROJECT_FILE_RE.match(file_name):
+                return self._send_json({'ok': False, 'error': 'Project file name is invalid.'}, 400)
+            doc = dict(doc)
+            doc['projectId'] = project_id
+            doc['projectName'] = display
+            saved_at = str(doc.get('savedAt') or '') or _now_iso()
+            doc['savedAt'] = saved_at
+            try:
+                _write_text_atomic(_projects_dir() / file_name, json.dumps(doc, ensure_ascii=False))
+            except OSError as exc:
+                return self._send_json({'ok': False, 'error': f'Project save failed: {exc}'}, 500)
+            entry = dict(entry)
+            entry['id'] = project_id
+            entry['name'] = display.upper()
+            entry['savedAt'] = saved_at
+            entries = [item for item in entries if _project_entry_id(item) != project_id]
+            entries.insert(0, entry)
+            _write_project_index(entries[:50])
+            session = _read_session()
+            if session and session.get('projectId') == project_id:
+                _write_session(project_id, entry['name'], saved_at)
+            return self._send_json({'ok': True, 'project': _project_entry_meta(entry)})
+        stem = _unique_project_stem(display, entries)
         filename = f'{stem}.ccproj.json'
         if not PROJECT_FILE_RE.match(filename):
             return self._send_json({'ok': False, 'error': 'Project name cannot be used as a file name.'}, 400)
-        saved_at = str(doc.get('savedAt') or '')
+        doc = dict(doc)
+        doc['projectId'] = stem
+        doc['projectName'] = display
+        doc['savedAt'] = _now_iso()
         try:
             _write_text_atomic(_projects_dir() / filename, json.dumps(doc, ensure_ascii=False))
-            _write_text_atomic(_projects_dir() / PROJECT_AUTOSAVE_NAME, json.dumps(doc, ensure_ascii=False))
-            entry = {'id': stem, 'name': display.upper(), 'file': filename, 'savedAt': saved_at}
-            entries = [item for item in entries if item.get('file') != filename]
+            entry = {
+                'id': stem,
+                'name': display.upper(),
+                'file': filename,
+                'savedAt': doc['savedAt'],
+                'createdAt': doc['savedAt'],
+            }
             entries.insert(0, entry)
             _write_project_index(entries[:50])
         except OSError as exc:
             return self._send_json({'ok': False, 'error': f'Project save failed: {exc}'}, 500)
-        self._send_json({'ok': True, 'project': entry})
+        self._send_json({'ok': True, 'project': _project_entry_meta(entry)})
+
+    def _handle_projects_rename(self):
+        raw = self._read_project_body()
+        if raw is None:
+            return
+        try:
+            body = json.loads(raw.decode('utf-8'))
+        except (UnicodeDecodeError, ValueError):
+            return self._send_json({'ok': False, 'error': 'Project payload is not valid JSON.'}, 400)
+        if not isinstance(body, dict):
+            return self._send_json({'ok': False, 'error': 'Project payload is not valid.'}, 400)
+        project_id = str(body.get('id') or '').strip()
+        name = str(body.get('name') or '').strip()[:60]
+        if not name:
+            return self._send_json({'ok': False, 'error': 'Project name is required.'}, 400)
+        entries = _read_project_index()
+        entry = _find_project_entry(entries, project_id)
+        file_name = str((entry or {}).get('file') or '')
+        if entry is None or not PROJECT_FILE_RE.match(file_name):
+            return self._send_json({'ok': False, 'error': 'Project not found.'}, 404)
+        file_path = _projects_dir() / file_name
+        doc = _read_json_path(file_path)
+        if not isinstance(doc, dict):
+            return self._send_json({'ok': False, 'error': 'Project file could not be read.'}, 500)
+        doc['projectName'] = name
+        doc['projectId'] = project_id
+        try:
+            _write_text_atomic(file_path, json.dumps(doc, ensure_ascii=False))
+        except OSError as exc:
+            return self._send_json({'ok': False, 'error': f'Project rename failed: {exc}'}, 500)
+        entry = dict(entry)
+        entry['id'] = project_id
+        entry['name'] = name.upper()
+        entries = [item for item in entries if _project_entry_id(item) != project_id]
+        entries.insert(0, entry)
+        _write_project_index(entries[:50])
+        autosave_path = _project_autosave_path(project_id)
+        autosave_doc = _read_json_path(autosave_path)
+        if isinstance(autosave_doc, dict):
+            autosave_doc['projectName'] = name
+            autosave_doc['projectId'] = project_id
+            try:
+                _write_text_atomic(autosave_path, json.dumps(autosave_doc, ensure_ascii=False))
+            except OSError:
+                pass
+        session = _read_session()
+        if session and session.get('projectId') == project_id:
+            session['name'] = entry['name']
+            _write_text_atomic(_session_path(), json.dumps(session, ensure_ascii=False))
+        self._send_json({'ok': True, 'project': _project_entry_meta(entry)})
+
+    def _handle_projects_duplicate(self):
+        raw = self._read_project_body()
+        if raw is None:
+            return
+        try:
+            body = json.loads(raw.decode('utf-8'))
+        except (UnicodeDecodeError, ValueError):
+            return self._send_json({'ok': False, 'error': 'Project payload is not valid JSON.'}, 400)
+        if not isinstance(body, dict):
+            return self._send_json({'ok': False, 'error': 'Project payload is not valid.'}, 400)
+        project_id = str(body.get('id') or '').strip()
+        entries = _read_project_index()
+        entry = _find_project_entry(entries, project_id)
+        file_name = str((entry or {}).get('file') or '')
+        if entry is None or not PROJECT_FILE_RE.match(file_name):
+            return self._send_json({'ok': False, 'error': 'Project not found.'}, 404)
+        doc = _read_json_path(_projects_dir() / file_name)
+        if not isinstance(doc, dict):
+            return self._send_json({'ok': False, 'error': 'Project file could not be read.'}, 500)
+        base_name = str(entry.get('name') or 'PROJECT')
+        taken = {str(item.get('name') or '').upper() for item in entries}
+        display = f'{base_name} COPY'
+        counter = 2
+        while display.upper() in taken:
+            display = f'{base_name} COPY {counter}'
+            counter += 1
+        stem = _unique_project_stem(display, entries)
+        doc = dict(doc)
+        doc['projectName'] = display
+        doc['projectId'] = stem
+        doc['savedAt'] = _now_iso()
+        try:
+            _write_text_atomic(_projects_dir() / f'{stem}.ccproj.json', json.dumps(doc, ensure_ascii=False))
+            copy_entry = {
+                'id': stem,
+                'name': display.upper(),
+                'file': f'{stem}.ccproj.json',
+                'savedAt': doc['savedAt'],
+                'createdAt': doc['savedAt'],
+            }
+            entries.insert(0, copy_entry)
+            _write_project_index(entries[:50])
+        except OSError as exc:
+            return self._send_json({'ok': False, 'error': f'Project duplicate failed: {exc}'}, 500)
+        self._send_json({'ok': True, 'project': _project_entry_meta(copy_entry)})
+
+    def _handle_projects_delete(self):
+        raw = self._read_project_body()
+        if raw is None:
+            return
+        try:
+            body = json.loads(raw.decode('utf-8'))
+        except (UnicodeDecodeError, ValueError):
+            return self._send_json({'ok': False, 'error': 'Project payload is not valid JSON.'}, 400)
+        if not isinstance(body, dict):
+            return self._send_json({'ok': False, 'error': 'Project payload is not valid.'}, 400)
+        project_id = str(body.get('id') or '').strip()
+        entries = _read_project_index()
+        entry = _find_project_entry(entries, project_id)
+        if entry is None:
+            return self._send_json({'ok': False, 'error': 'Project not found.'}, 404)
+        file_name = str(entry.get('file') or '')
+        if PROJECT_FILE_RE.match(file_name):
+            try:
+                (_projects_dir() / file_name).unlink(missing_ok=True)
+            except OSError as exc:
+                return self._send_json({'ok': False, 'error': f'Project file could not be removed: {exc}'}, 500)
+        try:
+            _project_autosave_path(project_id).unlink(missing_ok=True)
+        except OSError:
+            pass
+        entries = [item for item in entries if _project_entry_id(item) != project_id]
+        _write_project_index(entries[:50])
+        session = _read_session()
+        if session and session.get('projectId') == project_id:
+            try:
+                _session_path().unlink(missing_ok=True)
+            except OSError:
+                pass
+        self._send_json({'ok': True, 'deleted': project_id})
 
     def _handle_projects_open(self, query):
         project_id = str((query.get('id') or [''])[0]).strip()
-        entry = next((item for item in _read_project_index() if item.get('id') == project_id), None)
-        if entry is None or not PROJECT_FILE_RE.match(str(entry.get('file') or '')):
+        entry = _find_project_entry(_read_project_index(), project_id)
+        file_name = str((entry or {}).get('file') or '')
+        if entry is None or not PROJECT_FILE_RE.match(file_name):
             return self._send_json({'ok': False, 'error': 'Project not found.'}, 404)
-        try:
-            doc = json.loads((_projects_dir() / entry['file']).read_text(encoding='utf-8'))
-        except (OSError, ValueError):
+        doc = _read_json_path(_projects_dir() / file_name)
+        if doc is None:
             return self._send_json({'ok': False, 'error': 'Project file could not be read.'}, 500)
-        self._send_json({'ok': True, 'project': doc, 'entry': entry})
+        self._send_json({'ok': True, 'project': doc, 'entry': _project_entry_meta(entry)})
+
+    def _handle_projects_recover(self, query):
+        project_id = str((query.get('id') or [''])[0]).strip()
+        if project_id == 'legacy':
+            doc = _read_json_path(_projects_dir() / PROJECT_AUTOSAVE_NAME)
+            if not isinstance(doc, dict) or _validate_project_doc(doc):
+                return self._send_json({'ok': False, 'error': 'No recoverable session was found.'}, 404)
+            return self._send_json({'ok': True, 'project': doc, 'entry': None, 'legacy': True})
+        entry = _find_project_entry(_read_project_index(), project_id)
+        if entry is None:
+            return self._send_json({'ok': False, 'error': 'Project not found.'}, 404)
+        doc = _read_json_path(_project_autosave_path(project_id))
+        if not isinstance(doc, dict) or _validate_project_doc(doc):
+            return self._send_json({'ok': False, 'error': 'No recoverable autosave was found for this project.'}, 404)
+        self._send_json({'ok': True, 'project': doc, 'entry': _project_entry_meta(entry), 'legacy': False})
 
     def _handle_agent_plan_post(self):
         try:
