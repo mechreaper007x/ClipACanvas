@@ -224,6 +224,13 @@ a {
   box-shadow: 0 14px 34px rgba(215, 255, 67, 0.2);
 }
 
+.button-android {
+  color: #050708;
+  background: linear-gradient(135deg, var(--mint), #c4ffea);
+  box-shadow: 0 14px 34px rgba(116, 255, 176, 0.2);
+  border: 1px solid rgba(116, 255, 176, 0.25);
+}
+
 .button-secondary {
   background: rgba(255, 255, 255, 0.03);
   color: var(--text);

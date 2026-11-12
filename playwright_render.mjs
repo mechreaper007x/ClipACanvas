@@ -254,7 +254,10 @@ async function captureFrames(page, settings) {
     maxDuration,
     minDuration,
     settleWindow,
-    tempDir
+    tempDir,
+    renderStart,
+    renderEnd,
+    renderEndExplicit
   } = settings;
 
   const frameTimes = [];
@@ -267,9 +270,23 @@ async function captureFrames(page, settings) {
       : { activeAnimations: 0, hasInfiniteAnimation: false, suggestedDurationMs: 0 }
   ));
   const targetDuration = resolveTargetDuration(initialMeta, minDuration, maxDuration, contentMode);
-  const frameTotal = Math.ceil(targetDuration * frameRate) + 2;
+  let endTime;
+  let captureDuration;
+  if (renderEndExplicit) {
+    endTime = renderEnd;
+    captureDuration = Math.max(targetDuration, endTime, renderStart);
+  } else {
+    endTime = targetDuration;
+    if (renderStart >= endTime) {
+      throw new Error(`Render start (${renderStart.toFixed(2)}s) is beyond the auto duration (${endTime.toFixed(2)}s).`);
+    }
+    captureDuration = targetDuration;
+  }
+  const frameTotal = Math.ceil(captureDuration * frameRate) + 2;
+  const startFrame = Math.max(0, Math.min(frameTotal - 1, Math.floor(renderStart * frameRate)));
+  const endFrame = Math.min(frameTotal, Math.max(startFrame + 1, Math.ceil(endTime * frameRate)));
 
-  for (let index = 0; index < frameTotal; index++) {
+  for (let index = startFrame; index < endFrame; index++) {
     const t = Number((index / frameRate).toFixed(4));
     await page.evaluate(seconds => {
       if (typeof window.__clipacanvasSetTime === 'function') {
@@ -284,7 +301,7 @@ async function captureFrames(page, settings) {
       lastChangeTime = t;
     }
 
-    const framePath = path.join(tempDir, `frame${String(index).padStart(5, '0')}.png`);
+    const framePath = path.join(tempDir, `frame${String(frameTimes.length).padStart(5, '0')}.png`);
     await fs.writeFile(framePath, buffer);
     frameTimes.push(t);
 
@@ -295,14 +312,16 @@ async function captureFrames(page, settings) {
     ));
 
     const idleFor = t - lastChangeTime;
-    const settled = t >= minDuration && idleFor >= settleWindow && meta.activeAnimations === 0;
+    // Only auto mode may stop early when the animation settles; explicit
+    // frame ranges are rendered to the requested end.
+    const settled = !renderEndExplicit && t >= minDuration && idleFor >= settleWindow && meta.activeAnimations === 0;
     if (settled) {
-      return { frameTimes, capped: false };
+      return { frameTimes, capped: false, targetDuration, endTime };
     }
   }
 
   capped = true;
-  return { frameTimes, capped };
+  return { frameTimes, capped, targetDuration, endTime };
 }
 
 async function main() {
@@ -313,11 +332,34 @@ async function main() {
     height,
     bitrate = '5M',
     contentMode = 'dom',
-    frameRate = 60,
     maxDuration = 12,
     minDuration = 0.35,
-    settleWindow = 0.45
+    settleWindow = 0.45,
+    gpuBoost = false
   } = payload;
+  const ENCODERS = {
+    h264: 'libx264',
+    h265: 'libx265',
+    hevc: 'libx265',
+    vp9: 'libvpx-vp9',
+    vp8: 'libvpx',
+    av1: 'libaom-av1',
+    prores: 'prores_ks',
+    gif: 'gif'
+  };
+  let codec = String(payload.codec || 'h264').toLowerCase().trim();
+  if (!ENCODERS[codec]) codec = 'h264';
+  let frameRate = Number(payload.frameRate) || 60;
+  if (codec === 'gif' && frameRate > 50) frameRate = 50;
+  const renderStart = Math.max(0, Math.min(HARD_MAX_DURATION_SECONDS, Number(payload.renderStart) || 0));
+  const rawEnd = payload.renderEnd;
+  const renderEndExplicit = rawEnd !== null && rawEnd !== undefined && String(rawEnd).trim() !== '';
+  const renderEnd = renderEndExplicit
+    ? Math.max(0, Math.min(HARD_MAX_DURATION_SECONDS, Number(rawEnd) || 0))
+    : null;
+  if (renderEndExplicit && renderEnd <= renderStart) {
+    throw new Error('Render end must be greater than render start.');
+  }
   const safeMaxDuration = Math.min(
     HARD_MAX_DURATION_SECONDS,
     Math.max(0.35, Number(maxDuration) || 12)
@@ -331,10 +373,11 @@ async function main() {
   let browser;
 
   try {
-    browser = await chromium.launch({
-      headless: true,
-      args: ['--disable-dev-shm-usage', '--hide-scrollbars', '--mute-audio']
-    });
+    const launchArgs = ['--disable-dev-shm-usage', '--hide-scrollbars', '--mute-audio'];
+    if (gpuBoost) {
+      launchArgs.push('--ignore-gpu-blocklist', '--enable-gpu-rasterization', '--enable-zero-copy');
+    }
+    browser = await chromium.launch({ headless: true, args: launchArgs });
 
     const context = await browser.newContext({
       viewport: { width, height },
@@ -345,6 +388,21 @@ async function main() {
 
     const page = await context.newPage();
     page.on('pageerror', err => console.error(`[pageerror] ${err.message}`));
+    await page.route('**/*', async route => {
+      const url = route.request().url();
+      if (!url.startsWith('http') || url.includes('127.0.0.1') || url.includes('localhost') || url.includes('10.0.2.2')) {
+        await route.continue();
+        return;
+      }
+      // Allow external resources (CDN libraries, fonts, APIs) but fail fast
+      // when offline so renders don't hang waiting on unreachable hosts.
+      try {
+        const response = await route.fetch({ timeout: 8000 });
+        await route.fulfill({ response });
+      } catch (_) {
+        await route.abort();
+      }
+    });
     await page.setContent(injectControlScript(code), { waitUntil: 'load' });
     await page.evaluate(async () => {
       try {
@@ -359,27 +417,61 @@ async function main() {
       maxDuration: safeMaxDuration,
       minDuration: safeMinDuration,
       settleWindow,
-      tempDir
+      tempDir,
+      renderStart,
+      renderEnd,
+      renderEndExplicit
     });
 
-    const args = [
+    const baseArgs = [
       '-y',
       '-framerate', String(frameRate),
-      '-i', path.join(tempDir, 'frame%05d.png'),
-      '-c:v', 'libx264',
-      '-pix_fmt', 'yuv420p',
-      '-preset', 'fast',
-      '-b:v', bitrate,
-      '-maxrate', bitrate,
-      '-bufsize', bitrate,
-      outputPath
+      '-i', path.join(tempDir, 'frame%05d.png')
     ];
-
-    await runFfmpeg(args);
+    const encoder = ENCODERS[codec];
+    const codecOptions = encoderName => {
+      const options = [];
+      if (codec === 'gif') {
+        options.push(
+          '-vf', 'split[s0][s1];[s0]palettegen=stats_mode=diff[p];[s1][p]paletteuse=dither=bayer:bayer_scale=5',
+          '-loop', '0'
+        );
+        return options;
+      }
+      options.push('-pix_fmt', codec === 'prores' ? 'yuv422p10le' : 'yuv420p');
+      if (encoderName === 'libx264') options.push('-preset', 'fast');
+      if (encoderName === 'libx265') options.push('-preset', 'medium', '-tag:v', 'hvc1');
+      if (encoderName === 'h264_nvenc') options.push('-preset', 'p4', '-tune', 'hq', '-rc', 'vbr');
+      if (encoderName === 'libvpx-vp9') options.push('-row-mt', '1', '-deadline', 'good', '-cpu-used', '2');
+      if (encoderName === 'libvpx') options.push('-deadline', 'good', '-cpu-used', '2');
+      if (encoderName === 'libaom-av1') options.push('-cpu-used', '8', '-row-mt', '1');
+      if (encoderName === 'prores_ks') options.push('-profile:v', '3', '-vendor', 'apl0');
+      if (encoderName !== 'prores_ks') {
+        options.push('-b:v', bitrate, '-maxrate', bitrate, '-bufsize', bitrate);
+      }
+      return options;
+    };
+    let usedEncoder = encoder;
+    if (gpuBoost && codec === 'h264') {
+      try {
+        await runFfmpeg([...baseArgs, '-c:v', 'h264_nvenc', ...codecOptions('h264_nvenc'), outputPath]);
+        usedEncoder = 'h264_nvenc';
+      } catch (error) {
+        console.error(`[gpu] h264_nvenc failed, falling back to libx264: ${error.message}`);
+      }
+    }
+    if (usedEncoder !== 'h264_nvenc') {
+      await runFfmpeg([...baseArgs, '-c:v', encoder, ...codecOptions(encoder), outputPath]);
+    }
     console.error(JSON.stringify({
       duration: capture.frameTimes.length ? capture.frameTimes[capture.frameTimes.length - 1] : 0,
       frameCount: capture.frameTimes.length,
-      capped: capture.capped
+      capped: capture.capped,
+      codec,
+      renderStart,
+      renderEnd: renderEndExplicit ? renderEnd : capture.endTime,
+      encoder: usedEncoder,
+      gpuBoost: Boolean(gpuBoost)
     }));
   } finally {
     if (browser) await browser.close();

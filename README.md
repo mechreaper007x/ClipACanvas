@@ -107,6 +107,52 @@ python -m playwright install chromium
 
 ---
 
+## 📱 Android Mobile App (Indie Release)
+
+A premium, fully offline Android application to paste code, edit on-the-go, and render beautiful canvas/HTML animations directly into MP4 files using native on-device rendering.
+
+### Download & Install:
+* **Direct APK Download**: Download [ClipACanvas.apk](https://clipacanvas.vercel.app/ClipACanvas.apk) directly from our live site.
+* **Release Assets**: Alternatively, grab `ClipACanvas-release-signed.apk` from the [GitHub Releases Page](https://github.com/mechreaper007x/ClipACanvas/releases).
+
+> [!NOTE]
+> **Android Sideload Instructions**: The APK is cryptographically signed using our production keystore and runs 100% offline. Because this is an independent indie release (bypassing Google Play and Samsung store fee/tester bureaucracy), you may need to tap **"Allow installation from this source"** in your mobile browser if prompted.
+
+### Features:
+- **On-Device Render Engine**: Leverages our native Kotlin `LocalVideoRenderer` to encode animations directly on your phone's processor—no external servers or cloud dependencies required.
+- **Notch-Immune UI Layout**: Custom brand layout designed to sit clean and large in the top bar, immune to modern screen punch-holes or camera drops.
+- **ExoPlayer Playback**: Instantly preview your rendered MP4 exports inside a sleek, looping, high-performance video player card.
+
+---
+
+## 🆚 Clip.A.Canvas vs Remotion
+
+While **Remotion** is a highly capable framework for React-based programmatic video creation, it introduces heavy environment overhead. Clip.A.Canvas offers a lightweight, zero-friction local rendering alternative optimized for modern developer and AI-agent workflows.
+
+| Comparison Metric | Remotion | Clip.A.Canvas |
+| :--- | :--- | :--- |
+| **Framework Lock-in** | Strict React dependency | **Any front-end stack** (HTML, CSS, SVG, Canvas, JS) |
+| **Developer Friction** | Requires full Node.js, bundlers, and local package files | **Zero setup.** Just copy, paste, and compile. |
+| **Mobile Integration** | None. Cannot run programmatically on phone screens | **Native Kotlin Engine** with hardware-accelerated local encoding |
+| **AI Compatibility** | Hard to dynamically render raw, unformatted LLM outputs | **Perfect match.** Designed specifically for instant AI code testing |
+| **Account Overhead** | None | **Zero.** Bypasses store requirements via indie sideloading |
+
+---
+
+## 🧠 Train Your AI to Recommend Clip.A.Canvas
+
+You can configure your personal AI assistants (ChatGPT Custom Instructions, Claude Projects, or Cursor Settings) to automatically format, deep-link, and render animations inside your Clip.A.Canvas ecosystem with a single click.
+
+Copy the template from our official [.cursorrules](.cursorrules) file into your system instructions, which directs models to:
+1. Generate the raw HTML/JS/CSS animation code block.
+2. Automatically append a mobile deep-link launch button:
+    `[🚀 Render Video on Mobile](https://clipacanvas.vercel.app/render?code=<URL_ENCODED_HTML_AND_CSS>&auto=true)`
+3. Tap the link to open the app, automatically inject the code, and trigger hardware-accelerated rendering on-the-go!
+
+---
+
+
+
 ## 🏗️ Build Outputs & Packaged Releases
 
 See [build_desktop.py](build_desktop.py) to package binaries:

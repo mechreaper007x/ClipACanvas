@@ -3,6 +3,7 @@
 import base64
 import os
 import sys
+import json
 import platform
 from pathlib import Path
 
@@ -53,7 +54,14 @@ class DesktopApi:
         selected = window.create_file_dialog(
             webview.SAVE_DIALOG,
             save_filename=filename,
-            file_types=("MP4 video (*.mp4)", "All files (*.*)"),
+            file_types=(
+                "Media files (*.mp4;*.webm;*.mov;*.gif)",
+                "MP4 video (*.mp4)",
+                "WebM video (*.webm)",
+                "MOV video (*.mov)",
+                "Animated GIF (*.gif)",
+                "All files (*.*)",
+            ),
         )
         if not selected:
             return {"saved": False}
@@ -63,6 +71,100 @@ class DesktopApi:
         target_path.parent.mkdir(parents=True, exist_ok=True)
         target_path.write_bytes(base64.b64decode(base64_data))
         return {"saved": True, "path": str(target_path)}
+
+    def open_code_file(self):
+        try:
+            import webview
+        except ImportError as exc:
+            raise RuntimeError("pywebview is not available.") from exc
+
+        window = webview.windows[0] if getattr(webview, "windows", None) else None
+        if window is None:
+            raise RuntimeError("Desktop window is not ready.")
+
+        selected = window.create_file_dialog(
+            webview.OPEN_DIALOG,
+            file_types=("HTML files (*.html;*.htm)", "All files (*.*)"),
+        )
+        if not selected:
+            return {"selected": False}
+
+        target = selected[0] if isinstance(selected, (list, tuple)) else selected
+        try:
+            code = Path(target).read_text(encoding="utf-8")
+        except Exception as exc:
+            return {"selected": False, "error": str(exc)}
+
+        return {"selected": True, "path": str(target), "code": code}
+
+    def save_code_file(self, suggested_name: str, code: str):
+        try:
+            import webview
+        except ImportError as exc:
+            raise RuntimeError("pywebview is not available.") from exc
+
+        window = webview.windows[0] if getattr(webview, "windows", None) else None
+        if window is None:
+            raise RuntimeError("Desktop window is not ready.")
+
+        target_path = window.create_file_dialog(
+            webview.SAVE_DIALOG,
+            save_filename=suggested_name or "clipacanvas_animation.html",
+            file_types=("HTML files (*.html;*.htm)", "All files (*.*)"),
+        )
+        if not target_path:
+            return {"saved": False}
+
+        target = target_path[0] if isinstance(target_path, (list, tuple)) else target_path
+        Path(target).write_text(code or "", encoding="utf-8")
+        return {"saved": True, "path": str(target)}
+
+    def state_file_path(self):
+        state_dir = Path(os.path.expanduser("~")) / ".clipacanvas"
+        state_dir.mkdir(parents=True, exist_ok=True)
+        return state_dir / "desktop-state.json"
+
+    def save_window_state(self, width, height):
+        try:
+            path = self.state_file_path()
+            state = {}
+            if path.exists():
+                state = json.loads(path.read_text(encoding="utf-8"))
+            state["width"] = int(width)
+            state["height"] = int(height)
+            path.write_text(json.dumps(state, indent=2), encoding="utf-8")
+            return {"saved": True}
+        except Exception as exc:
+            return {"saved": False, "error": str(exc)}
+
+    def load_window_state(self):
+        try:
+            path = self.state_file_path()
+            if not path.exists():
+                return {}
+            return json.loads(path.read_text(encoding="utf-8"))
+        except Exception:
+            return {}
+
+    def choose_audio_file(self):
+        try:
+            import webview
+        except ImportError as exc:
+            raise RuntimeError("pywebview is not available.") from exc
+
+        window = webview.windows[0] if getattr(webview, "windows", None) else None
+        if window is None:
+            raise RuntimeError("Desktop window is not ready.")
+
+        selected = window.create_file_dialog(
+            webview.OPEN_DIALOG,
+            file_types=("Audio files (*.wav;*.mp3;*.aac;*.m4a)", "WAV (*.wav)", "MP3 (*.mp3)", "All files (*.*)"),
+        )
+        if not selected:
+            return {"selected": False}
+
+        target = selected[0] if isinstance(selected, (list, tuple)) else selected
+        return {"selected": True, "path": str(target)}
 
 
 def main() -> int:
@@ -104,12 +206,16 @@ def main() -> int:
         stop_server(server)
 
     api = DesktopApi()
+    state = api.load_window_state()
+    initial_width = int(state.get("width", 1480) or 1480)
+    initial_height = int(state.get("height", 960) or 960)
+
     window = webview.create_window(
         "Clip.A.Canvas",
         f"{url}/clipacanvas.html",
         js_api=api,
-        width=1480,
-        height=960,
+        width=initial_width,
+        height=initial_height,
         min_size=(1100, 720),
         text_select=True,
     )
@@ -119,8 +225,20 @@ def main() -> int:
     except Exception:
         pass
 
+    def on_window_ready() -> None:
+        # Close the PyInstaller splash screen once the UI is up.
+        try:
+            import pyi_splash  # type: ignore[import-not-found]
+
+            pyi_splash.close()
+        except Exception:
+            pass
+
     try:
-        webview.start(debug=os.environ.get("CLIPACANVAS_DEBUG") == "1")
+        webview.start(
+            debug=os.environ.get("CLIPACANVAS_DEBUG") == "1",
+            func=on_window_ready,
+        )
     finally:
         shutdown()
 

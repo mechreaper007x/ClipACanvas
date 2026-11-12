@@ -1,2 +1,11 @@
 imageio-ffmpeg
-playwright
+
+# AES-256-GCM encryption for stored LLM API keys.
+cryptography>=42
+
+# Pinned to match the Chromium build shipped in bin/browsers (revision 1208).
+# If you upgrade this, re-run `playwright install chromium` into bin/browsers.
+playwright==1.58.0
+
+# Desktop shell used by desktop_app.py and the packaged Windows build.
+pywebview>=6,<7

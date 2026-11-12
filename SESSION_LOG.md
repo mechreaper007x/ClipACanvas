@@ -2537,3 +2537,989 @@
 
 
 
+
+
+## 2026-11-02
+
+### Summary
+
+- No repo changes made.
+- Provided an architectural overview and technical decision retrospective on the headless browser-to-video rendering pipeline (time virtualization, CDP frame streaming, zero-disk FFmpeg piping, and auto-settle detection).
+
+### Files Touched
+
+- `SESSION_LOG.md`
+
+### Commits
+
+- No commits created.
+
+### Deploy Links
+
+- None.
+
+### Open Items
+
+- None.
+
+## 2026-11-09
+
+### Summary
+
+- No repo changes made.
+- Read and analyzed the external repository `filippocalippo/StykAnimate-App` alongside the local `Clip.A.Canvas` codebase.
+- Evaluated both architectures, core engines, rendering pipelines, export mechanisms, and potential integration points.
+
+### Files Touched
+
+- `SESSION_LOG.md`
+
+### Commits
+
+- No commits created.
+
+### Deploy Links
+
+- External repo: `https://github.com/filippocalippo/StykAnimate-App`
+
+### Open Items
+
+- None.
+
+
+## 2026-11-11
+
+### Summary
+
+- Replaced storage-level secret protection with application-level encryption for saved LLM API keys.
+- Keys are now encrypted with AES-256-GCM (`cryptography`), versioned `v1:` format, per-provider AAD; the random master key (`keys.key`) is DPAPI-wrapped on Windows and a 0600 file on other platforms (previously non-Windows stored keys as plain base64).
+- Legacy `keys.dat` values (DPAPI / old base64) are decrypted on load and auto-migrated to the new format; unreadable master keys are backed up as `keys.key.bak` instead of being clobbered.
+- Verified with a scratch suite: round-trip, reload, tamper rejection, cross-provider swap rejection, legacy migration, corrupt-key recovery.
+
+### Files Touched
+
+- `serve.py`
+- `requirements.txt`
+- `desktop_requirements.txt`
+
+### Commits
+
+- No commits created.
+
+### Open Items
+
+- `dist/ClipACanvas.exe` needs a rebuild to ship the new encryption (cryptography is now a desktop dependency).
+
+## 2026-11-11
+
+### Summary
+
+- NEW CHAT now resets the workspace: code editor (Monaco) is emptied, the live preview iframe is cleared, and `lastCode` is dropped, so every new chat starts on a clean canvas. Works regardless of whether the current chat has messages or was already empty.
+- Previous chat content remains reachable from chat history; selecting it restores its latest code as before.
+- Updated settings hint to reflect the new AES-256-GCM key encryption.
+- Verified with Playwright against an isolated data dir: chat-with-code scenario, empty-chat-with-pasted-code scenario, empty chat state, blank editor/canvas; screenshot checked.
+
+### Files Touched
+
+- `clipacanvas.html`
+
+### Commits
+
+- No commits created.
+
+### Open Items
+
+- None.
+
+## 2026-11-11
+
+### Summary
+
+- Convert Video / Download / Preview are now three equal small rectangles in one horizontal row instead of stacked full-width buttons. Labels keep their text; the primary label wraps to two lines inside its third of the 360px panel.
+
+### Files Touched
+
+- `clipacanvas.html`
+
+### Commits
+
+- No commits created.
+
+### Open Items
+
+- None.
+
+## 2026-11-11
+
+### Summary
+
+- Frame range fixed: the codec was never sent to `/render`, and explicit ranges were silently clamped to the auto-detected duration and cut early by settle detection. Explicit ranges (0-1s, 1-2s, Full Range or typed values) are now rendered exactly to the requested end; auto mode (empty end) keeps the adaptive settle trim. Invalid ranges (end <= start, start past auto duration) now show a clear error instead of being silently rewritten.
+- Export formats widened from 2 to 7: H.264 MP4, H.265/HEVC MP4, VP9 WebM, VP8 WebM, AV1 WebM, ProRes 422 MOV, animated GIF. Codec now flows through the request; server maps codec to container/MIME; renderers set matching encoders, pixel formats (ProRes yuv422p10le), audio codec per container (Opus in WebM) and a palette filter for GIF (fps capped at 50). GIF results preview inline as an image and the download panel labels the real container.
+- Node fallback renderer updated with the same codecs and exact range support; desktop save dialog accepts mp4/webm/mov/gif; AI tool schema and format parsing understand webm/mov/gif plus h265/vp8/av1/prores tokens.
+- Verified: 7-codec matrix via ffprobe, explicit 0-4s range yields exactly 48 frames at 12 FPS, 1-2s yields 12, auto still trims settled animations, invalid range rejected; UI wiring test; real GIF render end-to-end through the server; Node fallback renders h265/vp9/gif and long ranges.
+
+### Files Touched
+
+- `clipacanvas.html`
+- `serve.py`
+- `playwright_render.py`
+- `playwright_render.mjs`
+- `desktop_app.py`
+
+### Commits
+
+- No commits created.
+
+### Open Items
+
+- `dist/ClipACanvas.exe` still needs a rebuild to ship AES key encryption, new-chat canvas reset, button row, and the new export formats.
+
+## 2026-11-11
+
+### Summary
+
+- Tidied the right-panel settings arrangement: the custom clip-length field is now a labeled field that only appears when Clip Length = Custom (previously a stray "15" input sat under Auto, merely dimmed).
+- Frame range inputs now have START / END sub-labels, live in an aligned two-column grid, and the end placeholder reads "auto"; the help line was rewritten to match the new range/auto behavior.
+- Verified with Playwright: hidden in Auto, visible/labeled in Custom, hides again on Auto; screenshots of Export Settings and the full Output section checked.
+
+### Files Touched
+
+- `clipacanvas.html`
+
+### Commits
+
+- No commits created.
+
+### Open Items
+
+- None.
+
+## 2026-11-11
+
+### Summary
+
+- Output section: Bitrate and Export Profile now share one row (85/115 split), matching the Frame Rate + Codec pair. Option labels were compacted so every value fits without truncation; profile values and the JS mapping are unchanged, so saved settings still restore.
+- Export-profile status message now shows the human label (e.g. "Wide — 1280×720 @30") instead of the raw key.
+- Verified with Playwright: fields share a row (131/177 px), all option texts measured within select width, profile application updates resolution/fps and status.
+
+### Files Touched
+
+- `clipacanvas.html`
+
+### Commits
+
+- No commits created.
+
+### Open Items
+
+- None.
+
+## 2026-11-11
+
+### Summary
+
+- Removed the redundant "OUTPUT FORMAT" row (format is implied by the Codec select) and the lone "OUTPUT" section header above Resolution.
+- The export block now runs straight into Resolution, Frame Rate | Codec, Bitrate | Export Profile, with top padding compensating for the removed header.
+- Removed the now-dead output-format label sync code; codec still persists via the shared settings listener.
+- Verified with Playwright: no OUTPUT header, no format row, Bitrate/Profile still share a row, no page errors; screenshot checked.
+
+### Files Touched
+
+- `clipacanvas.html`
+
+### Commits
+
+- No commits created.
+
+### Open Items
+
+- None.
+
+## 2026-11-11
+
+### Summary
+
+- Implemented the Elephant-Goldfish Model (google/elephant-goldfish-model, announced 2026-10-22) as the chat review loop: the elephant keeps conversation memory and writes code; a goldfish call runs in a fresh stateless context with only the request, the code, export settings and objective preview signals, returns severity-tagged JSON findings, and never sees chat history or tools.
+- After any turn that writes code, one goldfish review runs automatically; blockers/majors trigger exactly one elephant fix turn (memory intact, findings injected) that rewrites the editor via insert_animation_code. No re-review loop.
+- Added a persisted GOLDFISH REVIEW block in chat (PASSED or N ISSUES with blocker/major/nit findings and fixes), stored with a new review role allowed by client/server chatlog sanitizers.
+- Free runtime evidence: the sandboxed preview now reports its own JS errors plus a 700ms snapshot (canvases, svg, videos, animations, text chars) via postMessage into the goldfish context.
+- Dropped per user: audio work, offline template gallery, local LM Studio provider.
+- Verified with mocked provider E2E: blocker path (6 requests: elephant 2 + goldfish 1 + fix 2 + title 1) fixes the editor and persists across reload; pass path skips the fix; goldfish payloads contain exactly 2 messages with no conversation history; preview errors/snapshot forwarded.
+
+### Files Touched
+
+- `clipacanvas.html`
+- `serve.py`
+
+### Commits
+
+- No commits created.
+
+### Open Items
+
+- Goldfish uses the same model as the elephant turn; selecting a cheaper flash model keeps review quota low.
+- `dist/ClipACanvas.exe` still needs a rebuild for all recent changes.
+
+## 2026-11-11 (resolution, settings ownership, review noise)
+
+### Summary
+
+- Split Aspect Ratio and Resolution into separate controls: 5 aspects (16:9, 9:16, 1:1, 4:3, 3:4) x 8 tiers (240p-4K) = 40 presets, plus custom WxH accepted from chat. The hidden `#resolution` value feeds the existing preview/render path; the label shows pixels, aspect and marks custom sizes.
+- Export settings are user-owned: `set_export_settings` now only applies values parsed from the current user message (resolution, aspect/tier, fps, duration, format, bitrate), and automatic goldfish-fix turns cannot change them. The system prompt and `serve.py` tool schema say so explicitly, and aspect changes keep the user's resolution tier (1920x1080 <-> 1080x1920).
+- Passed goldfish reviews are no longer stored or shown; only blocker/major reviews produce a note. Removed the "TOOLS · ..." note under assistant replies.
+- Verified with Playwright: 40 presets, aspect/tier mapping, custom 1000x1000, reload persistence, unrequested-setting guard, mocked chat turns (model tries 1280x720 while the user is on 1920x1080; stays 1920x1080), hidden passed reviews. A real 1000x1000 render produced 24 frames of h264 at 1000x1000.
+
+### Files Touched
+
+- `clipacanvas.html`
+- `serve.py`
+- `tests/_check_aspect_resolution.py` (new)
+- `tests/desktop_smoke.py`
+- `tests/desktop_render_smoke.py`
+- `tests/packaged_render_smoke.py`
+- `tests/run_packaged_full.py`
+- `tests/frontend_render_matrix.py`
+
+### Commits
+
+- No commits created.
+
+### Open Items
+
+- `dist/ClipACanvas.exe` still needs a rebuild for all recent changes.
+
+## 2026-11-11 (live chat action line)
+
+### Summary
+
+- Chat and goldfish progress messages no longer go to the global status bar, so lines like "Goldfish fix applied" never appear over the chat box. The status bar is back to preview/render status only.
+- Replaced the static "…" thinking bubble with a live action line. The system prompt now asks the model to write one short present-tense action line before each tool call; the bubble shows that line while the tool runs, with tool-derived fallbacks when the model sends no text. It pulses and is removed when the turn ends.
+- Verified with a mocked `sendChat` flow: the action log contains the LLM-written "Writing the caterpillar animation…" and "Checking the code for errors…", the status-bar log contains no goldfish/chat statuses, passed reviews stay hidden, and the final reply renders.
+
+### Files Touched
+
+- `clipacanvas.html`
+- `tests/_check_aspect_resolution.py`
+
+### Commits
+
+- No commits created.
+
+### Open Items
+
+- `dist/ClipACanvas.exe` still needs a rebuild for all recent changes.
+
+## 2026-11-11 (goldfish fully hidden)
+
+### Summary
+
+- The goldfish reviewer is now stealth-only: removed the review card builder and styles, the goldfish tool trace, review-role storage/lookup, and the review context injection. Legacy review rows are filtered out on load and excluded from the chat model context; client and server now only accept user/assistant/render messages.
+- Kept the background review and single elephant fix turn, plus neutral action lines ("Checking the code for errors…", "Fixing the code…").
+- Verified with Playwright: legacy review messages render nothing, a blocker review produces no chat message or trace, and the goldfish still returns findings in the background.
+
+### Files Touched
+
+- `clipacanvas.html`
+- `serve.py`
+- `tests/_check_aspect_resolution.py`
+
+### Commits
+
+- No commits created.
+
+### Open Items
+
+- `dist/ClipACanvas.exe` still needs a rebuild for all recent changes.
+
+## 2026-11-11 (agentic chat flow)
+
+### Summary
+
+- Replaced the fixed interview prompt (aspect -> resolution -> duration -> style) with agentic guidance: act when the request is clear, ask at most one question only when it materially changes the result, never re-ask answered details, infer style from the subject, and proceed when the user delegates a choice.
+- Added a delegation system nudge ("Choose according to...") and an answered-question nudge for short replies, so the model continues instead of asking again.
+- Bare tier answers like "1080" now update the resolution while keeping the current aspect ratio, matching the screenshot's flow.
+- Verified with Playwright: bare 1080 -> 1920x1080 on 16:9, both nudges are sent, and the old questionnaire text is gone from the prompt.
+
+### Files Touched
+
+- `clipacanvas.html`
+- `tests/_check_aspect_resolution.py`
+
+### Commits
+
+- No commits created.
+
+### Open Items
+
+- `dist/ClipACanvas.exe` still needs a rebuild for all recent changes.
+
+## 2026-11-11 (adaptive flows and single render)
+
+### Summary
+
+- Added three conversational flows to the system prompt: guided (step-by-step questions), one-shot (complete brief -> act), and brainstorm (propose directions first). The agent infers the flow from the user and can switch on signals like "just do it" or "what do you think?".
+- Softened the deterministic nudges: an answered question moves the flow forward at the user's pace, and a delegated choice only settles that choice instead of forcing code.
+- Render requests made while code is being written are now queued until after the background review/fix, so one request produces one render of the corrected code.
+- The goldfish fix turn is fully stealth: no tool traces, no assistant reply, no rendering; the original assistant message's `codeAfter` is updated to the fixed code for restore/REVERT.
+- Verified with mocked Playwright: insert + render + blocker fix -> 1 render of the FIXED code, 1 assistant reply, 1 insert trace, 1 queued render trace, 0 review cards, 0 goldfish statuses.
+
+### Files Touched
+
+- `clipacanvas.html`
+- `tests/_check_aspect_resolution.py`
+
+### Commits
+
+- No commits created.
+
+### Open Items
+
+- `dist/ClipACanvas.exe` still needs a rebuild for all recent changes.
+
+## 2026-11-11 (strict stateless goldfish)
+
+### Summary
+
+- Hardened the goldfish prompt into an adversarial QA review: execution, motion, viewport/resolution fit, request match, visibility and render stability; runtime errors are blockers; pass requires zero blocker/major findings and no unresolved uncertainty; findings need evidence and one concrete fix.
+- Verified the reviewer is stateless: `buildGoldfishReviewMessages` returns exactly 2 messages (system + artifact), with no chat history and no tools; the backend forwards them directly to `generateContent` / `chat/completions` with no conversation ID. The mocked flow asserts 2 messages, roles system/user, tools false, and no assistant/title leakage.
+- Existing deferred-render and stealth-fix checks still pass.
+
+### Files Touched
+
+- `clipacanvas.html`
+- `tests/_check_aspect_resolution.py`
+
+### Commits
+
+- No commits created.
+
+### Open Items
+
+- `dist/ClipACanvas.exe` still needs a rebuild for all recent changes.
+
+## 2026-11-11 (end-to-end verification)
+
+### Summary
+
+- Ran the full test pass on Python 3.11 against throwaway servers with a temp `CLIPACANVAS_KEYS_DIR`; no user chatlog or preferences touched, and no real LLM API calls made.
+- `tests/_check_aspect_resolution.py`: all checks pass — aspect/tier split, custom WxH, settings gate, guided/one-shot/brainstorm prompt, stateless goldfish (exactly 2 messages, tools off), single render of the fixed code, stealth fix turn, persistence.
+- `tests/frontend_render_matrix.py`: 11/11 render cases (DOM/CSS/SVG/WAAPI/timer/canvas) finish with valid downloads.
+- `tests/desktop_smoke.py`: PASS — UI, themes, history, chatlog, key storage, GPU render and chat restore; no page or console errors.
+- All 7 export codecs verified end to end: h264/h265 -> .mp4, vp9/vp8/av1 -> .webm, prores -> .mov, gif -> .gif; FFmpeg probes confirm the stream codec and 96x96 dimensions.
+- Test-only fixes: render matrix waits for the Monaco textarea with `state="attached"`; desktop smoke seeds prior code before REVERT and asks for settings explicitly.
+
+### Files Touched
+
+- `tests/_check_aspect_resolution.py`
+- `tests/frontend_render_matrix.py`
+- `tests/desktop_smoke.py`
+- `SESSION_LOG.md`
+
+### Commits
+
+- No commits created.
+
+### Open Items
+
+- `dist/ClipACanvas.exe` still needs a rebuild for all recent changes.
+
+## 2026-11-11 (render leader + agent-only render notes)
+
+### Summary
+
+- Added a film-leader slate over the Live Preview stage while any render runs (manual Convert, RE-RENDER, or the agent's render tool): sprocket strips, grain, scratches, crosshair, and a countdown numeral driven by real render progress, with the stage label, percentage and ETA. Success ends with a one-frame cut flash; failure fades immediately.
+- Pure CSS/SVG on top of the existing progress ticker; no extra animation loop, and reduced-motion users get a static slate. The slate is responsive inside the 9:16 stage (corner tag and ETA collapse on narrow widths).
+- Render-log rows are now agent-only: `renderWithPlaywrightBackend` takes `logToChat`, manual renders never write chat history, and the agent render tool passes it through. Manual render errors no longer add chat rows.
+- Verified in Chromium: slate visible mid-render with advancing numeral/percent, hidden after success and failure; manual render adds 0 chat notes, agent render adds 1.
+
+### Files Touched
+
+- `clipacanvas.html`
+- `SESSION_LOG.md`
+
+### Commits
+
+- No commits created.
+
+### Open Items
+
+- `dist/ClipACanvas.exe` still needs a rebuild for all recent changes.
+- Old manual render rows already stored in earlier chats are left untouched.
+
+## 2026-11-12 (settings parse + render flow)
+
+### Summary
+
+- Fixed "resolutions 1080" without a `p`: bare tier numbers are now parsed, so "16:9 ratio and resolutions 1080" applies 1920x1080 instead of silently keeping the 540 tier.
+- Duplicate tool calls within a turn: repeated `set_export_settings` / `insert_animation_code` calls reuse the earlier result, and only one SETTINGS trace is shown.
+- One render per turn: extra `render_video` calls return an already-rendered result instead of rendering again.
+- Completed renders no longer add a second RENDER_VIDEO trace; the RENDERED note is the record. Queued renders still show the "queued until code verification" trace.
+- The render tool result now reports `status: complete`, and the system prompt marks `render_video` synchronous: confirm the file is ready, never claim it is still rendering or promise a later update. Added a no-re-confirm rule: an already-expressed render intent plus settings applies and renders in the same turn.
+- Verified with a mocked chat flow (1920x1080, one settings trace, one render, one note, complete tool result), the full logic suite, and the desktop smoke suite (PASS, GPU render included).
+
+### Files Touched
+
+- `clipacanvas.html`
+- `tests/desktop_smoke.py`
+- `SESSION_LOG.md`
+
+### Commits
+
+- No commits created.
+
+### Open Items
+
+- `dist/ClipACanvas.exe` still needs a rebuild for all recent changes.
+- The model's "still rendering" wording is fixed by prompt + tool result only; needs one live-API turn to confirm (real API not called here to save quota).
+
+## 2026-11-12 (settings autonomy verification)
+
+### Summary
+
+- Verified the full settings chain with a mocked LLM and a real render: "make it 12 seconds, 16:9 and 1080" applied 1920x1080 and 12s, the actual `/render` request used 1920x1080 at 60 FPS/h264, and the downloaded file probes as h264, 1920x1080, 12.00s.
+- The mock agent also tried 120 FPS, AV1 and 20M; the user-owned guard kept 60 FPS, h264 and 5M. One settings trace, one render note, no separate RENDER_VIDEO trace, and the final reply confirmed ready.
+- Refined the render guidance: only a non-queued ok result means "already rendered"; a queued result should be described as rendering after verification.
+
+### Files Touched
+
+- `clipacanvas.html`
+- `SESSION_LOG.md`
+
+### Commits
+
+- No commits created.
+
+### Open Items
+
+- `dist/ClipACanvas.exe` still needs a rebuild for all recent changes.
+
+## 2026-11-12 (film transport strip)
+
+### Summary
+
+- Replaced the flat READY/WAITING progress block with a film transport: two reels, a sprocket gate, and actual render frames developing left to right.
+- Backend: `/render` accepts a `renderId`, the Python renderer captures up to 16 sparse JPEG thumbnails (150 px max side) via CDP while rendering and writes `meta.json`; `GET /render/frames?id=` lists frames and `?n=` serves one; frame folders older than an hour are pruned.
+- Frontend: the strip polls the frame list during the render, appends each new thumbnail, scrolls to the newest, spins the reels while rendering, and marks the transport done or jammed. The percentage/ETA readout and the thin progress line remain below. Reduced-motion disables the reel spin and frame fade.
+- Verified with a real 4 second render: 16 thumbnails appeared live, all loaded (max natural width 141 px), the transport ended in the done or failed state, and the full desktop smoke suite passed with a GPU render.
+
+### Files Touched
+
+- `clipacanvas.html`
+- `serve.py`
+- `playwright_render.py`
+- `SESSION_LOG.md`
+
+### Commits
+
+- No commits created.
+
+### Open Items
+
+- `dist/ClipACanvas.exe` still needs a rebuild for all recent changes.
+- Thumbnails come from the Python renderer; the Node fallback still shows an empty strip.
+
+## 2026-11-12 (film transport redesign)
+
+### Summary
+
+- Redesigned the strip into a proper film transport: supply and take-up reels connected by perforated film leaders into a sprocket gate, with rounded 35 mm-style perforations.
+- The reels carry wound film that transfers as progress advances (supply thins, take-up fills) and spin while rendering. The readout shows a state dot, `35 MM`, ETA, frame count and percentage.
+- Actual captured frames still develop left to right; idle, exposing, done and jammed states remain, and reduced motion disables the spin and frame fade.
+- Verified with a real render: 16 thumbnails appeared live (2 at 35% mid-render), all loaded, done and failed states correct, no page errors.
+
+### Files Touched
+
+- `clipacanvas.html`
+- `SESSION_LOG.md`
+
+### Commits
+
+- No commits created.
+
+### Open Items
+
+- `dist/ClipACanvas.exe` still needs a rebuild for all recent changes.
+- The Node renderer fallback still produces an empty strip.
+
+## 2026-11-12 (35 mm canister transport)
+
+### Summary
+
+- Replaced the projector-style reels with two 35 mm film cassettes modelled on the reference: cream label, black caps and spool, `COLOR`, `200` and `35 MM` type.
+- The progress track is now a continuous brown negative running behind the cassettes, with punched sprocket holes and the captured frames developing in the middle.
+- The take-up cassette fills with a wound film layer as progress rises, so one cassette starts clean and the other ends wrapped; the readout adds a `C-41` process mark and the live frame count.
+- Verified with a real render: 16 frames appeared live, the take-up wrap tracked 25% to 100%, done and failed states correct, no page errors.
+
+### Files Touched
+
+- `clipacanvas.html`
+- `SESSION_LOG.md`
+
+### Commits
+
+- No commits created.
+
+### Open Items
+
+- `dist/ClipACanvas.exe` still needs a rebuild for all recent changes.
+- The Node renderer fallback still produces an empty strip.
+
+## 2026-11-12 (film transport corrections)
+
+### Summary
+
+- The cassettes now have circular top spools that visibly rotate while a render runs; the take-up wrap continues to grow as progress rises.
+- The strip is now a continuous negative: frames sit edge to edge with thin frame lines, smaller punched perforations and no card gaps, so it reads as one film ribbon instead of separate thumbnails.
+- Starting a new chat or switching chats resets the transport to `NO FRAMES YET / READY` so old frames do not linger with an empty canvas.
+- Verified with a real render: the spool animation ran while rendering, 16 frames appeared, done and failed states stayed correct, and `startNewChat()` cleared the strip and readout. No page errors.
+
+### Files Touched
+
+- `clipacanvas.html`
+- `SESSION_LOG.md`
+
+### Commits
+
+- No commits created.
+
+### Open Items
+
+- `dist/ClipACanvas.exe` still needs a rebuild for all recent changes.
+- The Node renderer fallback still produces an empty strip.
+
+## 2026-11-12 (film strip motion)
+
+### Summary
+
+- The negative now visibly runs during a render: the track is built from two identical frame sequences and driven by a requestAnimationFrame `translateX` feed, so it loops seamlessly at 60 px/s in the take-up direction with no scrolling cost.
+- Perforations travel at the matching 16 px / 0.27 s so they stay in step with the frames; the spool keeps rotating.
+- On completion the feed stops and glides to the newest frames; on failure it stays jammed. Reduced-motion users get a static strip that still snaps to the latest frame.
+- Frame aspect follows the export size, and starting a new chat or switching chats cancels the feed and resets the track.
+- Verified with a real 640x360 render: transform advanced while rendering, 16 frames and 16 mirrored clones, aspect `640 / 360`, final offset lands on the newest frame, done/failed/new-chat states pass, desktop smoke suite fully passes with no page or console errors.
+
+### Files Touched
+
+- `clipacanvas.html`
+- `SESSION_LOG.md`
+
+### Commits
+
+- No commits created.
+
+### Open Items
+
+- `dist/ClipACanvas.exe` still needs a rebuild for all recent changes.
+- The Node renderer fallback still produces an empty strip.
+
+## 2026-11-12 (Control Room layout)
+
+### Summary
+
+- Rebuilt the app shell as the Control Room: unchanged logo top-left, command bar, code pane left, live stage centre with an export timeline, Clipppa / Recipe tabs on the right, and a full-width transport dock with the moving negative and render bins.
+- The assistant is now named **Clipppa** in its tab, header, composer, command bar, empty state and system prompt.
+- All manual export controls moved intact into the new Recipe tab (timing, clip length, frame range, aspect, resolution, FPS, codec, bitrate, profile, latest render). Scene selection is not required to reach them.
+- The timeline follows the export range and moves its playhead with render progress. The dock shows the current file/recipe, real ETA/percent, and the last four renders as bins using a real captured frame thumbnail stored with the run.
+- The header command bar sends a message straight to Clipppa and supports Ctrl/Cmd+K; chat history and new chat live in a CHATS popover. The stage, timeline and bins leave room for multi-clip editing later without faking an editor now.
+- Verified: logic suite passes; full desktop smoke passes (layout, drags, themes, chat, tools, renders, keys, chatlog); real 960x540 render passes with the timeline at 45%, moving film, one dock bin with a loaded thumbnail, and correct dock metadata. No page or console errors.
+
+### Files Touched
+
+- `clipacanvas.html`
+- `tests/desktop_smoke.py`
+- `tests/_check_aspect_resolution.py`
+- `tests/_inspect_layout.py`
+- `SESSION_LOG.md`
+
+### Commits
+
+- No commits created.
+
+### Open Items
+
+- `dist/ClipACanvas.exe` still needs a rebuild for the Control Room.
+- The Node renderer fallback still produces an empty strip.
+- The timeline and bins are display/progress surfaces; multi-clip trimming and scene editing are not implemented yet.
+
+## 2026-11-12 (Layer timeline in the dock)
+
+### Summary
+
+- Removed the header command bar completely; Ctrl/Cmd+K now focuses Clipppa, and the shortcut help/dock hints were updated.
+- Removed the timeline from the stage. The stage is now the pure preview canvas; the scene editor moved into the large empty transport area above the film strip.
+- Rebuilt the scene strip as a Premiere-style layer timeline: V2/V1 track rows, a shared ruler, per-clip absolute time positions, gaps, and a playhead. `+ BOX`, `DUP`, `DEL` and `+ LAYER` (up to 4 layers) live in the timeline header.
+- Each logic box now stores `start`, `duration` and `track`. Drag a box horizontally to move it in time, vertically to move it between layers, and drag the right edge to resize its duration. Selection loads that scene's code and previews it; double-click renames.
+- The render pipeline now composes overlapping layers as one video: each active clip is seeked on its own virtual clock, stacked by track, and transparent top-layer pages let lower layers show through. Frame range trims the whole sequence.
+- Single-box, untouched timelines still use the original auto-duration render path. A moved or resized box, or two or more boxes, switches to the explicit sequence path.
+- Timeline state (clips, starts, tracks, layers) persists in `clipacanvas.timeline.v1`; older stored clips migrate onto V1 sequentially. Default dock height increased to 340px and old 236px/legacy defaults migrate once.
+- Verified: layer UI checks (select, resize, chat-to-active-box, rename, horizontal/vertical drag, add layer, dup/del, frame range), two-box UI render, backend sequence matrix (sequential, trimmed, layered overlap, transparent overlay), auto duration policy, aspect/resolution logic, and the full desktop smoke suite all pass with no page/console errors. Live app restarted on 127.0.0.1:54535 (PID 19344).
+
+### Files Touched
+
+- `clipacanvas.html`
+- `playwright_render.py`
+- `serve.py`
+- `tests/_check_logic_timeline.py` (new)
+- `tests/_check_sequence_render.py` (new)
+- `tests/_check_sequence_ui.py` (new)
+- `tests/desktop_duration_smoke.py`
+- `tests/desktop_smoke.py`
+- `SESSION_LOG.md`
+
+### Commits
+
+- No commits created.
+
+### Open Items
+
+- `dist/ClipACanvas.exe` is still stale and needs a rebuild for the layer timeline.
+- The Node renderer fallback still produces an empty strip and does not understand layered clips.
+- Layers currently hold code scenes only; photo/video import into the layer timeline is not implemented.
+
+## 2026-11-12 (Film transport on the canvas)
+
+### Summary
+
+- Moved the 35mm film transport out of the dock and onto the bottom of the live preview canvas, as annotated. It is now a compact overlay (76px strip + readout + progress) with a dark scrim, cans at both ends and theme-independent light readout text.
+- The dock is now purely the layer timeline and fills the full dock body; the dock header is labeled EDIT, with TIMELINE controls below it.
+- Render thumbnails still feed the same film strip and now develop directly over the canvas; the film progress bar and readout travel with it. Verified with a two-scene render: 17 real frames appeared in the stage overlay and the render completed.
+- Verified: desktop smoke suite passes; layer timeline UI checks pass (select, resize, drag time/layers, add layer, dup/del, chat-to-active-box); two-scene UI render passes with the film overlay; light-theme film readout remains readable on the black stage.
+- Live app restarted on 127.0.0.1:54455 (PID 8344).
+
+### Files Touched
+
+- `clipacanvas.html`
+- `SESSION_LOG.md`
+
+### Commits
+
+- No commits created.
+
+### Open Items
+
+- `dist/ClipACanvas.exe` still needs a rebuild for the dock layer timeline and canvas film overlay.
+- The Node renderer fallback still produces an empty strip and does not understand layered clips.
+- Layers currently hold code scenes only; photo/video import into the layer timeline is not implemented.
+
+## 2026-11-12 (Render-popup transport)
+
+### Summary
+
+- The film transport no longer sits on the canvas at idle. It is hidden in the normal state and pops up from the bottom of the canvas only when a render starts (manual Convert or agent render).
+- On pop-up it plays `stage-film-develop`: the film path brightens/scales in, canisters rise in, then the reel runs with perforation travel, developing frames, readout, and progress. The render leader countdown sits above it.
+- The finished reel holds for ~4.2s after completion (3s on failure), then fades out and the canvas returns to a clean preview. Pressing PREVIEW or switching chat context hides it immediately.
+- Verified with a two-scene render: idle hidden, mid-render visible with real frames and 21% progress, done visible at 100%, then hidden after the hold. Desktop smoke, layer UI, and two-scene UI render all pass with no console/page errors.
+- Live app restarted on 127.0.0.1:56251 (PID 10828).
+
+### Files Touched
+
+- `clipacanvas.html`
+- `SESSION_LOG.md`
+
+### Commits
+
+- No commits created.
+
+### Open Items
+
+- `dist/ClipACanvas.exe` still needs a rebuild.
+- Node renderer fallback remains an empty-strip fallback.
+
+## 2026-11-12 (Blank scenes and multi-scene agent)
+
+### Summary
+
+- The timeline now opens as one single V1 track. Empty extra layers collapse on reload; V2–V4 appear only after + LAYER or when a box is moved onto them.
+- + BOX now creates a blank scene (3s, blank editor, blank canvas) instead of copying the active code; DUP still copies. Empty scenes show an `EMPTY SCENE / WRITE CODE OR ASK CLIPPPA` overlay on the stage.
+- Box drags and resizes snap to 0 and to other clip starts/ends (0.16s threshold).
+- Clipppa now knows the whole edit: every request gets the timeline summary (scenes, layers, start, duration, selection, empty flags), and a new `add_scene` tool creates real logic boxes with code, name, duration, `same`/`above` layer and optional start. `insert_animation_code` now fills only the selected scene and can update its duration.
+- The system prompt requires one HTML document per scene via add_scene for extra scenes, forbids merging scenes into one file, and reserves `above` + transparent background for overlays/titles. Goldfish review follows the newest scene and the single queued render still runs after verification.
+- Verified with a mocked two-round tool turn (two real scene boxes, correct V1 append + V2 overlay, traces, goldfish pass, queued render), the full timeline UI test, sequence render matrix, desktop smoke, duration smoke and aspect/resolution checks. A live Gemini 3.6 Flash probe answered "add another high-impact scene" with one `add_scene` call carrying code, name, duration and layer.
+- Live app restarted on 127.0.0.1:50065 (PID 5096).
+
+### Files Touched
+
+- `clipacanvas.html`
+- `serve.py`
+- `tests/_check_logic_timeline.py`
+- `tests/_check_chat_scenes.py`
+- `SESSION_LOG.md`
+
+### Commits
+
+- No commits created.
+
+### Open Items
+
+- `dist/ClipACanvas.exe` still needs a rebuild for blank scenes, single-track defaults and the add_scene tool.
+- Node renderer fallback remains an empty-strip fallback.
+- Layers still hold code scenes only; photo/video import is not implemented.
+
+## 2026-11-12 (New chat button in the Clipppa header)
+
+### Summary
+
+- Replaced the tiny AUTO · GEMINI badge in the Clipppa header with a square `+` new-chat button (26px, token-based styling, model shown in its tooltip). It clears the composer and opens a fresh chat.
+- Enlarged and brightened the CHATS history control in the right tab row (0.6rem, medium weight, secondary text token) so the history list is discoverable.
+- Verified: fresh chat goes from 33 messages to 0 on click; the button is visible in dark and light themes; desktop smoke suite still passes with no page/console errors.
+- Live app restarted on 127.0.0.1:50282 (PID 20668).
+
+### Files Touched
+
+- `clipacanvas.html`
+- `SESSION_LOG.md`
+
+### Commits
+
+- No commits created.
+
+### Open Items
+
+- `dist/ClipACanvas.exe` still needs a rebuild for the timeline and chat UI changes.
+- Node renderer fallback remains an empty-strip fallback.
+
+## 2026-11-12 (Image and video lanes)
+
+### Summary
+
+- Added a `+ MEDIA` import control to the timeline. It opens a file picker for PNG, JPG, WebP, GIF, AVIF, BMP, MP4, MOV, M4V, WebM and OGV, uploads locally, and drops real media clips onto the selected layer.
+- Importing into an empty selected scene fills that scene instead of leaving dead lead-in; further files append on the same track. Media clips can be selected, renamed, duplicated, dragged between V1–V4, resized, snapped, previewed and deleted.
+- Timeline clips are now typed: image clips show their thumbnail behind a dark scrim, video clips use a filmstrip strip pattern and a `VIDEO · name` label. Types, sources and names persist with the timeline.
+- Added `/api/media` uploads stored under `%APPDATA%/ClipACanvas/media` and a `/media/<id>` route with byte-range support (200 MB cap, extension allowlist, hashed filenames).
+- Media plays in the live canvas through generated wrappers (contain fit, transparent background so overlays work). The sequence renderer rewrites media URLs to absolute addresses and now awaits video readiness and seeks per frame under the virtual clock.
+- Verified with a still plus a two-color video: green image frame, blue then red video frames at the expected times; payload contains absolute media URLs; clips survive reload. A 320×180 mixed sequence rendered in ~2s.
+- Regression suites pass: logic timeline, mocked chat scenes, sequence render matrix, sequence UI render, desktop smoke, duration smoke, aspect/resolution.
+- Live app restarted on 127.0.0.1:64781 (PID 23844); live media upload/GET verified.
+
+### Files Touched
+
+- `clipacanvas.html`
+- `serve.py`
+- `playwright_render.py`
+- `tests/_check_media_timeline.py`
+- `SESSION_LOG.md`
+
+### Commits
+
+- No commits created.
+
+### Open Items
+
+- `dist/ClipACanvas.exe` still needs a rebuild for the timeline, chat and media UI changes.
+- Node renderer fallback still does not understand media or layered clips.
+- Audio import and media-bin browsing are not implemented yet; deleting a clip does not delete its stored file.
+
+## 2026-11-12 (NLE editor rebuild: project bin, playhead, trims, split/ripple)
+
+### Summary
+
+- Rebuilt the timeline around a real NLE model. Imported images and videos now live in a `PROJECT · MEDIA` bin (thumbnails, `+ IMPORT`, click to inspect, double-click/`＋` to insert at the playhead, drag onto a track). Importing no longer auto-drops clips.
+- Timeline clips reference `assetId` + `sourceIn` + `fit` instead of storing generated HTML wrappers. Selecting a media clip replaces Monaco with a media inspector (poster, available media, clip length, source-in slip, contain/cover fit, show in project); selecting a code scene restores the editor.
+- Added a draggable playhead with timecode and frame preview, insert edits at the playhead (ripple open, splitting straddling clips), overwrite placement when dragging assets onto a track, left/right trim handles (head trim advances video source-in), split at the playhead (`SPLIT` / `S`), ripple delete (`DEL`), duplicate/rename, clip dragging with snapping and overlap blocking. `+ LAYER` adds V2–V4 tracks.
+- Render plan now builds media wrappers on demand with absolute URLs and `data-source-in`; the renderer's media seek honors the in point and clamps inside the source range (plain code-page videos keep their old modulo loop). Clips split at a playhead carry the correct in point on the right half.
+- Chat: `insert_animation_code` on a selected media clip now creates a new code scene instead of converting the user's media; app state and the timeline summary expose project assets, the playhead and source-in. Empty/trailing placeholder code scenes are still excluded from export.
+- Timeline meta/render readouts now count `CLIPS` rather than boxes. Keyboard help lists split, ripple delete and playhead stepping.
+
+### Files Touched
+
+- `clipacanvas.html`
+- `playwright_render.py`
+- `tests/_check_media_timeline.py` (rewritten for the bin/insert/trim/split/ripple/source-in flow)
+- `tests/_check_logic_timeline.py` (move test now respects occupied tracks)
+- `tests/_check_sequence_ui.py` (dock readout uses CLIPS)
+- `SESSION_LOG.md`
+
+### Verification
+
+- `_check_media_timeline.py`: import stays in the bin; insert image at 0 and video at 3s; inspector length/source-in slip; left trim advances source-in; ripple insert/delete shifts later clips; split at 1.4 leaves the right video half with source-in 0.6; render pixels at 0.3s/1.0s/1.7s are green/blue/red; reload preserves assets, in points and empty clip code.
+- Passed: `_check_logic_timeline.py`, `_check_sequence_ui.py`, `_check_sequence_render.py`, `_check_chat_scenes.py`, `_check_aspect_resolution.py`, `desktop_smoke.py`, `desktop_duration_smoke.py`. No page/console errors.
+- Live app restarted on 127.0.0.1:50915 (PID 5044). Verified the served page has the project bin, SPLIT button and CLIPS meta, no console errors, and live `/api/media` upload + Range GET (206).
+
+### Commits
+
+- No commits created.
+
+### Open Items
+
+- `dist/ClipACanvas.exe` still needs a rebuild for the NLE editor.
+- The stage previews one clip at a time (selected clip at the playhead, otherwise the bottom track); V1–V4 compositing happens on export.
+- Node renderer fallback still does not understand media, trims or layered clips.
+- Audio tracks, undo/redo, asset removal from the bin and stored-media cleanup are not implemented.
+
+## 2026-11-12 (Run app)
+
+### Summary
+
+- No repo changes made.
+- First started the browser server (`PORT=50517 python serve.py`, PID 9648), then stopped it on request and launched the native desktop window instead.
+- Desktop app is running via `python desktop_app.py` (Python 3.11, PID 23508), window title `Clip.A.Canvas`.
+
+### Files Touched
+
+- `SESSION_LOG.md`
+
+### Commits
+
+- No commits created.
+
+### Open Items
+
+- `dist/ClipACanvas.exe` still needs a rebuild for the NLE editor and chat changes.
+
+## 2026-11-12 (Empty-bin import + audio lanes)
+
+### Summary
+
+- The empty PROJECT · MEDIA area is now an import target: click/double-click (or Enter/Space) opens the media picker, and files can still be dropped anywhere on the bin row. Hint copy now reads "DOUBLE-CLICK TO IMPORT · OR DROP FILES HERE — IMAGES · VIDEO · AUDIO".
+- Import accepts audio alongside images/video: MP3, WAV, M4A, AAC, FLAC, OGA, Opus. `MEDIA_TYPES` in `serve.py` serves and stores them like other media.
+- Audio is a first-class project asset: bin tile with waveform art and `AUD` badge, audio player in the inspector, insert/trim/slip/split on the timeline, and an `AUDIO` (no-picture) stage preview.
+- Export mixes timeline audio: the render plan sends `audioClips` (url, start, sourceIn, duration); `serve.py` resolves `/media/...` to local files; `playwright_render.py` adds ffmpeg inputs with `atrim`/`adelay`/`amix` under the captured frames.
+- The old single `audioPath` setting path still works when no timeline audio exists.
+
+### Files Touched
+
+- `clipacanvas.html`
+- `serve.py`
+- `playwright_render.py`
+- `tests/_check_audio_import.py`
+- `SESSION_LOG.md`
+
+### Verification
+
+- New `_check_audio_import.py`: double-click on the empty bin opens the picker, imports a still + MP3; audio asset shows `AUD` + waveform; insert at 0.4s; render payload carries the audio clip; exported MP4 is silent before 0.4s and 440 Hz tone afterwards.
+- Passed: `_check_media_timeline.py`, `_check_logic_timeline.py`, `_check_sequence_ui.py`, `_check_chat_scenes.py`, `_check_sequence_render.py`, `_check_aspect_resolution.py`, `desktop_smoke.py`, `desktop_duration_smoke.py`. No console/page errors.
+- Desktop app restarted (PID 16404, window `Clip.A.Canvas`, server 127.0.0.1:55203); served page includes the new import copy and audio accept list.
+
+### Commits
+
+- No commits created.
+
+### Open Items
+
+- `dist/ClipACanvas.exe` still needs a rebuild for the import/audio/timeline changes.
+- Video clips' embedded audio is not mixed yet; only imported audio clips play in the export.
+- The Node renderer fallback still ignores media and audio.
+
+## 2026-11-12 (Media overlays + faithful thumbnails)
+
+### Summary
+
+- Project-bin images no longer fill a cropped box: the bin shows the whole picture contained over a blurred copy of itself. Timeline image clips now use a repeating filmstrip at the picture's own aspect instead of covering a wide tile.
+- Media inserted at a playhead that sits inside an existing scene now lands on the first free layer above (e.g. V2) instead of rippling the scene away. The scene stays untouched and the status reads `overlay`.
+- Dragging a media clip over an occupied scene spills it to the next free layer and follows the pointer instead of blocking the move. Dropping a bin asset onto an occupied lane overlays it above; if all four layers are occupied, the app refuses with a message.
+- Insertion into a gap still ripples later clips (unchanged).
+- Video export already contained images; verified it also composites the overlay above the scene (green scene visible around the magenta still, no stretching).
+
+### Files Touched
+
+- `clipacanvas.html`
+- `tests/_check_media_overlay.py` (new)
+- `tests/_check_media_timeline.py` (insert-at-playhead expectations now describe the overlay behavior)
+- `SESSION_LOG.md`
+
+### Verification
+
+- `_check_media_overlay.py`: bin thumbnail uses `object-fit: contain` with backdrop; insert over V1 scene creates a V2 overlay and leaves the scene at 0–6s; dragging the photo over the scene moves it to V2 at 4.3s; exported frame shows scene green at the top and the still in the middle.
+- Passed: `_check_audio_import.py`, `_check_media_timeline.py`, `_check_logic_timeline.py`, `_check_sequence_ui.py`, `_check_chat_scenes.py`, `_check_sequence_render.py`, `_check_aspect_resolution.py`, `desktop_smoke.py`. No console/page errors.
+- Desktop app restarted (window `Clip.A.Canvas`, server 127.0.0.1:50951) with the new overlay and thumbnail behavior.
+
+### Commits
+
+- No commits created.
+
+### Open Items
+
+- The stage still previews one clip at a time; the V1+overlay composite is only visible in the export (existing limitation).
+- `dist/ClipACanvas.exe` still needs a rebuild.
+
+## 2026-11-12 (Clipchamp-style bin + composited stage preview)
+
+### Summary
+
+- Project · Media no longer stretches one asset into a tall panel-filling tile. The bin is a 2-column grid of natural media cards: a 16:9 thumbnail (contained picture, cover video, waveform for audio) with the name/duration strip below. Cards sit at the top and scroll instead of stretching to the dock height.
+- The live stage now composites every track at the playhead like the export: the selected/overlaid photo appears on top of the scene instead of the stage showing the photo alone. Composite previews are rebuilt on selection, insert, scrub and editor preview; a single un-layered clip still previews alone so its animation keeps running.
+- Code layers inside a composite keep the preview reporter via a message relay, so error/snapshot diagnostics still reach the app.
+- Layer structure is unchanged (V2 is the overlay track above V1, the same as Clipchamp's overlay track); the preview now shows the real stack.
+
+### Files Touched
+
+- `clipacanvas.html`
+- `tests/_check_media_overlay.py`
+- `SESSION_LOG.md`
+
+### Verification
+
+- `_check_media_overlay.py`: bin art is 202x113.6 (16:9, not stretched); inserting the photo over SCENE 01 gives a 2-layer stage srcdoc; stage screenshot shows scene green around a magenta photo; drag-over-scene still lands on V2; export still composites the photo over the scene without distortion.
+- Passed: `_check_media_timeline.py`, `_check_logic_timeline.py`, `_check_sequence_ui.py`, `_check_chat_scenes.py`, `_check_audio_import.py`, `_check_sequence_render.py`, `_check_aspect_resolution.py`, `desktop_smoke.py`, `desktop_duration_smoke.py`. No console/page errors.
+- Desktop app restarted (window `Clip.A.Canvas`, server 127.0.0.1:59893). Live check with the futuristic-city photo shows the wide bin card and the scene's "THE END" text composited above the photo.
+
+### Commits
+
+- No commits created.
+
+### Open Items
+
+- The composite preview plays code layers from their own 0, not the local timeline offset (same as before for single clips); only media in/out points are time-accurate.
+- `dist/ClipACanvas.exe` still needs a rebuild.
+
+## 2026-11-12 (Media inside a scene)
+
+### Summary
+
+- Added `INSERT INTO SCENE` to the media inspector for image and video assets. It embeds the media in the target scene's own HTML (`<img>/<video class="cc-scene-media">`, centered at 72%, z-index 20) before `</body>` instead of creating a new clip or layer.
+- Target scene = the active code scene, otherwise the topmost code scene covering the playhead, otherwise the first code scene; the button names it (`INSERT INTO SCENE 01`). Audio assets hide the button because embedded audio would not be mixed.
+- After embedding, the scene is selected, its code loads in the editor (so the element can be moved/resized), and the stage previews the media inside the scene. The bin asset stays in PROJECT.
+- Single-scene renders now absolutize `/media/...` URLs in the payload code, so embedded media renders outside the app server. Sequence code was already absolutized.
+
+### Files Touched
+
+- `clipacanvas.html`
+- `tests/_check_scene_embed.py` (new)
+- `SESSION_LOG.md`
+
+### Verification
+
+- `_check_scene_embed.py`: embed button reads `INSERT INTO SCENE 01`; click keeps 1 clip / 1 layer; scene code gains `<img src="/media/media-...">` before `</body>` and the editor shows it; stage screenshot shows green scene + centered magenta photo; exported 1s render shows the same pixels (embedded media survived the render).
+- Passed: `_check_media_overlay.py`, `_check_media_timeline.py`, `_check_logic_timeline.py`, `_check_sequence_ui.py`, `_check_chat_scenes.py`, `_check_audio_import.py`, `_check_sequence_render.py`, `_check_aspect_resolution.py`, `desktop_smoke.py`, `desktop_duration_smoke.py`. No console/page errors.
+- Desktop app restarted (window `Clip.A.Canvas`, server 127.0.0.1:51571). Live check with the futuristic-city photo embedded into SCENE 01: single V1 clip, photo inside the scene preview next to the scene's title.
+
+### Commits
+
+- No commits created.
+
+### Open Items
+
+- Embedded media is centered at 72% by default; reposition/resize via the scene code (or ask Clipppa).
+- Audio cannot be embedded in a scene (no audio capture from the scene HTML); use a timeline audio clip.
+- `dist/ClipACanvas.exe` still needs a rebuild.
+
+## 2026-11-12 (Scene media: remove, drop, drag)
+
+### Summary
+
+- Media embedded inside a scene can now be deleted: the asset inspector shows `REMOVE FROM SCENE 01` (named for the owning scene); it strips the `<img>/<video>` with that media URL from every scene that embeds it, reselects the scene and re-previews. Scenes left without the element render unchanged.
+- Drag & drop over the live stage: dragging a bin card over the preview highlights the stage and dropping places the media **inside the target scene** centered at the drop point (40% width) instead of creating a layer. Files dragged in from the OS over the stage are imported and embedded the same way.
+- The embedded picture can be dragged inside the preview: a small in-scene script (injected in the head for previews) tracks pointer drags and posts the new left/top percentages back, which rewrite the style in the scene code, save, and re-preview. Clicking the picture in the preview selects its bin asset (inspector shows REMOVE).
+- Point-in-time fix: drag used `document.documentElement` height, which is 0 inside the sandboxed scene; switched to `window.innerWidth/innerHeight` so vertical movement is no longer clamped.
+- Regression fix: scene tools are injected in the `<head>` (fallback: `<html>`, doctype, prepend), so they no longer land inside an unclosed `<script>` in short scene snippets (`desktop_smoke.py` "Unexpected token '<'" is gone).
+
+### Files Touched
+
+- `clipacanvas.html`
+- `tests/_check_scene_embed.py`
+- `SESSION_LOG.md`
+
+### Verification
+
+- `_check_scene_embed.py`: embed → 1 clip, image inside code, stage shows the picture; export pixels include it; `REMOVE` clears the element and the stage returns to the scene alone; drop from the bin at (69.7%, 30.0%) embeds at the drop point; dragging the picture inside the preview moves it to (91.2%, 42.1%); clicking it selects the asset and shows REMOVE. No page errors.
+- Passed: `_check_media_overlay.py`, `_check_media_timeline.py`, `_check_logic_timeline.py`, `_check_sequence_ui.py`, `_check_chat_scenes.py`, `_check_audio_import.py`, `_check_sequence_render.py`, `_check_aspect_resolution.py`, `desktop_smoke.py`, `desktop_duration_smoke.py`.
+- Desktop app restarted (window `Clip.A.Canvas`, PID 22260, server 127.0.0.1:51134). Live check with the futuristic-city photo embedded into SCENE 01: single clip/layer, inspector shows `INSERT INTO SCENE 01 | REMOVE FROM SCENE 01`, no console errors.
+
+### Commits
+
+- No commits created.
+
+### Open Items
+
+- External OS file-drop over the stage is relayed from inside the scene iframe but was only exercised programmatically, not with a real drag from Explorer.
+- Scene repositions update the scene code style only; scene animations that key the element position could override it.
+- `dist/ClipACanvas.exe` still needs a rebuild for the media, overlay, audio, composite-preview and scene-embed work.

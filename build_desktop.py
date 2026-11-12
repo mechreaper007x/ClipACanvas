@@ -49,6 +49,18 @@ def build_windows():
         ("playwright_render.mjs", "."),
     ]
 
+    monaco_src = Path("node_modules") / "monaco-editor" / "min" / "vs"
+    if monaco_src.exists():
+        add_data.append((str(monaco_src), "monaco/min/vs"))
+    else:
+        print("WARNING: node_modules/monaco-editor/min/vs not found. The editor will fall back to a plain textarea.")
+
+    fonts_src = Path("fonts")
+    if fonts_src.exists():
+        add_data.append((str(fonts_src), "fonts"))
+    else:
+        print("WARNING: fonts/ folder not found. Bundled fonts (JetBrains Mono, Fira Code) will not be available.")
+
     local_bin = Path("bin")
     if local_bin.exists():
         # Bundle the preloaded Chromium/FFmpeg payload into the onefile build.
@@ -106,7 +118,56 @@ def build_mac():
     ]
     subprocess.run(cmd, check=True)
 
+def verify_environment():
+    """Fail fast on problems that would otherwise ship a broken executable."""
+    problems = []
+
+    try:
+        import webview  # noqa: F401
+    except ImportError:
+        problems.append(
+            "pywebview is not installed. The packaged app cannot open a window without it "
+            "(install with: pip install \"pywebview>=6,<7\")."
+        )
+
+    # The bundled Chromium revision must match what the Python playwright
+    # package expects, otherwise rendering fails at runtime inside the exe.
+    browsers_dir = Path("bin") / "browsers"
+    if browsers_dir.exists():
+        try:
+            import json
+
+            import playwright
+
+            manifest = (
+                Path(playwright.__file__).parent / "driver" / "package" / "browsers.json"
+            )
+            expected = {
+                entry["revision"]
+                for entry in json.loads(manifest.read_text(encoding="utf-8"))["browsers"]
+                if entry["name"] == "chromium-headless-shell"
+            }
+            present = {p.name.rsplit("-", 1)[-1] for p in browsers_dir.iterdir() if p.is_dir()}
+            missing = expected - present
+            if missing:
+                problems.append(
+                    "bin/browsers is missing Chromium revision "
+                    f"{', '.join(sorted(missing))} required by the installed playwright "
+                    f"package. Run: PLAYWRIGHT_BROWSERS_PATH=bin/browsers "
+                    "python -m playwright install chromium"
+                )
+        except Exception as exc:  # pragma: no cover - best effort guard
+            print(f"WARNING: Could not verify bundled browser revision: {exc}")
+
+    if problems:
+        print("\nBUILD BLOCKED:")
+        for problem in problems:
+            print(f"  - {problem}")
+        raise SystemExit(1)
+
+
 def main():
+    verify_environment()
     clean()
     if platform.system() == "Windows":
         build_windows()

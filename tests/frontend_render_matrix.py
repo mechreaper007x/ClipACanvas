@@ -151,7 +151,10 @@ def set_code(page, code: str) -> None:
 
 
 def configure_case(page, resolution: str, bitrate: str) -> None:
-    page.select_option("#resolution", resolution)
+    page.evaluate(
+        "(value) => { if (typeof setResolutionValue === 'function') setResolutionValue(value); }",
+        resolution,
+    )
     page.select_option("#bitrate", bitrate)
     page.evaluate(
         """() => {
@@ -196,8 +199,8 @@ def run_matrix() -> list[dict]:
         with sync_playwright() as playwright:
             browser = playwright.chromium.launch(headless=True)
             page = browser.new_page(viewport={"width": 1440, "height": 1100})
-            page.goto(url, wait_until="networkidle")
-            page.locator("#codeInput").wait_for(timeout=15000)
+            page.goto(url, wait_until="load")
+            page.locator("#codeInput").wait_for(state="attached", timeout=15000)
 
             for case in TEST_CASES:
                 started = time.time()

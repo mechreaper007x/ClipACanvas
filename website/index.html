@@ -17,6 +17,7 @@
         <a href="#workflow">Workflow</a>
         <a href="#tui">TUI</a>
         <a href="#mcp">MCP</a>
+        <a href="#ai">AI Prompts</a>
         <a href="#download">Download</a>
         <a href="https://github.com/mechreaper007x/ClipACanvas">GitHub</a>
       </div>
@@ -32,6 +33,7 @@
           </p>
           <div class="hero-actions">
             <a class="button button-primary" href="https://github.com/mechreaper007x/ClipACanvas/releases/download/v1.0.0/ClipACanvas-Setup.exe">Download Installer</a>
+            <a class="button button-android" href="#download">Android App</a>
             <a class="button button-secondary" href="#tui">TUI Install</a>
             <a class="button button-secondary" href="#mcp">MCP Install</a>
           </div>
@@ -246,18 +248,77 @@
         </p>
       </section>
 
+      <section id="ai" class="section-block">
+        <div class="section-heading">
+          <p class="eyebrow">AI Prompts</p>
+          <h2>Configure ChatGPT & Gemini for Android</h2>
+          <p>
+            Configure your AI assistant (ChatGPT Custom Instructions, Custom GPTs, or Gemini Gems) to generate one-click rendering links for the Android app.
+          </p>
+        </div>
+
+        <div class="install-grid" style="grid-template-columns: 1fr; margin-bottom: 24px;">
+          <article class="workflow-card install-card" style="max-width: 100%; display: flex; flex-direction: column;">
+            <span class="step-index">System Prompt / Custom Instructions</span>
+            <h3>Copy & Paste into ChatGPT or Gemini</h3>
+            <p style="font-size: 0.88em; margin: 10px 0 16px; opacity: 0.8; line-height: 1.6;">
+              Copy this system instruction template. It directs the AI to always generate direct, minified animation links. Tapping the generated links will automatically open the Clip.A.Canvas Android app and instantly render the video!
+            </p>
+
+            <pre class="command-block" style="white-space: pre-wrap; font-family: monospace; font-size: 0.8rem; line-height: 1.55; padding: 20px; overflow-x: auto; background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.08); max-height: 380px; text-align: left; overflow-y: auto; overflow-wrap: break-word;"><code id="aiPromptText">Always follow these rules when writing canvas animations, SVGs, or HTML/CSS motions for ClipACanvas:
+1. Generate the self-contained HTML animation code inside a standard markdown code block.
+2. In addition to the code block, generate a direct HTTPS App Link where the entire HTML code is URL-encoded inside the `code` query parameter, along with custom resolutions and timing.
+3. Link format:
+   https://clipacanvas.vercel.app/render?code=[URL_ENCODED_HTML_AND_JS]&width=[WIDTH]&height=[HEIGHT]&fps=[FPS]&duration=[DURATION]&auto=true
+4. Parameter values to use:
+   - For vertical reels: width=1080&height=1920
+   - For horizontal video: width=1920&height=1080
+   - Use fps=60, duration=4, and auto=true (triggers automatic rendering on launch).
+5. Provide this link as a clickable markdown button/link: 👉 [🚀 Render Video Instantly](url)
+6. Write extremely compact, dense, and minified HTML/JS (no developer comments, short variable names, dense CSS shorthand) to keep the link short and clickable.</code></pre>
+
+            <button id="copyPromptBtn" class="button button-primary" style="margin-top: 20px; align-self: flex-start; cursor: pointer; border: none; font-weight: bold; font-family: inherit; font-size: 0.88rem; transition: background 0.2s ease;">Copy Instructions to Clipboard</button>
+          </article>
+        </div>
+
+        <script>
+          document.getElementById('copyPromptBtn').addEventListener('click', function() {
+            const codeElement = document.getElementById('aiPromptText');
+            navigator.clipboard.writeText(codeElement.innerText).then(() => {
+              const btn = document.getElementById('copyPromptBtn');
+              const origText = btn.innerText;
+              btn.innerText = 'Copied!';
+              btn.style.background = '#74ffb0';
+              btn.style.color = '#070a0c';
+              setTimeout(() => {
+                btn.innerText = origText;
+                btn.style.background = '';
+                btn.style.color = '';
+              }, 2000);
+            }).catch(err => {
+              console.error('Failed to copy text: ', err);
+              alert('Failed to copy instructions. Please select and copy the text manually.');
+            });
+          });
+        </script>
+      </section>
+
       <section id="download" class="section-block">
         <div class="download-panel">
           <div class="download-copy">
             <p class="eyebrow">Download</p>
-            <h2>Get the desktop build.</h2>
+            <h2>Get the desktop & mobile builds.</h2>
             <p>
-              Windows installer and portable ZIP are available now. macOS packaging is in progress. Release notes, SHA-256 checksums, plus the TUI and MCP package source all live in the GitHub repository.
+              Windows installer, portable ZIP, and the official Android APK are available now. macOS packaging is in progress. Release notes, SHA-256 checksums, plus the TUI and MCP package source all live in the GitHub repository.
+            </p>
+            <p style="font-size: 0.88em; margin-top: 14px; opacity: 0.72; border-left: 2px solid var(--mint); padding-left: 12px;">
+              💡 <strong>Android Sideload Note</strong>: The Android APK is cryptographically signed and runs fully on-device. When installing, simply allow installation from your browser if prompted. No developer store restrictions.
             </p>
           </div>
           <div class="download-stack">
             <a class="button button-primary" href="https://github.com/mechreaper007x/ClipACanvas/releases/download/v1.0.0/ClipACanvas-Setup.exe">Download for Windows</a>
             <a class="button button-secondary" href="https://github.com/mechreaper007x/ClipACanvas/releases/download/v1.0.0/ClipACanvas-windows.zip">Download Portable ZIP</a>
+            <a class="button button-android" href="ClipACanvas.apk" download>Download for Android (APK)</a>
             <div class="release-box">
               <span class="release-tag">Version 1.0.0</span>
               <a href="https://github.com/mechreaper007x/ClipACanvas/releases/tag/v1.0.0">View release and checksums</a>
