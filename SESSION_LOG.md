@@ -3885,3 +3885,9 @@
 
 - Integer tick storage/29.97 drop-frame remains; project files reference local media rather than embedding it; live hosted TTS/semantic calls still need real keys.
 - `dist/ClipACanvas.exe` rebuilt in this session after the commits.
+
+### Packaged build
+
+- Rebuilt `dist/ClipACanvas.exe` (21:34, 463 MB) and `dist/ClipACanvas-windows.zip` with Python 3.11 after this change set.
+- Packaged launch/UI smoke (`run_packaged_full.py`) passed its structural checks; its render leg failed on a hidden `#clipLength` selector in that untracked legacy script, not on app behavior.
+- Post-build follow-ups (sync the Monaco editor before serializing a project; audio clips report their A-lane in the agent timeline summary) were verified with `_check_frame_lanes_project` and `_check_chat_scenes`.

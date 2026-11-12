@@ -10896,7 +10896,7 @@ function timelineSummaryForChat() {
       index: index + 1,
       id: clip.id,
       name: clip.name,
-      layer: `V${clip.track + 1}`,
+      layer: clip.type === 'audio' ? audioTrackForClip(clip) : `V${clip.track + 1}`,
       startSeconds: Math.round((Number(clip.start) || 0) * 10) / 10,
       durationSeconds: Math.round((Number(clip.duration) || 0) * 10) / 10,
       selected: clip.id === active?.id,
@@ -13872,6 +13872,7 @@ const PROJECT_FILE_FORMAT = 'clipacanvas-project';
 const PROJECT_FILE_VERSION = 1;
 
 function buildProjectFilePayload() {
+  try { syncActiveClipFromEditor(true); } catch (error) { console.error(error); }
   return {
     format: PROJECT_FILE_FORMAT,
     version: PROJECT_FILE_VERSION,
