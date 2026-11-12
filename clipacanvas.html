@@ -2738,6 +2738,49 @@ main.control-room #splitRight {
   box-shadow: inset 0 0 0 1px rgba(var(--go-rgb), 0.35);
 }
 .logic-box.dragging { opacity: 0.45; pointer-events: none; cursor: grabbing; }
+.logic-audio-lane {
+  flex: 0 0 auto;
+  font-family: var(--mono);
+  font-size: 0.38rem;
+  letter-spacing: 0.6px;
+  color: #081008;
+  background: var(--go);
+  padding: 0 3px;
+  line-height: 1.3;
+}
+.mi-audio-mix {
+  display: grid;
+  gap: 6px;
+  padding-top: 4px;
+  border-top: 1px solid var(--line-soft);
+}
+.mi-audio-row {
+  display: grid;
+  grid-template-columns: 92px 24px 24px 1fr 34px;
+  align-items: center;
+  gap: 5px;
+  font-family: var(--mono);
+  font-size: 0.44rem;
+  letter-spacing: 0.5px;
+  color: var(--muted-2);
+}
+.mi-audio-row b { color: var(--ink); font-weight: 500; }
+.mi-audio-row button {
+  height: 18px;
+  border: 1px solid var(--line-soft);
+  background: var(--panel-2);
+  color: var(--muted-2);
+  font-family: var(--mono);
+  font-size: 0.42rem;
+  cursor: pointer;
+}
+.mi-audio-row button.active {
+  background: var(--go);
+  border-color: var(--go);
+  color: #081008;
+}
+.mi-audio-row input[type="range"] { width: 100%; accent-color: var(--go); }
+.mi-audio-row output { text-align: right; color: var(--muted-3); }
 .logic-transition {
   position: absolute;
   top: 2px;
@@ -3730,6 +3773,95 @@ body.asset-dragging * { cursor: grabbing !important; user-select: none !importan
   flex-direction: column;
 }
 .inspector-panel[hidden] { display: none; }
+.voice-panel {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.voice-panel[hidden] { display: none; }
+.voice-studio {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  display: grid;
+  align-content: start;
+  gap: 10px;
+  padding: 12px 14px 16px;
+}
+.voice-field {
+  display: grid;
+  gap: 4px;
+  font-family: var(--mono);
+  font-size: 0.46rem;
+  letter-spacing: 0.9px;
+  color: var(--muted-2);
+}
+.voice-field[hidden] { display: none; }
+.voice-field > span { display: flex; justify-content: space-between; gap: 8px; }
+.voice-field em { font-style: normal; color: var(--muted-3); }
+.voice-field output { color: var(--go); }
+.voice-field textarea,
+.voice-field select,
+.voice-field input[type="text"] {
+  width: 100%;
+  background: var(--panel-2);
+  border: 1px solid var(--line-soft);
+  color: var(--ink);
+  font-family: var(--mono);
+  font-size: 0.6rem;
+  padding: 6px 7px;
+}
+.voice-field textarea { resize: vertical; line-height: 1.55; }
+.voice-field input[type="range"] { width: 100%; accent-color: var(--go); }
+.voice-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.voice-span { grid-column: 1 / -1; }
+.voice-consent {
+  margin: 0;
+  padding: 7px 8px;
+  border-left: 2px solid var(--line-soft);
+  font-family: var(--mono);
+  font-size: 0.46rem;
+  line-height: 1.55;
+  color: var(--muted-3);
+}
+.voice-consent.remote { border-left-color: var(--go); color: var(--muted-2); }
+.voice-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.voice-status {
+  flex: 1;
+  font-family: var(--mono);
+  font-size: 0.46rem;
+  letter-spacing: 0.6px;
+  color: var(--muted-3);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.voice-status.busy { color: var(--go); }
+.voice-status.err { color: #ff8d7a; }
+.voice-result {
+  display: grid;
+  gap: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--line-soft);
+}
+.voice-result[hidden] { display: none; }
+.voice-result audio { width: 100%; height: 30px; }
+.voice-result-meta {
+  font-family: var(--mono);
+  font-size: 0.46rem;
+  line-height: 1.55;
+  color: var(--muted-2);
+}
+.voice-result-actions { display: flex; gap: 6px; }
 .inspector-head {
   flex: 0 0 32px;
   display: flex;
@@ -4189,6 +4321,7 @@ body.asset-dragging * { cursor: grabbing !important; user-select: none !importan
   <aside class="right-pane">
     <div class="right-tabs" role="tablist" aria-label="Inspector, assistant and recipe">
       <button type="button" id="tabInspector" class="right-tab active" role="tab" aria-selected="true" aria-controls="inspectorPanel">INSPECTOR</button>
+      <button type="button" id="tabVoice" class="right-tab" role="tab" aria-selected="false" aria-controls="voicePanel" tabindex="-1">VOICE</button>
       <button type="button" id="tabAssistant" class="right-tab" role="tab" aria-selected="false" aria-controls="aiChat" tabindex="-1">Clipppa</button>
       <button type="button" id="tabRecipe" class="right-tab" role="tab" aria-selected="false" aria-controls="recipePanel" tabindex="-1">RECIPE</button>
       <span class="right-tabs-line"></span>
@@ -4283,6 +4416,18 @@ body.asset-dragging * { cursor: grabbing !important; user-select: none !importan
             <span>ATTACHED TO</span>
             <span class="mi-static" id="miParent">—</span>
           </label>
+          <label class="mi-field" id="miAudioTrackField" hidden>
+            <span>AUDIO TRACK</span>
+            <select id="miAudioTrack">
+              <option value="A1">A1 · Voiceover</option>
+              <option value="A2">A2 · Music</option>
+              <option value="A3">A3 · SFX</option>
+            </select>
+          </label>
+        </div>
+        <div class="mi-audio-mix" id="miAudioMix" hidden>
+          <div class="mi-analysis-head"><span>AUDIO MIX</span><span class="mi-static">APPLIED ON EXPORT</span></div>
+          <div id="miAudioMixRows"></div>
         </div>
         <div class="mi-analysis" id="miAnalysis" hidden>
           <div class="mi-analysis-head"><span>TECHNICAL</span><span id="miAnalysisStatus">—</span></div>
@@ -4296,6 +4441,48 @@ body.asset-dragging * { cursor: grabbing !important; user-select: none !importan
           <button type="button" id="miSelectInBin" class="timeline-btn">SHOW IN PROJECT</button>
         </div>
         <p class="mi-note" id="miNote"></p>
+      </div>
+    </section>
+
+    <section id="voicePanel" class="voice-panel" role="tabpanel" aria-labelledby="tabVoice" hidden>
+      <div class="inspector-head">
+        <span class="eyebrow">VOICEOVER STUDIO</span>
+        <span class="pane-tag" id="voiceBadge">—</span>
+      </div>
+      <div class="voice-studio">
+        <label class="voice-field">
+          <span>SCRIPT <em id="voiceCharCount">0 / 4000</em></span>
+          <textarea id="voiceScript" rows="7" maxlength="4000" placeholder="Write the narration. Select part of it to regenerate only that part."></textarea>
+        </label>
+        <div class="voice-grid">
+          <label class="voice-field"><span>PROVIDER</span><select id="voiceProvider"></select></label>
+          <label class="voice-field"><span>MODEL</span><select id="voiceModel"></select></label>
+          <label class="voice-field"><span>VOICE</span><select id="voiceVoice"></select></label>
+          <label class="voice-field"><span>FORMAT</span><select id="voiceFormat"></select></label>
+          <label class="voice-field" id="voiceSpeedField" hidden><span>SPEED <output id="voiceSpeedValue">1.0×</output></span><input id="voiceSpeed" type="range" min="0.5" max="2" step="0.05" value="1"></label>
+          <label class="voice-field"><span>INSERT AS</span>
+            <select id="voiceTarget">
+              <option value="A1">A1 · Voiceover</option>
+              <option value="A2">A2 · Music</option>
+              <option value="A3">A3 · SFX</option>
+            </select>
+          </label>
+          <label class="voice-field voice-span" id="voiceStyleField" hidden><span>STYLE / DELIVERY</span><input id="voiceStyle" type="text" maxlength="200" placeholder="cheerful and friendly"></label>
+        </div>
+        <p class="voice-consent" id="voiceConsent"></p>
+        <div class="voice-actions">
+          <button type="button" id="voiceGenerate" class="btn btn-xs">GENERATE</button>
+          <span class="voice-status" id="voiceStatus">READY</span>
+        </div>
+        <div class="voice-result" id="voiceResult" hidden>
+          <audio id="voiceAudio" controls preload="metadata"></audio>
+          <div class="voice-result-meta" id="voiceResultMeta"></div>
+          <div class="voice-result-actions">
+            <button type="button" id="voiceInsert" class="timeline-btn media-btn">INSERT AT PLAYHEAD</button>
+            <button type="button" id="voiceAddBin" class="timeline-btn">ADD TO PROJECT</button>
+          </div>
+        </div>
+        <p class="mi-note">Generated speech is cached by script, provider, voice and settings, and saved as a normal audio asset. Select text in the script to regenerate only that part. Project media is never uploaded.</p>
       </div>
     </section>
 
@@ -6692,12 +6879,16 @@ function buildTimelineRenderPlan() {
       const url = clipMediaUrl(clip);
       if (!url) continue;
       if (clip.type === 'audio') {
-        audioClips.push({
-          url,
-          start,
-          sourceIn: clipSourceIn(clip),
-          duration
-        });
+        const volume = audioTrackGain(clip);
+        if (volume > 0) {
+          audioClips.push({
+            url,
+            start,
+            sourceIn: clipSourceIn(clip),
+            duration,
+            volume
+          });
+        }
       }
       clips.push({
         id: clip.id,
@@ -9310,9 +9501,9 @@ function initChat() {
 initChat();
 
 // ── CONTROL ROOM ──────────────────────────────────────────
-const RIGHT_TABS = ['inspector', 'assistant', 'recipe'];
-const RIGHT_TAB_PANELS = { inspector: 'inspectorPanel', assistant: 'aiChat', recipe: 'recipePanel' };
-const RIGHT_TAB_BUTTONS = { inspector: 'tabInspector', assistant: 'tabAssistant', recipe: 'tabRecipe' };
+const RIGHT_TABS = ['inspector', 'voice', 'assistant', 'recipe'];
+const RIGHT_TAB_PANELS = { inspector: 'inspectorPanel', voice: 'voicePanel', assistant: 'aiChat', recipe: 'recipePanel' };
+const RIGHT_TAB_BUTTONS = { inspector: 'tabInspector', voice: 'tabVoice', assistant: 'tabAssistant', recipe: 'tabRecipe' };
 
 function switchRightTab(name) {
   if (!RIGHT_TABS.includes(name)) name = 'inspector';
@@ -9329,6 +9520,7 @@ function switchRightTab(name) {
   closeComposerModelMenu();
   if (name === 'recipe') updateTimingSummary();
   if (name === 'inspector') renderInspector();
+  if (name === 'voice') ensureVoiceStudio();
 }
 
 function switchLeftTab(name) {
@@ -9442,9 +9634,20 @@ function initChatHistoryPopover() {
 const TIMELINE_KEY = 'clipacanvas.timeline.v1';
 const TIMELINE_MAX_SECONDS = 60;
 
+const AUDIO_TRACK_DEFS = [
+  { id: 'A1', name: 'VOICEOVER', role: 'voiceover' },
+  { id: 'A2', name: 'MUSIC', role: 'music' },
+  { id: 'A3', name: 'SFX', role: 'sound effects' }
+];
+
+function defaultAudioTracks() {
+  return AUDIO_TRACK_DEFS.map(def => ({ ...def, mute: false, solo: false, volume: 1 }));
+}
+
 const timelineState = {
   clips: [],
   transitions: [],
+  audioTracks: defaultAudioTracks(),
   activeId: null,
   layers: 1,
   draggingId: null,
@@ -9452,6 +9655,45 @@ const timelineState = {
   playhead: 0,
   selectedAssetId: null
 };
+
+function sanitizeAudioTracks(raw) {
+  const stored = Array.isArray(raw) ? raw : [];
+  return defaultAudioTracks().map(def => {
+    const item = stored.find(entry => entry && entry.id === def.id) || {};
+    const rawVolume = item.volume;
+    const volume = rawVolume === undefined || rawVolume === null || rawVolume === ''
+      ? 1
+      : Number(rawVolume);
+    return {
+      ...def,
+      mute: Boolean(item.mute),
+      solo: Boolean(item.solo),
+      volume: Math.round(Math.max(0, Math.min(2, Number.isFinite(volume) ? volume : 1)) * 100) / 100
+    };
+  });
+}
+
+function audioTrackState(id) {
+  const key = String(id || 'A1');
+  return timelineState.audioTracks.find(track => track.id === key)
+    || timelineState.audioTracks[0]
+    || { id: 'A1', name: 'VOICEOVER', mute: false, solo: false, volume: 1 };
+}
+
+function audioTrackForClip(clip) {
+  const key = String(clip?.audioTrack || 'A1');
+  return timelineState.audioTracks.some(track => track.id === key) ? key : 'A1';
+}
+
+// Effective gain applied to the exported mix: lane mute, any solo, lane volume.
+function audioTrackGain(clip) {
+  if (!clip || clip.type !== 'audio') return 1;
+  const lane = audioTrackState(audioTrackForClip(clip));
+  if (lane.mute) return 0;
+  const anySolo = timelineState.audioTracks.some(track => track.solo);
+  if (anySolo && !lane.solo) return 0;
+  return Math.max(0, Math.min(2, Number(lane.volume) || 0));
+}
 const DEFAULT_SCENE_SECONDS = 3;
 const MEDIA_IMAGE_SECONDS = 3;
 const MEDIA_VIDEO_FALLBACK_SECONDS = 5;
@@ -10435,6 +10677,13 @@ function timelineSummaryForChat() {
     selectedSceneId: active?.id || null,
     projectAssets: timelineState.assets.map(assetTechnicalSummary),
     transitions: transitionSummaryForChat(),
+    audioTracks: timelineState.audioTracks.map(track => ({
+      id: track.id,
+      name: track.name,
+      mute: Boolean(track.mute),
+      solo: Boolean(track.solo),
+      volume: track.volume
+    })),
     scenes: timelineState.clips.map((clip, index) => ({
       index: index + 1,
       id: clip.id,
@@ -10446,6 +10695,8 @@ function timelineSummaryForChat() {
       type: clip.type || 'code',
       mediaName: clip.mediaName || '',
       sourceInSeconds: clipIsMedia(clip) ? Math.round(clipSourceIn(clip) * 10) / 10 : 0,
+      audioTrack: clip.type === 'audio' ? audioTrackForClip(clip) : '',
+      audioGain: clip.type === 'audio' ? audioTrackGain(clip) : 1,
       empty: !clipIsMedia(clip) && !String(clip.code || '').trim(),
       codeCharacters: String(clip.code || '').length
     }))
@@ -10481,6 +10732,12 @@ function saveTimelineState(immediate = false) {
           code: transition.code || '',
           version: TRANSITION_VERSION
         })),
+        audioTracks: timelineState.audioTracks.map(track => ({
+          id: track.id,
+          mute: Boolean(track.mute),
+          solo: Boolean(track.solo),
+          volume: track.volume
+        })),
         clips: timelineState.clips.map(clip => ({
           id: clip.id,
           name: clip.name,
@@ -10495,7 +10752,8 @@ function saveTimelineState(immediate = false) {
           mediaName: clip.mediaName || '',
           sourceIn: clipSourceIn(clip),
           fit: clip.fit === 'cover' ? 'cover' : 'contain',
-          parentClipId: clip.parentClipId || ''
+          parentClipId: clip.parentClipId || '',
+          audioTrack: clip.type === 'audio' ? audioTrackForClip(clip) : ''
         }))
       }));
       setSaveState('saved');
@@ -10580,6 +10838,7 @@ function loadTimelineState() {
   let stored = null;
   try { stored = JSON.parse(localStorage.getItem(TIMELINE_KEY) || 'null'); }
   catch (error) { stored = null; }
+  timelineState.audioTracks = sanitizeAudioTracks(stored?.audioTracks);
   const storedAssets = stored && Array.isArray(stored.assets) ? stored.assets : [];
   const assetIds = new Set();
   timelineState.assets = storedAssets
@@ -10659,7 +10918,10 @@ function loadTimelineState() {
         mediaName,
         sourceIn,
         fit: clip.fit === 'cover' ? 'cover' : 'contain',
-        parentClipId: typeof clip.parentClipId === 'string' ? clip.parentClipId : ''
+        parentClipId: typeof clip.parentClipId === 'string' ? clip.parentClipId : '',
+        audioTrack: type === 'audio'
+          ? (['A1', 'A2', 'A3'].includes(clip.audioTrack) ? clip.audioTrack : 'A1')
+          : ''
       };
     });
   const loadedIds = new Set(timelineState.clips.map(clip => clip.id));
@@ -11163,6 +11425,52 @@ function renderAssetAnalysis(asset) {
   }
 }
 
+function renderAudioMix(visible) {
+  const box = document.getElementById('miAudioMix');
+  const rows = document.getElementById('miAudioMixRows');
+  if (!box || !rows) return;
+  box.hidden = !visible;
+  if (!visible) return;
+  rows.innerHTML = timelineState.audioTracks.map(track => `
+    <div class="mi-audio-row" data-audio-track="${track.id}">
+      <b>${track.id} · ${escapeHtml(track.name)}</b>
+      <button type="button" class="mi-lane-mute${track.mute ? ' active' : ''}" data-lane-action="mute" title="Mute ${track.id}">M</button>
+      <button type="button" class="mi-lane-solo${track.solo ? ' active' : ''}" data-lane-action="solo" title="Solo ${track.id}">S</button>
+      <input class="mi-lane-volume" type="range" min="0" max="2" step="0.05" value="${track.volume}" aria-label="${track.id} volume">
+      <output>${Math.round(track.volume * 100)}%</output>
+    </div>
+  `).join('');
+}
+
+function initAudioMixControls() {
+  const rows = document.getElementById('miAudioMixRows');
+  if (!rows) return;
+  rows.addEventListener('click', (event) => {
+    const button = event.target.closest('[data-lane-action]');
+    const row = button?.closest('[data-audio-track]');
+    if (!button || !row) return;
+    const track = audioTrackState(row.dataset.audioTrack);
+    const action = button.dataset.laneAction;
+    projectOps.setAudioTrackMix(track.id, action === 'mute' ? { mute: !track.mute } : { solo: !track.solo });
+  });
+  rows.addEventListener('input', (event) => {
+    if (!event.target.classList.contains('mi-lane-volume')) return;
+    const row = event.target.closest('[data-audio-track]');
+    const output = row?.querySelector('output');
+    if (output) output.textContent = `${Math.round(Number(event.target.value) * 100)}%`;
+  });
+  rows.addEventListener('change', (event) => {
+    if (!event.target.classList.contains('mi-lane-volume')) return;
+    const row = event.target.closest('[data-audio-track]');
+    if (!row) return;
+    projectOps.setAudioTrackMix(row.dataset.audioTrack, { volume: event.target.value });
+  });
+  document.getElementById('miAudioTrack')?.addEventListener('change', (event) => {
+    if (!mediaInspectorTarget || mediaInspectorTarget.mode !== 'clip') return;
+    projectOps.setAudioTrack(mediaInspectorTarget.id, event.target.value);
+  });
+}
+
 function showMediaInspectorForClip(clip) {
   if (!clipIsMedia(clip)) { hideMediaInspector(); return; }
   const asset = clipAsset(clip) || {
@@ -11178,9 +11486,18 @@ function showMediaInspectorForClip(clip) {
   const kind = document.getElementById('miKind');
   if (kind) kind.textContent = mediaKindTag(clip.type);
   const miTrack = document.getElementById('miTrack');
-  if (miTrack) miTrack.textContent = `V${(Number(clip.track) || 0) + 1}`;
+  if (miTrack) {
+    miTrack.textContent = clip.type === 'audio'
+      ? `${audioTrackForClip(clip)} · V${(Number(clip.track) || 0) + 1}`
+      : `V${(Number(clip.track) || 0) + 1}`;
+  }
   const miStart = document.getElementById('miStart');
   if (miStart) miStart.textContent = formatTimelineTime(clip.start);
+  const audioTrackField = document.getElementById('miAudioTrackField');
+  if (audioTrackField) audioTrackField.hidden = clip.type !== 'audio';
+  const audioTrackSelect = document.getElementById('miAudioTrack');
+  if (audioTrackSelect && clip.type === 'audio') audioTrackSelect.value = audioTrackForClip(clip);
+  renderAudioMix(clip.type === 'audio');
   const parentClip = clip.parentClipId
     ? timelineState.clips.find(item => item.id === clip.parentClipId)
     : null;
@@ -11223,7 +11540,8 @@ function showMediaInspectorForClip(clip) {
   if (selectInBin) selectInBin.hidden = !clipAsset(clip);
   const note = document.getElementById('miNote');
   if (note) {
-    note.textContent = `V${(Number(clip.track) || 0) + 1} · starts ${formatTimelineTime(clip.start)} · ends ${formatTimelineTime(clipEnd(clip))}. Drag either edge to trim; SPLIT or S cuts at the playhead.`;
+    const lane = clip.type === 'audio' ? `${audioTrackForClip(clip)} · ` : `V${(Number(clip.track) || 0) + 1} · `;
+    note.textContent = `${lane}starts ${formatTimelineTime(clip.start)} · ends ${formatTimelineTime(clipEnd(clip))}. Drag either edge to trim; SPLIT or S cuts at the playhead.`;
   }
   renderAssetAnalysis(clipAsset(clip));
   setMediaInspectorVisible(true);
@@ -11242,6 +11560,9 @@ function showMediaInspectorForAsset(asset) {
   if (kind) kind.textContent = mediaKindTag(asset.kind);
   const miTrack = document.getElementById('miTrack');
   if (miTrack) miTrack.textContent = 'PROJECT';
+  const audioTrackField = document.getElementById('miAudioTrackField');
+  if (audioTrackField) audioTrackField.hidden = true;
+  renderAudioMix(asset.kind === 'audio');
   const miStart = document.getElementById('miStart');
   if (miStart) miStart.textContent = '—';
   const available = document.getElementById('miAvailable');
@@ -11568,10 +11889,14 @@ function renderLogicBoxes() {
         const wave = isMedia && clip.type === 'audio'
           ? `<span class="logic-wave" aria-hidden="true">${audioWaveBars(clipAsset(clip), 56)}</span>`
           : '';
+        const audioLaneTag = isMedia && clip.type === 'audio'
+          ? `<span class="logic-audio-lane">${audioTrackForClip(clip)}</span>`
+          : '';
         return `<div class="${classes}" data-id="${clip.id}" title="${escapeHtml(sourceRange + formatTimelineTime(clip.start) + ' → ' + formatTimelineTime(clipEnd(clip)))}" style="left:${left}%;width:${width}%${thumbStyle}">` +
           wave +
           `<div class="logic-trim" title="Drag to trim the in point"></div>` +
           `<div class="logic-box-head"><span class="logic-index">${String(index + 1).padStart(2, '0')}</span>` +
+          audioLaneTag +
           `<span class="logic-name" title="Double-click to rename">${escapeHtml(clip.name)}</span>` +
           `<span class="logic-dur">${durationLabel}</span></div>` +
           `<div class="logic-snippet">${escapeHtml(clipSnippet(clip))}</div>` +
@@ -11770,7 +12095,8 @@ function addLogicClip(options = {}) {
     mediaName: sourceMedia ? (source.mediaName || '') : '',
     sourceIn: sourceMedia ? clipSourceIn(source) : 0,
     fit: sourceMedia ? (source.fit === 'cover' ? 'cover' : 'contain') : 'contain',
-    parentClipId: ''
+    parentClipId: '',
+    audioTrack: sourceMedia && source.type === 'audio' ? audioTrackForClip(source) : ''
   };
   const index = timelineState.clips.findIndex(item => item.id === timelineState.activeId);
   timelineState.clips.splice(index >= 0 ? index + 1 : timelineState.clips.length, 0, clip);
@@ -11971,7 +12297,8 @@ function splitClipRecord(clip, at) {
     mediaName: clip.mediaName || '',
     sourceIn: rightSourceIn,
     fit: clip.fit === 'cover' ? 'cover' : 'contain',
-    parentClipId: clip.parentClipId || ''
+    parentClipId: clip.parentClipId || '',
+    audioTrack: clip.type === 'audio' ? audioTrackForClip(clip) : ''
   };
   clip.duration = roundClipTime(offset);
   clip.explicitDuration = true;
@@ -12102,7 +12429,10 @@ function insertAssetClip(asset, options = {}) {
     mediaName: asset.name,
     sourceIn,
     fit: (options.fit || mediaInsertFit) === 'cover' ? 'cover' : 'contain',
-    parentClipId: ''
+    parentClipId: '',
+    audioTrack: asset.kind === 'audio'
+      ? (['A1', 'A2', 'A3'].includes(options.audioTrack) ? options.audioTrack : 'A1')
+      : ''
   };
   timelineState.clips.push(clip);
   timelineState.layers = Math.max(timelineState.layers, track + 1);
@@ -12114,7 +12444,7 @@ function insertAssetClip(asset, options = {}) {
   renderProjectBin();
   updateStageTimeline();
   setStatus(
-    `${mediaKindTag(asset.kind)} · ${clip.name} · V${track + 1} · ${formatTimelineTime(clip.start)}${ripple ? ' · inserted' : (options.overlay ? ' · overlay' : ' · placed')}`,
+    `${mediaKindTag(asset.kind)} · ${clip.name} · ${asset.kind === 'audio' ? audioTrackForClip(clip) : 'V' + (track + 1)} · ${formatTimelineTime(clip.start)}${ripple ? ' · inserted' : (options.overlay ? ' · overlay' : ' · placed')}`,
     'ok'
   );
   return clip;
@@ -12144,7 +12474,7 @@ function insertAssetAtPlayhead(assetId) {
   return insertAssetClip(asset, { track: preferred, at, duration, mode: 'ripple' });
 }
 
-function placeAssetClipAt(asset, track, at) {
+function placeAssetClipAt(asset, track, at, options = {}) {
   if (!asset) return null;
   syncActiveClipFromEditor(true);
   const duration = assetInsertDuration(asset);
@@ -12159,7 +12489,8 @@ function placeAssetClipAt(asset, track, at) {
     at,
     duration,
     mode: 'overwrite',
-    overlay: target !== track
+    overlay: target !== track,
+    audioTrack: options.audioTrack
   });
 }
 
@@ -12270,6 +12601,7 @@ const projectOps = Object.freeze({
       layers: timelineState.layers,
       activeId: timelineState.activeId,
       transitions: transitionSummaryForChat(),
+      audioTracks: timelineState.audioTracks.map(track => ({ ...track })),
       clips: timelineState.clips.map(clip => ({
         id: clip.id,
         name: clip.name,
@@ -12281,7 +12613,8 @@ const projectOps = Object.freeze({
         sourceIn: clipSourceIn(clip),
         fit: clip.fit || 'contain',
         explicitDuration: Boolean(clip.explicitDuration),
-        codeLength: String(clip.code || '').length
+        codeLength: String(clip.code || '').length,
+        audioTrack: clip.type === 'audio' ? audioTrackForClip(clip) : ''
       })),
       assets: timelineState.assets.map(asset => ({
         id: asset.id,
@@ -12438,9 +12771,41 @@ const projectOps = Object.freeze({
     const track = Math.max(0, Math.min(3, Number.isFinite(Number(options.track)) ? Number(options.track) : 0));
     const at = roundClipTime(Math.max(0, Math.min(TIMELINE_MAX_SECONDS - 0.5,
       Number.isFinite(Number(options.at)) ? Number(options.at) : timelineState.playhead)));
-    const clip = placeAssetClipAt(asset, track, at);
+    const clip = placeAssetClipAt(asset, track, at, { audioTrack: options.audioTrack });
     if (!clip) return { ok: false, error: 'All tracks are occupied at that spot.' };
     return { ok: true, clipId: clip.id, clip };
+  },
+
+  setAudioTrack(clipId, trackId) {
+    const clip = timelineState.clips.find(item => item.id === clipId);
+    if (!clip) return { ok: false, error: 'Clip not found.' };
+    if (clip.type !== 'audio') return { ok: false, error: 'Only audio clips can be assigned to an audio track.' };
+    const id = String(trackId || '').toUpperCase();
+    if (!timelineState.audioTracks.some(track => track.id === id)) return { ok: false, error: 'Unknown audio track.' };
+    clip.audioTrack = id;
+    saveTimelineState(true);
+    renderLogicBoxes();
+    updateStageTimeline();
+    refreshMediaInspector();
+    return { ok: true, clipId: clip.id, audioTrack: id };
+  },
+
+  setAudioTrackMix(trackId, patch = {}) {
+    const id = String(trackId || '').toUpperCase();
+    const track = timelineState.audioTracks.find(item => item.id === id);
+    if (!track) return { ok: false, error: 'Unknown audio track.' };
+    if (patch.mute !== undefined) track.mute = Boolean(patch.mute);
+    if (patch.solo !== undefined) track.solo = Boolean(patch.solo);
+    if (patch.volume !== undefined) {
+      const volume = Number(patch.volume);
+      if (!Number.isFinite(volume)) return { ok: false, error: 'Volume must be a number between 0 and 2.' };
+      track.volume = Math.round(Math.max(0, Math.min(2, volume)) * 100) / 100;
+    }
+    saveTimelineState(true);
+    renderLogicBoxes();
+    updateStageTimeline();
+    refreshMediaInspector();
+    return { ok: true, track: { ...track } };
   },
 
   moveClip(clipId, options = {}) {
@@ -12996,6 +13361,253 @@ function setPlayheadFromPointer(event) {
   setPlayhead(timelinePctToTime(ratio * 100));
 }
 
+// ── VOICEOVER STUDIO ────────────────────────────────────
+// Providers and voices come from the backend registry. Hosted providers only
+// appear available when their key is configured; the frontend never sees keys.
+const VOICE_DRAFT_KEY = 'clipacanvas.voiceDraft';
+const VOICE_PROVIDER_KEY = 'clipacanvas.voiceProvider';
+const voiceStudioState = { providers: [], loaded: false, loading: false, busy: false, result: null, assetId: '' };
+
+function voiceEl(id) { return document.getElementById(id); }
+
+function voiceSelectedProvider() {
+  const id = voiceEl('voiceProvider')?.value || '';
+  return voiceStudioState.providers.find(provider => provider.id === id) || null;
+}
+
+function setVoiceStatus(text, tone = '') {
+  const el = voiceEl('voiceStatus');
+  if (!el) return;
+  el.textContent = text;
+  el.className = 'voice-status' + (tone ? ` ${tone}` : '');
+}
+
+function updateVoiceCharCount() {
+  const script = voiceEl('voiceScript');
+  const count = voiceEl('voiceCharCount');
+  if (!script || !count) return;
+  count.textContent = `${script.value.length} / 4000`;
+}
+
+function populateVoiceProviders() {
+  const select = voiceEl('voiceProvider');
+  if (!select) return;
+  const stored = localStorage.getItem(VOICE_PROVIDER_KEY) || '';
+  select.innerHTML = voiceStudioState.providers.map(provider =>
+    `<option value="${escapeAttr(provider.id)}"${provider.available ? '' : ' disabled'}>${escapeHtml(provider.label)}${provider.available ? '' : ' — unavailable'}</option>`
+  ).join('');
+  const available = voiceStudioState.providers.filter(provider => provider.available);
+  const preferred = available.find(provider => provider.id === stored) || available[0];
+  if (preferred) select.value = preferred.id;
+  updateVoiceControls();
+}
+
+function updateVoiceControls() {
+  const provider = voiceSelectedProvider();
+  const modelSelect = voiceEl('voiceModel');
+  const voiceSelect = voiceEl('voiceVoice');
+  const formatSelect = voiceEl('voiceFormat');
+  const speedField = voiceEl('voiceSpeedField');
+  const styleField = voiceEl('voiceStyleField');
+  const generate = voiceEl('voiceGenerate');
+  const badge = voiceEl('voiceBadge');
+  const consent = voiceEl('voiceConsent');
+  if (!modelSelect || !voiceSelect || !formatSelect) return;
+  if (!provider) {
+    modelSelect.innerHTML = '';
+    voiceSelect.innerHTML = '';
+    formatSelect.innerHTML = '';
+    if (badge) badge.textContent = 'NO PROVIDER';
+    if (consent) consent.textContent = voiceStudioState.error || 'No speech provider is available.';
+    if (generate) generate.disabled = true;
+    return;
+  }
+  modelSelect.innerHTML = provider.models.map(model => `<option value="${escapeAttr(model.id)}">${escapeHtml(model.label)}</option>`).join('');
+  voiceSelect.innerHTML = provider.voices.map(voice => {
+    const language = voice.language && voice.language !== 'auto' ? ` · ${voice.language}` : '';
+    return `<option value="${escapeAttr(voice.id)}">${escapeHtml(voice.label)}${escapeHtml(language)}</option>`;
+  }).join('');
+  formatSelect.innerHTML = provider.formats.map(format => `<option value="${format}">${format.toUpperCase()}</option>`).join('');
+  if (speedField) speedField.hidden = !provider.supports.speed;
+  if (styleField) styleField.hidden = !provider.supports.style;
+  if (badge) badge.textContent = `${provider.kind === 'local' ? 'LOCAL' : 'CLOUD'} · ${provider.available ? 'READY' : 'OFFLINE'}`;
+  if (consent) {
+    consent.textContent = provider.available ? provider.terms : (provider.reason || 'Provider unavailable.');
+    consent.classList.toggle('remote', provider.kind === 'remote');
+  }
+  if (generate) generate.disabled = !provider.available || voiceStudioState.busy;
+  localStorage.setItem(VOICE_PROVIDER_KEY, provider.id);
+}
+
+async function ensureVoiceStudio(force = false) {
+  const script = voiceEl('voiceScript');
+  if (script && !script.value) script.value = localStorage.getItem(VOICE_DRAFT_KEY) || '';
+  updateVoiceCharCount();
+  if (voiceStudioState.loading) return;
+  if (voiceStudioState.loaded && !force) return;
+  voiceStudioState.loading = true;
+  setVoiceStatus('READING SPEECH PROVIDERS…', 'busy');
+  try {
+    const response = await fetchWithTimeout(buildApiUrl('/api/tts/providers'), {}, 20000);
+    const data = await response.json();
+    if (!response.ok || !data.ok) throw new Error(data.error || 'Could not load speech providers.');
+    voiceStudioState.providers = Array.isArray(data.providers) ? data.providers : [];
+    voiceStudioState.loaded = true;
+    populateVoiceProviders();
+    setVoiceStatus('READY');
+  } catch (error) {
+    voiceStudioState.error = String(error?.message || error);
+    setVoiceStatus('PROVIDERS UNAVAILABLE', 'err');
+  } finally {
+    voiceStudioState.loading = false;
+  }
+}
+
+function ensureGeneratedAsset(result) {
+  const existing = findAssetByUrl(result.url);
+  if (existing) return existing.id;
+  const count = timelineState.assets.filter(asset => asset.kind === 'audio').length + 1;
+  const asset = {
+    id: newAssetId(),
+    name: `VOICE ${String(count).padStart(2, '0')}`.slice(0, 24),
+    kind: 'audio',
+    url: result.url,
+    duration: Number(result.duration) > 0 ? Number(result.duration) : null,
+    addedAt: Date.now(),
+    analysis: null,
+    analysisError: ''
+  };
+  timelineState.assets.push(asset);
+  saveTimelineState(true);
+  renderProjectBin();
+  analyzeProjectAsset(asset);
+  return asset.id;
+}
+
+function showVoiceResult(result) {
+  const box = voiceEl('voiceResult');
+  const audio = voiceEl('voiceAudio');
+  const meta = voiceEl('voiceResultMeta');
+  if (!box || !audio || !meta) return;
+  audio.src = result.url;
+  box.hidden = false;
+  const duration = Number(result.duration) > 0 ? `${Number(result.duration).toFixed(2)}s` : '—';
+  meta.textContent = [
+    result.providerLabel || result.provider,
+    result.voiceLabel || result.voice,
+    duration,
+    result.cached ? 'CACHED' : 'NEW',
+    result.sampleRate ? `${result.sampleRate} Hz` : ''
+  ].filter(Boolean).join(' · ');
+}
+
+async function generateVoiceover() {
+  if (voiceStudioState.busy) return;
+  const provider = voiceSelectedProvider();
+  const scriptEl = voiceEl('voiceScript');
+  const generate = voiceEl('voiceGenerate');
+  if (!provider || !scriptEl) return;
+  if (!provider.available) {
+    setVoiceStatus(provider.reason || 'PROVIDER UNAVAILABLE', 'err');
+    return;
+  }
+  const selection = scriptEl.value.slice(scriptEl.selectionStart, scriptEl.selectionEnd).trim();
+  const text = (selection || scriptEl.value).trim();
+  if (!text) {
+    setVoiceStatus('WRITE A SCRIPT FIRST', 'err');
+    scriptEl.focus();
+    return;
+  }
+  if (text.length > 4000) {
+    setVoiceStatus('SCRIPT TOO LONG · 4000 CHARACTERS MAX', 'err');
+    return;
+  }
+  voiceStudioState.busy = true;
+  if (generate) generate.disabled = true;
+  setVoiceStatus(selection ? 'GENERATING SELECTION…' : 'GENERATING SPEECH…', 'busy');
+  const payload = {
+    provider: provider.id,
+    model: voiceEl('voiceModel')?.value || '',
+    voice: voiceEl('voiceVoice')?.value || '',
+    text,
+    speed: provider.supports.speed ? Number(voiceEl('voiceSpeed')?.value || 1) : 1,
+    style: provider.supports.style ? String(voiceEl('voiceStyle')?.value || '').trim() : '',
+    format: voiceEl('voiceFormat')?.value || 'wav'
+  };
+  try {
+    const response = await fetchWithTimeout(buildApiUrl('/api/tts/generate'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    }, 180000);
+    const data = await response.json();
+    if (!response.ok || !data.ok) throw new Error(data.error || 'Speech generation failed.');
+    voiceStudioState.result = data;
+    voiceStudioState.assetId = ensureGeneratedAsset(data);
+    showVoiceResult(data);
+    setVoiceStatus(data.cached ? 'CACHED RESULT READY' : 'SPEECH READY');
+  } catch (error) {
+    const message = String(error?.message || error);
+    setVoiceStatus(message.slice(0, 120).toUpperCase(), 'err');
+  } finally {
+    voiceStudioState.busy = false;
+    if (generate) generate.disabled = false;
+    const providerNow = voiceSelectedProvider();
+    if (generate) generate.disabled = !providerNow?.available;
+  }
+}
+
+function insertGeneratedVoiceover() {
+  const result = voiceStudioState.result;
+  if (!result) {
+    setVoiceStatus('GENERATE SPEECH FIRST', 'err');
+    return;
+  }
+  const assetId = voiceStudioState.assetId || ensureGeneratedAsset(result);
+  const asset = findAsset(assetId);
+  const target = voiceEl('voiceTarget')?.value || 'A1';
+  const at = Math.round(Math.max(0, Number(timelineState.playhead) || 0) * 10) / 10;
+  const created = projectOps.insertAsset(assetId, { track: 0, at, audioTrack: target });
+  if (!created.ok) {
+    setVoiceStatus(String(created.error || 'COULD NOT INSERT').toUpperCase(), 'err');
+    return;
+  }
+  const clip = timelineState.clips.find(item => item.id === created.clipId);
+  if (clip) {
+    clip.name = String(asset?.name || 'VOICEOVER').slice(0, 24);
+    clip.audioTrack = target;
+    saveTimelineState(true);
+    renderLogicBoxes();
+    updateStageTimeline();
+  }
+  projectOps.selectClip(created.clipId);
+  setVoiceStatus(`INSERTED ${target} AT ${formatTimelineTime(at)}`);
+}
+
+function initVoiceStudio() {
+  const script = voiceEl('voiceScript');
+  const generate = voiceEl('voiceGenerate');
+  if (!script || !generate) return;
+  script.addEventListener('input', () => {
+    updateVoiceCharCount();
+    try { localStorage.setItem(VOICE_DRAFT_KEY, script.value); } catch (error) { console.error(error); }
+  });
+  generate.addEventListener('click', generateVoiceover);
+  voiceEl('voiceProvider')?.addEventListener('change', updateVoiceControls);
+  voiceEl('voiceSpeed')?.addEventListener('input', () => {
+    const value = voiceEl('voiceSpeedValue');
+    if (value) value.textContent = `${Number(voiceEl('voiceSpeed').value).toFixed(2)}×`;
+  });
+  voiceEl('voiceInsert')?.addEventListener('click', insertGeneratedVoiceover);
+  voiceEl('voiceAddBin')?.addEventListener('click', () => {
+    if (!voiceStudioState.result) { setVoiceStatus('GENERATE SPEECH FIRST', 'err'); return; }
+    ensureGeneratedAsset(voiceStudioState.result);
+    setVoiceStatus('ADDED TO PROJECT');
+  });
+  updateVoiceCharCount();
+  if (script.value) ensureVoiceStudio();
+}
+
 function initLogicTimeline() {
   loadTimelineState();
   applyActiveClipToEditor({ preview: false, timing: false });
@@ -13020,6 +13632,8 @@ function initLogicTimeline() {
     openTransitionDialog({ transitionId: badge.dataset.transitionId });
   });
   initTransitionDialog();
+  initAudioMixControls();
+  initVoiceStudio();
 
   document.getElementById('miDuration')?.addEventListener('change', applyInspectorDuration);
   document.getElementById('miSourceIn')?.addEventListener('change', applyInspectorSourceIn);

@@ -619,6 +619,7 @@ def render_payload(payload: dict, output_path: str | Path, ffmpeg_exe: str | Non
                     "start": max(0.0, float(raw_clip.get("start") or 0)),
                     "sourceIn": max(0.0, float(raw_clip.get("sourceIn") or 0)),
                     "duration": max(0.05, float(raw_clip.get("duration") or 0)),
+                    "volume": min(2.0, max(0.0, float(raw_clip.get("volume", 1) if raw_clip.get("volume") is not None else 1))),
                 })
             except (TypeError, ValueError):
                 continue
@@ -738,6 +739,8 @@ def render_payload(payload: dict, output_path: str | Path, ffmpeg_exe: str | Non
             mix_labels.append("[a0]")
         audio_input_index = 1 if audio_path else 0
         for clip_index, audio_clip in enumerate(audio_clips):
+            if audio_clip.get("volume", 1) <= 0:
+                continue
             relative_start = audio_clip["start"] - render_start_seconds
             source_in = audio_clip["sourceIn"]
             clip_duration = audio_clip["duration"]
@@ -753,6 +756,7 @@ def render_payload(payload: dict, output_path: str | Path, ffmpeg_exe: str | Non
                 f"[{audio_input_index + clip_index}:a]"
                 f"atrim=start={source_in:.3f}:duration={clip_duration:.3f},"
                 f"asetpts=PTS-STARTPTS,"
+                f"volume={audio_clip.get('volume', 1):.3f},"
                 f"adelay=delays={delay_ms}:all=1[{label}]"
             )
             mix_labels.append(f"[{label}]")

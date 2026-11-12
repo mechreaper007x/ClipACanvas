@@ -2,7 +2,28 @@
 
 Date: 2026-11-12
 Branch: `main`
-Baseline: `main` at `92f548c`; the transition work described in the Phase 2 addendum is uncommitted at the time of writing.
+Baseline: `main` at `b8addc5`; the speech/audio work described in the Phase 3 addendum is uncommitted at the time of writing.
+
+## Addendum — Phase 3 (speech generation and audio mix)
+
+Verified in the working tree on 2026-11-12.
+
+### What is implemented
+
+- **Provider registry:** `GET /api/tts/providers` reports three providers with live availability. `sapi` is the local Windows `System.Speech` engine (offline, no download, voices enumerated from the OS and cached five minutes). `gemini` uses the Gemini TTS Interactions API; `mistral` uses the Voxtral `/v1/audio/speech` endpoint. Each entry carries supported formats, capability flags (`speed`, `style`, `emotion`, `voiceCloning`, `streaming`) and a plain-language terms string shown in the UI. Hosted providers are marked unavailable with a reason until their key exists in the backend key store.
+- **Synthesis endpoint:** `POST /api/tts/generate` validates text (1–4000 chars), provider availability, model, voice, format, speed (0.5–2 where supported) and style. SAPI runs a PowerShell `System.Speech` script offline with the requested rate. Gemini sends the script plus optional `speech_metadata` style and reads base64 `output_audio`. Mistral sends `model`/`input`/`voice_id`/`response_format`/`stream` and reads `audio_data`. Keys stay in the existing backend key store; the frontend never receives them.
+- **Caching:** SHA-256 over the canonical request (version, provider, model, voice, format, speed, style, text) keyed under `%APPDATA%/ClipACanvas/tts`. A repeat request returns the existing media file without calling the provider. Audio is stored as a normal content-hashed `/media` asset, probed with the bundled FFmpeg for duration/sample rate/channels, and recorded with provider, voice and terms provenance.
+- **Voiceover Studio:** right-pane `VOICE` tab with script (selection pre-fills), character count, provider/model/voice/format/speed/style/target controls, an explicit hosted-provider consent line, generate action, status, audio preview, and insertion at the playhead on the chosen lane (`A1` default, `A2`/`A3` optional) or into the bin.
+- **Audio mix:** `A1 VOICEOVER` / `A2 MUSIC` / `A3 SFX` are persisted in `timelineState.audioTracks` with `mute`, `solo` and `volume` (0–2). Audio clips carry `audioTrack`. The inspector exposes lane assignment and per-lane mix rows; the timeline shows lane tags on audio clips. Export and hosted renders carry `audioTrack` plus gain, the renderer applies FFmpeg `volume=` and honors mute/solo (any solo lane suppresses non-solo lanes; muted or zero-gain clips are skipped).
+- Generated and imported speech use the existing `/media`, bin, timeline, composite preview and export paths; no parallel pipeline was added.
+
+### Limitations
+
+- Hosted providers were implemented against the official documentation (Gemini Interactions API; Mistral `audio/speech` reference) but no live hosted call was made during verification because no hosted key was configured. Failures surface explicit provider errors (502) instead of silently falling back to another provider.
+- Mistral Voxtral is exposed with preset voices only; cloning needs a reference-audio upload and is not exposed. Speed/style controls hide for providers that do not support them.
+- SAPI voice quality depends on installed Windows voices; UI speed maps onto the engine's rate scale.
+- Audio lanes are logical (`clip.audioTrack` + mix); clips still sit visually on the V1–V4 rows with `A1`–`A3` tags, and there are no typed audio lanes or lane heights yet.
+- Voiceover Studio generates whole scripts or the selected text; there is no per-paragraph regeneration, scrubbing preview, or TTS agent tool yet.
 
 ## Addendum — Phase 2 (transition engine)
 

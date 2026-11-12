@@ -617,6 +617,398 @@ def _probe_media_technical(path: Path) -> dict:
     return technical
 
 
+TTS_MAX_TEXT = 4000
+TTS_CACHE_VERSION = 1
+# Verified against the official docs on 2026-11-12:
+# Gemini TTS: ai.google.dev / aistudio.google.com speech-generation docs.
+# Mistral Voxtral TTS: docs.mistral.ai audio/speech API reference and voices page.
+GEMINI_TTS_URL = "https://generativelanguage.googleapis.com/v1beta/interactions"
+GEMINI_TTS_MODELS = [
+    {"id": "gemini-3.8-flash-tts", "label": "Gemini 3.8 Flash TTS"},
+    {"id": "gemini-3.8-flash-lite-tts", "label": "Gemini 3.8 Flash-Lite TTS"},
+]
+GEMINI_TTS_VOICES = [
+    "Zephyr", "Puck", "Charon", "Kore", "Fenrir", "Leda", "Orus", "Aoede",
+    "Callirrhoe", "Autonoe", "Enceladus", "Iapetus", "Umbriel", "Algieba",
+    "Despina", "Erinome", "Algenib", "Rasalgethi", "Laomedeia", "Achernar",
+    "Alnilam", "Schedar", "Gacrux", "Pulcherrima", "Achird", "Zubenelgenubi",
+    "Vindemiatrix", "Sadachbia", "Sadaltager", "Sulafat",
+]
+MISTRAL_TTS_URL = "https://api.mistral.ai/v1/audio/speech"
+MISTRAL_TTS_MODEL = "voxtral-mini-tts-3-0"
+MISTRAL_TTS_VOICES = [
+    ("voice_447", "English (US)"),
+    ("voice_478", "English (US)"),
+    ("voice_485", "English (US)"),
+    ("voice_3150", "English (US)"),
+    ("voice_1787", "English (UK)"),
+    ("voice_1786", "English (UK)"),
+    ("voice_1788", "English (UK)"),
+    ("voice_590", "English (UK)"),
+    ("voice_591", "English (UK)"),
+    ("voice_3149", "English (UK)"),
+    ("voice_3147", "English (UK)"),
+    ("voice_592", "French"),
+    ("voice_3137", "French"),
+    ("voice_589", "French"),
+    ("voice_3141", "French"),
+    ("voice_483", "Spanish"),
+    ("voice_481", "German"),
+    ("voice_482", "Italian"),
+    ("voice_480", "Portuguese"),
+    ("voice_479", "Arabic"),
+    ("voice_3143", "Catalan"),
+    ("voice_3139", "Hindi"),
+    ("voice_3153", "Hindi"),
+    ("voice_3146", "Hungarian"),
+    ("voice_3133", "Japanese"),
+    ("voice_3136", "Korean"),
+    ("voice_3135", "Korean"),
+    ("voice_3145", "Dutch"),
+    ("voice_3134", "Norwegian"),
+    ("voice_3154", "Polish"),
+    ("voice_3155", "Romanian"),
+    ("voice_3132", "Russian"),
+    ("voice_3138", "Turkish"),
+    ("voice_3140", "Ukrainian"),
+    ("voice_3144", "Vietnamese"),
+    ("voice_3142", "Chinese"),
+]
+_SAPI_VOICE_CACHE = {"at": 0.0, "voices": [], "error": ""}
+_SAPI_VOICE_LOCK = threading.Lock()
+
+
+def _tts_dir() -> Path:
+    directory = _keys_dir() / "tts"
+    directory.mkdir(parents=True, exist_ok=True)
+    return directory
+
+
+def _sapi_voice_list() -> tuple[list[dict], str]:
+    """Installed Windows SAPI voices, cached for five minutes.
+
+    This is the local provider: it uses the OS speech engine, requires no
+    network and no model download, and reports only voices actually installed.
+    """
+    with _SAPI_VOICE_LOCK:
+        if time.time() - _SAPI_VOICE_CACHE["at"] < 300:
+            return _SAPI_VOICE_CACHE["voices"], _SAPI_VOICE_CACHE["error"]
+    voices: list[dict] = []
+    error = ""
+    powershell = shutil.which("powershell.exe") if IS_WINDOWS else None
+    if not powershell:
+        error = "Windows SAPI is not available on this platform."
+    else:
+        command = (
+            "Add-Type -AssemblyName System.Speech; "
+            "$s = New-Object System.Speech.Synthesis.SpeechSynthesizer; "
+            "$s.GetInstalledVoices() | ForEach-Object { $i = $_.VoiceInfo; "
+            "Write-Output ($i.Name + '|' + $i.Culture.Name + '|' + $i.Gender) }"
+        )
+        try:
+            proc = subprocess.run(
+                [powershell, "-NoProfile", "-NonInteractive", "-Command", command],
+                capture_output=True, text=True, errors="replace", timeout=20,
+                creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+            )
+            for line in (proc.stdout or "").splitlines():
+                parts = line.strip().split("|")
+                if len(parts) < 2 or not parts[0]:
+                    continue
+                voices.append({
+                    "id": parts[0],
+                    "label": parts[0].replace("Microsoft ", "").replace(" Desktop", ""),
+                    "language": parts[1] or "unknown",
+                    "gender": parts[2] if len(parts) > 2 else "",
+                })
+            if not voices:
+                error = "No installed Windows speech voices were found."
+        except (OSError, subprocess.TimeoutExpired) as exc:
+            error = f"Windows speech engine unavailable: {exc}"
+    with _SAPI_VOICE_LOCK:
+        _SAPI_VOICE_CACHE.update({"at": time.time(), "voices": voices, "error": error})
+    return voices, error
+
+
+def tts_provider_registry() -> dict:
+    keys = _load_saved_keys()
+    sapi_voices, sapi_error = _sapi_voice_list()
+    providers = [
+        {
+            "id": "sapi",
+            "label": "Windows Speech (local)",
+            "kind": "local",
+            "available": bool(sapi_voices),
+            "reason": sapi_error if not sapi_voices else "",
+            "requiresKey": "",
+            "models": [{"id": "system", "label": "Installed SAPI voice"}],
+            "voices": sapi_voices,
+            "languages": sorted({voice["language"] for voice in sapi_voices}),
+            "formats": ["wav"],
+            "supports": {"speed": True, "style": False, "emotion": False, "voiceCloning": False, "streaming": False},
+            "notes": "Offline OS speech; no network, no model download. Voice quality depends on installed Windows voices.",
+            "terms": "Runs locally. Script text never leaves the machine.",
+        },
+        {
+            "id": "gemini",
+            "label": "Google Gemini TTS",
+            "kind": "remote",
+            "available": bool(keys.get("gemini")),
+            "reason": "" if keys.get("gemini") else "Add a Gemini API key in Settings.",
+            "requiresKey": "gemini",
+            "models": GEMINI_TTS_MODELS,
+            "voices": [{"id": voice, "label": voice, "language": "auto"} for voice in GEMINI_TTS_VOICES],
+            "languages": ["auto"],
+            "formats": ["wav"],
+            "supports": {"speed": False, "style": True, "emotion": False, "voiceCloning": False, "streaming": False},
+            "notes": "Language is detected from the script. Style is sent as Gemini speech metadata.",
+            "terms": "Sends the script to Google generativelanguage.googleapis.com. The key stays in the backend.",
+        },
+        {
+            "id": "mistral",
+            "label": "Mistral Voxtral TTS",
+            "kind": "remote",
+            "available": bool(keys.get("mistral")),
+            "reason": "" if keys.get("mistral") else "Add a Mistral API key in Settings.",
+            "requiresKey": "mistral",
+            "models": [{"id": MISTRAL_TTS_MODEL, "label": "Voxtral Mini TTS 3.0"}],
+            "voices": [{"id": voice, "label": f"{voice} · {language}", "language": language} for voice, language in MISTRAL_TTS_VOICES],
+            "languages": sorted({language for _, language in MISTRAL_TTS_VOICES}),
+            "formats": ["wav", "mp3"],
+            "supports": {"speed": False, "style": False, "emotion": False, "voiceCloning": True, "streaming": False},
+            "notes": "Preset voices only in this UI; cloning needs a reference audio upload and is not exposed yet.",
+            "terms": "Sends the script to api.mistral.ai. The key stays in the backend.",
+        },
+    ]
+    return {"providers": providers}
+
+
+def _tts_provider(provider_id: str) -> dict:
+    for provider in tts_provider_registry()["providers"]:
+        if provider["id"] == provider_id:
+            return provider
+    raise ValueError("Unknown speech provider.")
+
+
+def _sapi_synthesize(text: str, voice: str, rate: int, output: Path) -> None:
+    powershell = shutil.which("powershell.exe")
+    if not powershell:
+        raise RuntimeError("Windows SAPI is not available.")
+    safe_output = str(output).replace("'", "''")
+    safe_voice = str(voice).replace("'", "''")
+    script_path = output.with_suffix(".ps1")
+    text_path = output.with_suffix(".txt")
+    text_path.write_text(text, encoding="utf-8-sig")
+    script_path.write_text(
+        "Add-Type -AssemblyName System.Speech\n"
+        "$s = New-Object System.Speech.Synthesis.SpeechSynthesizer\n"
+        f"$s.SelectVoice('{safe_voice}')\n"
+        f"$s.Rate = {int(rate)}\n"
+        f"$s.SetOutputToWaveFile('{safe_output}')\n"
+        f"$s.Speak([IO.File]::ReadAllText('{str(text_path).replace(chr(39), chr(39) * 2)}'))\n"
+        "$s.Dispose()\n",
+        encoding="utf-8",
+    )
+    try:
+        proc = subprocess.run(
+            [powershell, "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File", str(script_path)],
+            capture_output=True, text=True, errors="replace", timeout=120,
+            creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+        )
+        if proc.returncode != 0 or not output.exists() or output.stat().st_size < 64:
+            detail = (proc.stderr or proc.stdout or "").strip()[:400]
+            raise RuntimeError(f"Windows speech failed: {detail or 'no audio produced'}")
+    finally:
+        script_path.unlink(missing_ok=True)
+        text_path.unlink(missing_ok=True)
+
+
+def _gemini_tts_synthesize(text: str, model: str, voice: str, style: str) -> bytes:
+    key = _load_saved_keys().get("gemini", "")
+    if not key:
+        raise PermissionError("Gemini API key is not configured. Add it in Settings.")
+    text_entry: dict = {"type": "text", "text": text}
+    if style:
+        text_entry["annotations"] = [{"type": "speech_metadata", "style": style}]
+    body = {
+        "model": model,
+        "input": [{"type": "user_input", "content": [text_entry]}],
+        "response_format": {"type": "audio"},
+        "generation_config": {"speech_config": [{"voice": voice}]},
+    }
+    request = urllib.request.Request(
+        GEMINI_TTS_URL,
+        data=json.dumps(body).encode("utf-8"),
+        headers={"Content-Type": "application/json", "x-goog-api-key": key},
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=120) as response:
+            data = json.loads(response.read().decode("utf-8"))
+    except urllib.error.HTTPError as exc:
+        detail = ""
+        try:
+            detail = exc.read().decode("utf-8", errors="replace")[:500]
+        except Exception:
+            pass
+        raise RuntimeError(f"Gemini TTS rejected the request ({exc.code}): {detail or exc.reason}") from exc
+    except urllib.error.URLError as exc:
+        raise RuntimeError(f"Could not reach Gemini TTS: {exc.reason}") from exc
+    output = data.get("output_audio") if isinstance(data, dict) else None
+    if not isinstance(output, dict) or not output.get("data"):
+        raise RuntimeError("Gemini TTS returned no audio data.")
+    mime = str(output.get("mime_type") or "").lower()
+    if mime and "wav" not in mime:
+        raise RuntimeError(f"Gemini TTS returned unsupported audio type: {mime}")
+    try:
+        return base64.b64decode(output["data"])
+    except (ValueError, TypeError) as exc:
+        raise RuntimeError("Gemini TTS returned invalid audio data.") from exc
+
+
+def _mistral_tts_synthesize(text: str, voice: str, audio_format: str) -> bytes:
+    key = _load_saved_keys().get("mistral", "")
+    if not key:
+        raise PermissionError("Mistral API key is not configured. Add it in Settings.")
+    body = {
+        "model": MISTRAL_TTS_MODEL,
+        "input": text,
+        "voice_id": voice,
+        "response_format": audio_format,
+        "stream": False,
+    }
+    request = urllib.request.Request(
+        MISTRAL_TTS_URL,
+        data=json.dumps(body).encode("utf-8"),
+        headers={"Content-Type": "application/json", "Authorization": f"Bearer {key}"},
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=120) as response:
+            data = json.loads(response.read().decode("utf-8"))
+    except urllib.error.HTTPError as exc:
+        detail = ""
+        try:
+            detail = exc.read().decode("utf-8", errors="replace")[:500]
+        except Exception:
+            pass
+        raise RuntimeError(f"Mistral TTS rejected the request ({exc.code}): {detail or exc.reason}") from exc
+    except urllib.error.URLError as exc:
+        raise RuntimeError(f"Could not reach Mistral TTS: {exc.reason}") from exc
+    encoded = data.get("audio_data") if isinstance(data, dict) else None
+    if not encoded:
+        raise RuntimeError("Mistral TTS returned no audio data.")
+    try:
+        return base64.b64decode(encoded)
+    except (ValueError, TypeError) as exc:
+        raise RuntimeError("Mistral TTS returned invalid audio data.") from exc
+
+
+def synthesize_speech(payload: dict) -> dict:
+    """Generate speech with the selected provider and return a normal media asset."""
+    provider_id = str(payload.get("provider") or "").strip().lower()
+    provider = _tts_provider(provider_id)
+    text = str(payload.get("text") or "").strip()
+    if not text:
+        raise ValueError("Script text is required.")
+    if len(text) > TTS_MAX_TEXT:
+        raise ValueError(f"Scripts are limited to {TTS_MAX_TEXT} characters.")
+    voice = str(payload.get("voice") or "").strip()
+    if not any(item["id"] == voice for item in provider["voices"]):
+        raise ValueError("Choose a voice offered by this provider.")
+    model = str(payload.get("model") or "").strip() or provider["models"][0]["id"]
+    if not any(item["id"] == model for item in provider["models"]):
+        raise ValueError("Choose a model offered by this provider.")
+    audio_format = str(payload.get("format") or "wav").lower().strip()
+    if audio_format not in provider["formats"]:
+        audio_format = "wav"
+    try:
+        speed = min(2.0, max(0.5, float(payload.get("speed", 1) or 1)))
+    except (TypeError, ValueError):
+        speed = 1.0
+    style = str(payload.get("style") or "").strip()[:200]
+    if not provider["supports"].get("style"):
+        style = ""
+    emotion = str(payload.get("emotion") or "").strip()[:100]
+    if not provider["supports"].get("emotion"):
+        emotion = ""
+    if provider_id == "sapi" and not provider["available"]:
+        raise RuntimeError(provider["reason"] or "Local speech is unavailable.")
+    if provider.get("requiresKey") and not provider["available"]:
+        raise PermissionError(provider["reason"] or f"{provider['label']} is not configured.")
+
+    cache_request = {
+        "version": TTS_CACHE_VERSION,
+        "provider": provider_id,
+        "model": model,
+        "voice": voice,
+        "text": text,
+        "speed": round(speed, 2),
+        "style": style,
+        "emotion": emotion,
+        "format": audio_format,
+    }
+    cache_key = hashlib.sha256(json.dumps(cache_request, sort_keys=True).encode("utf-8")).hexdigest()
+    cache_path = _tts_dir() / f"{cache_key}.json"
+    if cache_path.exists():
+        try:
+            cached = json.loads(cache_path.read_text(encoding="utf-8"))
+            media_file = _media_dir() / str(cached.get("filename") or "")
+            if media_file.exists() and media_file.stat().st_size > 64:
+                return {**cached, "ok": True, "cached": True, "cacheKey": cache_key}
+        except (OSError, ValueError):
+            pass
+
+    suffix = ".wav" if audio_format == "wav" else ".mp3"
+    if provider_id == "sapi":
+        with tempfile.TemporaryDirectory() as tmp_name:
+            output = Path(tmp_name) / "speech.wav"
+            rate = int(round((speed - 1.0) * 10))
+            _sapi_synthesize(text, voice, max(-10, min(10, rate)), output)
+            audio_bytes = output.read_bytes()
+    elif provider_id == "gemini":
+        audio_bytes = _gemini_tts_synthesize(text, model, voice, style)
+    else:
+        audio_bytes = _mistral_tts_synthesize(text, voice, audio_format)
+    if len(audio_bytes) < 64:
+        raise RuntimeError("The speech provider returned an empty audio file.")
+
+    content_hash = hashlib.sha256(audio_bytes).hexdigest()[:20]
+    filename = f"media-{content_hash}{suffix}"
+    media_path = _media_dir() / filename
+    if not media_path.exists():
+        tmp_media = media_path.with_suffix(media_path.suffix + ".tmp")
+        tmp_media.write_bytes(audio_bytes)
+        os.replace(tmp_media, media_path)
+    technical = _probe_media_technical(media_path)
+    record = {
+        "version": TTS_CACHE_VERSION,
+        "provider": provider_id,
+        "providerLabel": provider["label"],
+        "model": model,
+        "voice": voice,
+        "voiceLabel": next((item["label"] for item in provider["voices"] if item["id"] == voice), voice),
+        "speed": round(speed, 2),
+        "style": style,
+        "emotion": emotion,
+        "format": audio_format,
+        "chars": len(text),
+        "textPreview": text[:120],
+        "filename": filename,
+        "url": f"/media/{filename}",
+        "duration": technical.get("duration"),
+        "sampleRate": technical.get("sampleRate"),
+        "channels": technical.get("channels"),
+        "bytes": len(audio_bytes),
+        "local": provider["kind"] == "local",
+        "createdAt": time.time(),
+    }
+    tmp_cache = cache_path.with_suffix(".json.tmp")
+    tmp_cache.write_text(json.dumps(record, ensure_ascii=False), encoding="utf-8")
+    os.replace(tmp_cache, cache_path)
+    return {**record, "ok": True, "cached": False, "cacheKey": cache_key}
+
+
 def analyze_media_file(filename: str) -> dict:
     """Return a cached technical analysis manifest for a stored media file."""
     if not MEDIA_NAME_RE.match(filename or ""):
@@ -698,6 +1090,7 @@ def _resolve_timeline_audio(raw_clips) -> list[dict]:
             start = max(0.0, float(raw.get("start") or 0))
             source_in = max(0.0, float(raw.get("sourceIn") or 0))
             duration = max(0.05, float(raw.get("duration") or 0))
+            volume = min(2.0, max(0.0, float(raw.get("volume", 1) if raw.get("volume") is not None else 1)))
         except (TypeError, ValueError):
             continue
         resolved.append({
@@ -705,6 +1098,7 @@ def _resolve_timeline_audio(raw_clips) -> list[dict]:
             "start": start,
             "sourceIn": source_in,
             "duration": duration,
+            "volume": volume,
         })
     return resolved
 
@@ -1159,6 +1553,8 @@ class ClipACanvasHandler(SimpleHTTPRequestHandler):
                 return self._handle_chatlog_get()
             if self.path == '/api/prefs':
                 return self._handle_prefs_get()
+            if self.path == '/api/tts/providers':
+                return self._handle_tts_providers()
             if self.path == '/health':
                 return self._send_json({'ok': True})
             parsed = urllib.parse.urlparse(self.path)
@@ -1193,6 +1589,8 @@ class ClipACanvasHandler(SimpleHTTPRequestHandler):
                 self._handle_media_upload()
             elif self.path == '/api/media/analyze':
                 self._handle_media_analyze()
+            elif self.path == '/api/tts/generate':
+                self._handle_tts_generate()
             elif self.path == '/api/llm/chat':
                 self._handle_llm_chat()
             elif self.path == '/api/llm/models':
@@ -2109,6 +2507,39 @@ class ClipACanvasHandler(SimpleHTTPRequestHandler):
             print(f"  [SERVER] analysis error: {exc}")
             return self._send_json({'ok': False, 'error': 'Media analysis failed.'}, 500)
         self._send_json({'ok': True, 'manifest': manifest})
+
+    def _handle_tts_providers(self):
+        try:
+            self._send_json({'ok': True, **tts_provider_registry()})
+        except Exception as exc:
+            print(f"  [SERVER] TTS provider error: {exc}")
+            self._send_json({'ok': False, 'error': 'Could not list speech providers.'}, 500)
+
+    def _handle_tts_generate(self):
+        try:
+            length = int(self.headers.get('Content-Length') or 0)
+        except ValueError:
+            length = 0
+        if length <= 0 or length > 200000:
+            return self._send_json({'ok': False, 'error': 'Invalid speech request.'}, 400)
+        try:
+            payload = json.loads(self.rfile.read(length).decode('utf-8'))
+        except (ValueError, UnicodeDecodeError):
+            return self._send_json({'ok': False, 'error': 'Invalid JSON.'}, 400)
+        if not isinstance(payload, dict):
+            return self._send_json({'ok': False, 'error': 'Invalid speech request.'}, 400)
+        try:
+            result = synthesize_speech(payload)
+        except ValueError as exc:
+            return self._send_json({'ok': False, 'error': str(exc)}, 400)
+        except PermissionError as exc:
+            return self._send_json({'ok': False, 'error': str(exc)}, 403)
+        except RuntimeError as exc:
+            return self._send_json({'ok': False, 'error': str(exc)}, 502)
+        except Exception as exc:
+            print(f"  [SERVER] TTS error: {exc}")
+            return self._send_json({'ok': False, 'error': 'Speech generation failed.'}, 500)
+        self._send_json(result)
 
     def _send_json(self, payload, status=200):
         data = json.dumps(payload).encode('utf-8')

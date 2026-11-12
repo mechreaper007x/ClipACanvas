@@ -3760,3 +3760,35 @@
 
 - TTS provider abstraction and Voiceover Studio (next directive item); semantic asset analysis; overlay attachment UI buttons; frame/tick timebase.
 - `dist/ClipACanvas.exe` still needs a rebuild.
+
+## 2026-11-12 (Phase 3: speech generation and audio mix)
+
+### Summary
+
+- Added a TTS provider registry and synthesis backend: local Windows SAPI (`System.Speech`, offline) plus hosted Gemini TTS and Mistral Voxtral, gated on installed voices / configured keys. Keys stay in the backend store; hosted requests run only on explicit user generation and state where the script is sent.
+- Added deterministic caching keyed by canonical request (text/provider/model/voice/format/speed/style) under `%APPDATA%/ClipACanvas/tts`; generated audio is saved as a normal `/media` asset and probed with the bundled FFmpeg.
+- Added the VOICE right-pane tab (Voiceover Studio): script + selection, provider/voice/speed/style controls, consent line, audio preview, insert at playhead or add to bin.
+- Added A1 VOICEOVER / A2 MUSIC / A3 SFX audio lanes with mute/solo/volume, persisted with the project; clips carry `audioTrack`, the inspector exposes lane + mix, and export applies real FFmpeg gain and mute/solo.
+
+### Files Touched
+
+- `clipacanvas.html`, `serve.py`, `playwright_render.py`
+- `docs/EDITOR_AUDIT.md` (Phase 3 addendum)
+- `tests/_check_tts.py`, `tests/_check_webview_tts.py` (new)
+- `SESSION_LOG.md`
+
+### Verification
+
+- `_check_tts.py`: PASS — provider availability (SAPI available, hosted disabled without keys), SAPI WAV generation, cache reuse without a second call, asset/bin creation, A1 insertion, export voiceover peak -1.9 dB, 0.5 lane gain -7.9 dB, lane assignment/mute/solo in the render plan, persistence, 1280 right-tab fit.
+- `_check_webview_tts.py`: PASS in WebView2 (Edg/157) — generate, insert on A1, mute mix, restore after reload.
+- Regressions PASS: `_check_workspace`, `_check_overlays`, `_check_project_ops`, `_check_bin_dragdrop`, `_check_e2e_flow`, `_check_media_timeline`, `_check_transitions`, `_check_chat_scenes`, `_check_audio_import`, `_check_timeline_zoom`; `py_compile` clean.
+- Artifacts: `output/playwright/voice-studio.png`, `voiceover-export.mp4`, `voiceover-half.mp4`, `webview-voice-studio.png`.
+
+### Commits
+
+- This speech/audio change set committed locally; not pushed.
+
+### Open Items
+
+- Hosted TTS request paths verified from docs but not exercised live (no hosted key configured); semantic asset analysis, overlay attachment UI, frame/tick timebase remain.
+- `dist/ClipACanvas.exe` still needs a rebuild.
