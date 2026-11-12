@@ -164,6 +164,9 @@ with tempfile.TemporaryDirectory() as tmp_name:
             page.wait_for_timeout(900)
             assert page.evaluate("document.getElementById('projectName').value") == "ALPHA"
             assert page.evaluate("timelineState.clips.length") == 1, "starter timeline missing"
+            assert page.evaluate("timelineState.clips[0].code") == "", "new project must start blank"
+            assert page.evaluate("document.getElementById('codeInput').value") == "", \
+                "new project inherited editor code"
             assert page.evaluate("timelineState.assets.length") == 0, "new project must not inherit assets"
             active_id = page.evaluate("activeProject && activeProject.id")
             assert active_id == "alpha", active_id
@@ -183,8 +186,15 @@ with tempfile.TemporaryDirectory() as tmp_name:
             # ── 3. Multiple independent projects, autosave isolation ────
             page.click("#boxAdd")
             page.wait_for_function("() => timelineState.clips.length === 2", timeout=10000)
+            page.evaluate("""() => {
+                const input = document.getElementById('codeInput');
+                input.value = '<!DOCTYPE html><html><body><div>ALPHA ONLY MARKER</div></body></html>';
+                syncActiveClipFromEditor(true);
+            }""")
             alpha_auto = projects / "alpha.autosave.ccproj.json"
-            wait_file(alpha_auto, lambda doc: len(doc["timeline"]["clips"]) == 2)
+            wait_file(alpha_auto, lambda doc: any(
+                "ALPHA ONLY MARKER" in (c.get("code") or "") for c in doc["timeline"]["clips"]
+            ))
             still_saved = json.loads(alpha_file.read_text(encoding="utf-8"))
             assert len(still_saved["timeline"]["clips"]) == 1, "autosave must not rewrite the library file"
             go_home(page)
@@ -192,10 +202,17 @@ with tempfile.TemporaryDirectory() as tmp_name:
             assert page.evaluate("document.querySelectorAll('.home-card .home-badge.recover').length") == 0, \
                 "returning home must persist the project, not leave it recoverable"
             wait_file(alpha_file, lambda doc: len(doc["timeline"]["clips"]) == 2)
+            alpha_saved = json.loads(alpha_file.read_text(encoding="utf-8"))
+            assert any("ALPHA ONLY MARKER" in (c.get("code") or "") for c in alpha_saved["timeline"]["clips"]), \
+                "alpha code was not saved"
             assert api(base, "/api/projects")[1]["projects"][0]["recoverable"] is False
 
             create_project(page, "Beta")
             assert page.evaluate("timelineState.clips.length") == 1, "new project inherited the previous timeline"
+            assert page.evaluate("timelineState.clips[0].code") == "", \
+                "new project inherited code from the previous project"
+            assert "ALPHA ONLY MARKER" not in page.evaluate("document.getElementById('codeInput').value"), \
+                "previous project's editor code leaked into the new project"
             assert page.evaluate("activeProject.id") == "beta"
             page.click("#boxAdd")
             page.click("#boxAdd")

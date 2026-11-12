@@ -11800,7 +11800,7 @@ function sanitizeAssetAnalysis(raw) {
   };
 }
 
-function loadTimelineState(persist = true) {
+function loadTimelineState(persist = true, options = {}) {
   let stored = null;
   try { stored = JSON.parse(localStorage.getItem(TIMELINE_KEY) || 'null'); }
   catch (error) { stored = null; }
@@ -11903,7 +11903,7 @@ function loadTimelineState(persist = true) {
     if (!parent || parent.parentClipId) clip.parentClipId = '';
   }
   if (!timelineState.clips.length && !(stored && Array.isArray(stored.clips))) {
-    const seed = timelineSeedCode();
+    const seed = options.seedCode !== undefined ? String(options.seedCode || '') : timelineSeedCode();
     timelineState.clips.push({
       id: newClipId(),
       name: clipSceneName(0),
@@ -15268,8 +15268,13 @@ async function projectLibraryAction(path, body) {
 function buildFreshProjectDocument(name) {
   timelineHistorySuspended = true;
   try {
-    try { localStorage.removeItem(TIMELINE_KEY); } catch (error) { console.error(error); }
-    loadTimelineState(false);
+    try {
+      localStorage.removeItem(TIMELINE_KEY);
+      localStorage.removeItem('clipacanvas.lastCode');
+    } catch (error) { console.error(error); }
+    // A new project must start blank; never seed from the editor or the last
+    // code, which still hold the previously open project behind Home.
+    loadTimelineState(false, { seedCode: '' });
     applyActiveClipToEditor({ preview: false, timing: false });
   } finally {
     timelineHistorySuspended = false;
