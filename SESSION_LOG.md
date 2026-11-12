@@ -4057,3 +4057,28 @@
 ### Open Items
 
 - Project files still reference media by URL; media cleanup on delete is out of scope. Opening a file for an already-known project targets that project and replaces its library copy on return Home (explicit user action).
+
+## 2026-11-13 (Fix: new projects no longer inherit the previous editor code)
+
+### Summary
+
+- Creating a project from Project Home could open with the previously open project's scene (reported as "Vibrant City Nights" appearing in a new project).
+- Cause: an empty timeline was seeded with `timelineSeedCode()`, which returns the current code-editor value (or `clipacanvas.lastCode`). Behind Home the editor still holds the last session, so the fresh project document copied that code.
+- `loadTimelineState()` now accepts an explicit `seedCode`; project creation passes an empty seed and clears `clipacanvas.lastCode`, so a new project opens with one blank scene and an empty editor.
+
+### Files Touched
+
+- `clipacanvas.html`, `tests/_check_project_home.py`
+
+### Verification
+
+- `_check_project_home.py` PASS with new assertions: project A saves an "ALPHA ONLY MARKER" scene; project B opens with `clips[0].code == ''`, an empty editor and no marker.
+- Rebuilt `dist/ClipACanvas.exe` (02:53) and `dist/ClipACanvas-windows.zip` (02:54); packaged check PASS: create Alpha, write code, return Home, create Beta → 1 blank scene and an empty editor.
+
+### Commits
+
+- `b012ff9` - `fix: new projects start blank instead of inheriting the previous editor code`
+
+### Open Items
+
+- The project created before the fix (`untitled-project.ccproj.json`) still contains the copied scene; delete it from Project Home to start clean.
