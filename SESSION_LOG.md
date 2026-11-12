@@ -3824,3 +3824,32 @@
 
 - Hosted semantic analysis was contract-tested with a stubbed transport, not a live Gemini call (no hosted key configured). Shot scan is limited to the first 3 minutes.
 - Overlay attachment UI, frame/tick timebase remain; `dist/ClipACanvas.exe` still needs a rebuild.
+
+## 2026-11-12 (Phase 5: overlay attachment UI)
+
+### Summary
+
+- Added an OVERLAY LINK block to the code-clip inspector: eligible parent list (non-audio, unattached clips with track/start), ATTACH AS OVERLAY, per-clip status (NOT ATTACHED / ATTACHED / PARENT OF n), ATTACHED TO parent display and DETACH.
+- The UI drives the existing `projectOps.attachOverlay`/`detachOverlay` operations, so track placement above the parent, timing sync, persistence and agent parity are unchanged; errors (no free track, invalid parent) surface inline.
+
+### Files Touched
+
+- `clipacanvas.html`
+- `docs/EDITOR_AUDIT.md` (Phase 5 addendum, plan table)
+- `tests/_check_overlay_ui.py`, `tests/_check_webview_overlay_ui.py` (new)
+- `SESSION_LOG.md`
+
+### Verification
+
+- `_check_overlay_ui.py`: PASS — eligibility options, attach (moves overlay above parent), parent move keeps overlay in sync, attached overlay excluded as a parent for other clips, detach restores free state, attachment survives reload.
+- `_check_webview_overlay_ui.py`: PASS in WebView2 (Edg/157) — attach, status, reload, detach.
+- Regressions PASS: `_check_overlays`, `_check_workspace`, `_check_project_ops`; `node --check` clean.
+- Artifacts: `output/playwright/overlay-attach.png`, `webview-overlay-attach.png`.
+
+### Commits
+
+- This overlay UI change set committed locally; not pushed.
+
+### Open Items
+
+- Media clips do not expose attach buttons yet; frame/tick timebase and the `dist/ClipACanvas.exe` rebuild remain.

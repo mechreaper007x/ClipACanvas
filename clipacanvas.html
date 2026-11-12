@@ -4031,6 +4031,16 @@ body.asset-dragging * { cursor: grabbing !important; user-select: none !importan
   flex-direction: column;
   gap: 12px;
 }
+.ci-attach {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-top: 7px;
+  border-top: 1px dashed var(--line-soft);
+}
+.ci-attach[hidden] { display: none; }
+.ci-attach .mi-field { width: 100%; }
+.ci-attach .mi-actions .timeline-btn { flex: 0 0 auto; }
 
 .monitor-bar {
   flex: 0 0 auto;
@@ -4496,6 +4506,18 @@ body.asset-dragging * { cursor: grabbing !important; user-select: none !importan
             <span>ATTACHED TO</span>
             <span class="mi-static" id="ciParent">—</span>
           </label>
+        </div>
+        <div class="ci-attach" id="ciAttachBlock">
+          <div class="mi-analysis-head"><span>OVERLAY LINK</span><span id="ciAttachStatus">—</span></div>
+          <label class="mi-field" id="ciAttachField">
+            <span>PARENT CLIP</span>
+            <select id="ciAttachParent"></select>
+          </label>
+          <div class="mi-actions">
+            <button type="button" id="ciAttachBtn" class="timeline-btn media-btn">ATTACH AS OVERLAY</button>
+            <button type="button" id="ciDetachBtn" class="timeline-btn" hidden>DETACH</button>
+          </div>
+          <p class="mi-note" id="ciAttachNote"></p>
         </div>
         <div class="mi-actions">
           <button type="button" id="ciOpenCode" class="timeline-btn media-btn">OPEN CODE</button>
@@ -11521,6 +11543,37 @@ function fillClipInspector(clip) {
   if (parentField) parentField.hidden = !parentClip;
   const parentEl = document.getElementById('ciParent');
   if (parentEl) parentEl.textContent = parentClip ? `${parentClip.name} · V${(Number(parentClip.track) || 0) + 1}` : '—';
+  const children = timelineState.clips.filter(item => item.parentClipId === clip.id);
+  const attachStatus = document.getElementById('ciAttachStatus');
+  if (attachStatus) {
+    attachStatus.textContent = parentClip
+      ? 'ATTACHED'
+      : (children.length ? `PARENT OF ${children.length}` : 'NOT ATTACHED');
+  }
+  const attachField = document.getElementById('ciAttachField');
+  if (attachField) attachField.hidden = Boolean(parentClip);
+  const attachSelect = document.getElementById('ciAttachParent');
+  if (attachSelect && !parentClip) {
+    const options = eligibleOverlayParents(clip);
+    const previous = attachSelect.value;
+    attachSelect.innerHTML = options.length
+      ? options.map(item => `<option value="${escapeHtml(item.id)}">${escapeHtml(overlayParentLabel(item))}</option>`).join('')
+      : '<option value="">NO ELIGIBLE CLIPS</option>';
+    if (options.some(item => item.id === previous)) attachSelect.value = previous;
+  }
+  const attachBtn = document.getElementById('ciAttachBtn');
+  if (attachBtn) {
+    attachBtn.hidden = Boolean(parentClip);
+    attachBtn.disabled = Boolean(parentClip) || !eligibleOverlayParents(clip).length;
+  }
+  const detachBtn = document.getElementById('ciDetachBtn');
+  if (detachBtn) detachBtn.hidden = !parentClip;
+  const attachNote = document.getElementById('ciAttachNote');
+  if (attachNote) {
+    attachNote.textContent = parentClip
+      ? `Follows ${parentClip.name}. Moving or trimming the parent keeps them in sync.`
+      : 'Links this clip timing-wise to a parent clip. This is attachment, not motion tracking.';
+  }
   const duration = document.getElementById('ciDuration');
   if (duration && document.activeElement !== duration) {
     duration.value = (Math.round((Number(clip.duration) || 0.5) * 100) / 100).toFixed(2);
@@ -11533,6 +11586,42 @@ function fillClipInspector(clip) {
 }
 
 function setMediaInspectorVisible() {
+  renderInspector();
+}
+
+function eligibleOverlayParents(clip) {
+  return timelineState.clips
+    .filter(item => item.id !== clip.id && item.type !== 'audio' && !item.parentClipId)
+    .sort((a, b) => (Number(a.track) || 0) - (Number(b.track) || 0) || (Number(a.start) || 0) - (Number(b.start) || 0));
+}
+
+function overlayParentLabel(clip) {
+  return `${clip.name || 'SCENE'} · V${(Number(clip.track) || 0) + 1} · ${formatTimelineTime(clip.start)}`;
+}
+
+function attachInspectedOverlay() {
+  const clip = activeCodeClip();
+  const select = document.getElementById('ciAttachParent');
+  const note = document.getElementById('ciAttachNote');
+  if (!clip || !select?.value) return;
+  const result = projectOps.attachOverlay(clip.id, select.value);
+  if (!result.ok) {
+    if (note) note.textContent = result.error;
+    setStatus(result.error, 'err');
+    return;
+  }
+  renderInspector();
+}
+
+function detachInspectedOverlay() {
+  const clip = activeCodeClip();
+  const note = document.getElementById('ciAttachNote');
+  if (!clip) return;
+  const result = projectOps.detachOverlay(clip.id);
+  if (!result.ok) {
+    if (note) note.textContent = result.error;
+    return;
+  }
   renderInspector();
 }
 
@@ -14865,6 +14954,8 @@ function initControlRoom() {
   document.getElementById('ciOpenCode')?.addEventListener('click', () => switchLeftTab('code'));
   document.getElementById('ciSplit')?.addEventListener('click', splitAtPlayhead);
   document.getElementById('ciDuration')?.addEventListener('change', applyClipInspectorDuration);
+  document.getElementById('ciAttachBtn')?.addEventListener('click', attachInspectedOverlay);
+  document.getElementById('ciDetachBtn')?.addEventListener('click', detachInspectedOverlay);
   initProjectChrome();
   initChatShortcut();
   initChatHistoryPopover();

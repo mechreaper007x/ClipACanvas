@@ -4,6 +4,22 @@ Date: 2026-11-12
 Branch: `main`
 Baseline: `main` at `b8addc5`; the speech/audio work described in the Phase 3 addendum is uncommitted at the time of writing.
 
+## Addendum — Phase 5 (overlay attachment UI)
+
+Verified in the working tree on 2026-11-12, after `2d14579`.
+
+### What is implemented
+
+- The code-clip inspector has an OVERLAY LINK block: it lists eligible parent clips (non-audio, not already attached) with track and start time, attaches the selected clip as an overlay through `projectOps.attachOverlay`, and shows the current state (`NOT ATTACHED`, `ATTACHED`, or `PARENT OF n`).
+- Attached clips show the parent under ATTACHED TO plus a DETACH action; detaching uses `projectOps.detachOverlay`. Attach/detach keep the editor, timeline, bin and stage in sync, and attachment persists across reloads.
+- The UI enforces the same rules as the agent tools: an attached overlay cannot be used as a parent (it is excluded from the select), audio clips are excluded, and attaching moves the overlay to a free track above its parent when needed.
+- No new model behavior was added — the UI drives the existing `parentClipId` operations.
+
+### Limitations
+
+- The attachment controls live in the code-clip inspector only; media clips can be attached through agent tools but do not expose the same buttons yet.
+- One parent per overlay, no drag-to-link gesture, and overlays still use explicit offsets rather than anchored transforms tracked to objects.
+
 ## Addendum — Phase 4 (semantic asset intelligence)
 
 Verified in the working tree on 2026-11-12, after `5fb33dd`.
@@ -107,8 +123,8 @@ Verified against the working tree on 2026-11-12, after `bb4772c`.
 | 1 | Transition data structures and execution contract | Done (see Phase 2 addendum) |
 | 1 | TTS provider abstraction | Deferred (no provider verified yet) |
 | 1 | Improved zoom configuration | Done (presets, slider, numeric entry, anchoring) |
-| 2 | Transition library + generated transitions + overlay UI | Transitions + custom transitions done; overlay attachment UI still deferred |
-| 2 | Voiceover Studio + local/hosted TTS | Not started |
+| 2 | Transition library + generated transitions + overlay UI | Done (13 presets, custom code, inspector attach/detach) |
+| 2 | Voiceover Studio + local/hosted TTS | Done (SAPI, Gemini, Mistral; A1–A3 mix) |
 | 3 | Semantic/visual/audio asset analysis | Done (local shots + keyframes; consent-gated Gemini vision/transcript) |
 | 4 | Full workflow validation + project persistence of all new objects | Partial: overlays, analysis and transitions persist; TTS absent |
 
