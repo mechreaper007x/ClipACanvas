@@ -316,7 +316,16 @@ LLM_TOOL_DECLARATIONS = [
 
 def _gemini_schema_types(schema):
     if isinstance(schema, dict):
-        return {key: (_gemini_schema_types(value) if key != "type" else str(value).upper()) for key, value in schema.items()}
+        converted = {}
+        for key, value in schema.items():
+            # Only the JSON-schema "type" keyword holds a scalar type name.
+            # A parameter may itself be named "type", whose value is a dict
+            # schema and must be converted normally, not stringified.
+            if key == "type" and isinstance(value, str):
+                converted[key] = value.upper()
+            else:
+                converted[key] = _gemini_schema_types(value)
+        return converted
     if isinstance(schema, list):
         return [_gemini_schema_types(item) for item in schema]
     return schema
@@ -549,6 +558,69 @@ def _media_dir() -> Path:
     directory = _keys_dir() / "media"
     directory.mkdir(parents=True, exist_ok=True)
     return directory
+
+
+PROJECT_FORMAT = "clipacanvas-project"
+PROJECT_VERSION = 1
+PROJECT_AUTOSAVE_NAME = "autosave.ccproj.json"
+PROJECT_FILE_RE = re.compile(r"^(?!autosave)[a-z0-9][a-z0-9-]{0,63}\.ccproj\.json$")
+PROJECT_MAX_BYTES = 8 * 1024 * 1024
+
+
+def _projects_dir() -> Path:
+    directory = _keys_dir() / "projects"
+    directory.mkdir(parents=True, exist_ok=True)
+    return directory
+
+
+AGENT_PLAN_MAX_BYTES = 256 * 1024
+AGENT_PLAN_ID_RE = re.compile(r"^[A-Za-z0-9_-]{6,80}$")
+
+
+def _agent_plans_dir() -> Path:
+    directory = _keys_dir() / "agent-plans"
+    directory.mkdir(parents=True, exist_ok=True)
+    return directory
+
+
+def _write_text_atomic(path: Path, text: str) -> None:
+    temp = path.with_name(f".{path.name}.{os.urandom(4).hex()}.tmp")
+    temp.write_text(text, encoding="utf-8")
+    os.replace(temp, path)
+
+
+def _validate_project_doc(doc) -> str:
+    if not isinstance(doc, dict):
+        return "Project payload must be a JSON object."
+    if doc.get("format") != PROJECT_FORMAT:
+        return "Not a Clip.A.Canvas project payload."
+    try:
+        version = int(doc.get("version") or 0)
+    except (TypeError, ValueError):
+        return "Invalid project version."
+    if version < 1 or version > PROJECT_VERSION:
+        return "Unsupported project version."
+    timeline = doc.get("timeline")
+    if not isinstance(timeline, dict) or not isinstance(timeline.get("clips"), list):
+        return "Project payload has no timeline."
+    if len(timeline["clips"]) > 400:
+        return "Project has too many clips."
+    return ""
+
+
+def _read_project_index() -> list[dict]:
+    path = _projects_dir() / "index.json"
+    try:
+        parsed = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return []
+    if not isinstance(parsed, list):
+        return []
+    return [entry for entry in parsed if isinstance(entry, dict) and isinstance(entry.get("file"), str)]
+
+
+def _write_project_index(entries: list[dict]) -> None:
+    _write_text_atomic(_projects_dir() / "index.json", json.dumps(entries, indent=2))
 
 
 ANALYSIS_VERSION = 2
@@ -1909,6 +1981,12 @@ class ClipACanvasHandler(SimpleHTTPRequestHandler):
                 return
             if self.path == '/api/config.js':
                 return self._send_runtime_config()
+            if self.path == '/api/project':
+                return self._handle_project_get()
+            if self.path == '/api/agent/plan':
+                return self._handle_agent_plan_get(urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query))
+            if self.path == '/api/projects':
+                return self._handle_projects_get()
             if self.path == '/api/llm/keys':
                 return self._handle_llm_keys_get()
             if self.path == '/api/llm/chatlog':
@@ -1922,6 +2000,8 @@ class ClipACanvasHandler(SimpleHTTPRequestHandler):
             if self.path == '/health':
                 return self._send_json({'ok': True})
             parsed = urllib.parse.urlparse(self.path)
+            if parsed.path == '/api/projects/open':
+                return self._handle_projects_open(urllib.parse.parse_qs(parsed.query))
             if parsed.path == '/render/frames':
                 return self._handle_render_frames(urllib.parse.parse_qs(parsed.query))
             if parsed.path.startswith('/api/media/frames/'):
@@ -1951,6 +2031,12 @@ class ClipACanvasHandler(SimpleHTTPRequestHandler):
                 return
             if self.path == '/render':
                 self._handle_render()
+            elif self.path == '/api/project':
+                self._handle_project_autosave()
+            elif self.path == '/api/agent/plan':
+                self._handle_agent_plan_post()
+            elif self.path == '/api/projects':
+                self._handle_projects_post()
             elif self.path == '/api/media':
                 self._handle_media_upload()
             elif self.path == '/api/media/analyze':
@@ -2168,6 +2254,8 @@ class ClipACanvasHandler(SimpleHTTPRequestHandler):
         default_model = 'mistral-small-latest' if provider == 'mistral' else 'gemini-2.5-flash'
         requested_model = model or default_model
         use_tools = bool(payload.get('tools', False))
+        tools_requested = use_tools
+        tools_dropped = False
 
         try:
             text = ''
@@ -2176,6 +2264,7 @@ class ClipACanvasHandler(SimpleHTTPRequestHandler):
             current = requested_model
             tried = []
             attempt = 0
+            model_retries = 0
             last_error = None
             # Skip a model that recently hit its daily quota instead of spending
             # another request on a guaranteed 429.
@@ -2214,6 +2303,7 @@ class ClipACanvasHandler(SimpleHTTPRequestHandler):
                     if use_tools and exc.code == 400 and ('tool' in detail.lower() or 'function' in detail.lower()):
                         print(f"  [SERVER] {current} rejected tools, retrying without them")
                         use_tools = False
+                        tools_dropped = True
                         continue
                     exc._clip_detail = detail
                     last_error = exc
@@ -2221,8 +2311,22 @@ class ClipACanvasHandler(SimpleHTTPRequestHandler):
                         # Free-tier quota is per model, so remember when this one
                         # frees up and let AUTO try a sibling model.
                         _set_model_cooldown(provider, current, _retry_delay_seconds(detail))
+                    if exc.code in (423, 500, 502, 503, 504) and model_retries < 2:
+                        # Provider overload, gateway hiccup or a transient lock:
+                        # retry the same model with a short backoff before fallback.
+                        model_retries += 1
+                        delay = min(8.0, 1.5 * (2 ** (model_retries - 1)))
+                        print(f"  [SERVER] {provider}/{current} returned {exc.code}; retrying in {delay:.1f}s")
+                        time.sleep(delay)
+                        continue
                 except Exception as exc:
                     last_error = exc
+                    if isinstance(exc, (urllib.error.URLError, TimeoutError, ConnectionError)) and model_retries < 2:
+                        model_retries += 1
+                        delay = min(8.0, 1.5 * (2 ** (model_retries - 1)))
+                        print(f"  [SERVER] {provider}/{current} network error ({type(exc).__name__}); retrying in {delay:.1f}s")
+                        time.sleep(delay)
+                        continue
                 if not allow_fallback:
                     break
                 try:
@@ -2242,6 +2346,7 @@ class ClipACanvasHandler(SimpleHTTPRequestHandler):
                     break
                 print(f"  [SERVER] LLM fallback: {current} failed ({type(last_error).__name__}), retrying with {next_model}")
                 current = next_model
+                model_retries = 0
                 attempt += 1
             if used_model is None:
                 raise last_error or RuntimeError('LLM request failed.')
@@ -2264,11 +2369,20 @@ class ClipACanvasHandler(SimpleHTTPRequestHandler):
                     'retryAfterSeconds': retry_seconds,
                 }, 429)
                 return
-            self._send_json({'ok': False, 'error': f'{provider.capitalize()} API error ({exc.code}).', 'detail': detail}, 502)
+            if exc.code == 423:
+                message = f'{provider.capitalize()} locked this request (423). Try a different model.'
+            elif exc.code in (500, 502, 503, 504):
+                message = f'{provider.capitalize()} is temporarily unavailable ({exc.code}) after retries. Retry in a moment or switch models.'
+            else:
+                message = f'{provider.capitalize()} API error ({exc.code}).'
+            self._send_json({'ok': False, 'error': message, 'detail': detail}, 502)
             return
         except (urllib.error.URLError, TimeoutError, ConnectionError) as exc:
             print(f"  [SERVER] LLM network error ({provider}): {exc}")
-            self._send_json({'ok': False, 'error': f'Could not reach {provider.capitalize()} API.'}, 502)
+            self._send_json({
+                'ok': False,
+                'error': f'Could not reach {provider.capitalize()} API after retries. Check the network or switch providers.',
+            }, 502)
             return
         except Exception as exc:
             print(f"  [SERVER] LLM error ({provider}): {exc}")
@@ -2285,6 +2399,7 @@ class ClipACanvasHandler(SimpleHTTPRequestHandler):
             'text': text,
             'toolCalls': tool_calls,
             'tools': use_tools,
+            'toolsDisabled': bool(tools_requested and tools_dropped),
         })
 
     def _handle_llm_models(self):
@@ -2549,7 +2664,7 @@ class ClipACanvasHandler(SimpleHTTPRequestHandler):
             model_name = model_name[len('models/'):]
 
         url = f'https://generativelanguage.googleapis.com/v1beta/models/{urllib.parse.quote(model_name)}:generateContent?key={urllib.parse.quote(api_key)}'
-        data = self._llm_http_post(url, body, {'Content-Type': 'application/json'}, timeout=40)
+        data = self._llm_http_post(url, body, {'Content-Type': 'application/json'}, timeout=150)
         try:
             parts = data['candidates'][0]['content']['parts']
         except (KeyError, IndexError, TypeError):
@@ -2625,7 +2740,7 @@ class ClipACanvasHandler(SimpleHTTPRequestHandler):
             'Accept': 'application/json',
             'Authorization': f'Bearer {api_key}',
         }
-        data = self._llm_http_post('https://api.mistral.ai/v1/chat/completions', body, headers, timeout=40)
+        data = self._llm_http_post('https://api.mistral.ai/v1/chat/completions', body, headers, timeout=150)
         try:
             message = data['choices'][0]['message']
         except (KeyError, IndexError, TypeError):
@@ -2792,6 +2907,136 @@ class ClipACanvasHandler(SimpleHTTPRequestHandler):
             return
         finally:
             file_handle.close()
+
+    def _read_project_body(self):
+        try:
+            length = int(self.headers.get('Content-Length') or 0)
+        except ValueError:
+            length = 0
+        if length <= 0:
+            self._send_json({'ok': False, 'error': 'Empty project payload.'}, 400)
+            return None
+        if length > PROJECT_MAX_BYTES:
+            self._send_json({'ok': False, 'error': 'Project payload is too large.'}, 413)
+            return None
+        return self.rfile.read(length)
+
+    def _handle_project_autosave(self):
+        raw = self._read_project_body()
+        if raw is None:
+            return
+        try:
+            doc = json.loads(raw.decode('utf-8'))
+        except (UnicodeDecodeError, ValueError):
+            return self._send_json({'ok': False, 'error': 'Project payload is not valid JSON.'}, 400)
+        error = _validate_project_doc(doc)
+        if error:
+            return self._send_json({'ok': False, 'error': error}, 400)
+        try:
+            _write_text_atomic(_projects_dir() / PROJECT_AUTOSAVE_NAME, json.dumps(doc, ensure_ascii=False))
+        except OSError as exc:
+            return self._send_json({'ok': False, 'error': f'Project autosave failed: {exc}'}, 500)
+        self._send_json({'ok': True, 'savedAt': str(doc.get('savedAt') or ''), 'bytes': len(raw)})
+
+    def _handle_project_get(self):
+        path = _projects_dir() / PROJECT_AUTOSAVE_NAME
+        try:
+            doc = json.loads(path.read_text(encoding='utf-8'))
+        except (OSError, ValueError):
+            doc = None
+        self._send_json({'ok': True, 'project': doc})
+
+    def _handle_projects_get(self):
+        self._send_json({'ok': True, 'projects': _read_project_index()})
+
+    def _handle_projects_post(self):
+        raw = self._read_project_body()
+        if raw is None:
+            return
+        try:
+            body = json.loads(raw.decode('utf-8'))
+        except (UnicodeDecodeError, ValueError):
+            return self._send_json({'ok': False, 'error': 'Project payload is not valid JSON.'}, 400)
+        if not isinstance(body, dict):
+            return self._send_json({'ok': False, 'error': 'Project payload is not valid.'}, 400)
+        doc = body.get('project')
+        error = _validate_project_doc(doc)
+        if error:
+            return self._send_json({'ok': False, 'error': error}, 400)
+        display = str(body.get('name') or doc.get('projectName') or 'project').strip()[:60] or 'project'
+        slug = re.sub(r'[^a-z0-9]+', '-', display.lower()).strip('-')[:48] or 'project'
+        entries = _read_project_index()
+        used = {entry['file'] for entry in entries}
+        stem = slug
+        counter = 2
+        while f'{stem}.ccproj.json' in used:
+            stem = f'{slug}-{counter}'
+            counter += 1
+        filename = f'{stem}.ccproj.json'
+        if not PROJECT_FILE_RE.match(filename):
+            return self._send_json({'ok': False, 'error': 'Project name cannot be used as a file name.'}, 400)
+        saved_at = str(doc.get('savedAt') or '')
+        try:
+            _write_text_atomic(_projects_dir() / filename, json.dumps(doc, ensure_ascii=False))
+            _write_text_atomic(_projects_dir() / PROJECT_AUTOSAVE_NAME, json.dumps(doc, ensure_ascii=False))
+            entry = {'id': stem, 'name': display.upper(), 'file': filename, 'savedAt': saved_at}
+            entries = [item for item in entries if item.get('file') != filename]
+            entries.insert(0, entry)
+            _write_project_index(entries[:50])
+        except OSError as exc:
+            return self._send_json({'ok': False, 'error': f'Project save failed: {exc}'}, 500)
+        self._send_json({'ok': True, 'project': entry})
+
+    def _handle_projects_open(self, query):
+        project_id = str((query.get('id') or [''])[0]).strip()
+        entry = next((item for item in _read_project_index() if item.get('id') == project_id), None)
+        if entry is None or not PROJECT_FILE_RE.match(str(entry.get('file') or '')):
+            return self._send_json({'ok': False, 'error': 'Project not found.'}, 404)
+        try:
+            doc = json.loads((_projects_dir() / entry['file']).read_text(encoding='utf-8'))
+        except (OSError, ValueError):
+            return self._send_json({'ok': False, 'error': 'Project file could not be read.'}, 500)
+        self._send_json({'ok': True, 'project': doc, 'entry': entry})
+
+    def _handle_agent_plan_post(self):
+        try:
+            length = int(self.headers.get('Content-Length') or 0)
+        except ValueError:
+            length = 0
+        if length <= 0:
+            return self._send_json({'ok': False, 'error': 'Empty plan payload.'}, 400)
+        if length > AGENT_PLAN_MAX_BYTES:
+            return self._send_json({'ok': False, 'error': 'Plan payload is too large.'}, 413)
+        try:
+            body = json.loads(self.rfile.read(length).decode('utf-8'))
+        except (UnicodeDecodeError, ValueError):
+            return self._send_json({'ok': False, 'error': 'Plan payload is not valid JSON.'}, 400)
+        if not isinstance(body, dict):
+            return self._send_json({'ok': False, 'error': 'Plan payload is not valid.'}, 400)
+        session_id = str(body.get('sessionId') or '').strip()
+        markdown = body.get('markdown')
+        if not AGENT_PLAN_ID_RE.match(session_id):
+            return self._send_json({'ok': False, 'error': 'Invalid plan session id.'}, 400)
+        if not isinstance(markdown, str) or not markdown.strip():
+            return self._send_json({'ok': False, 'error': 'Plan markdown is required.'}, 400)
+        if len(markdown.encode('utf-8')) > AGENT_PLAN_MAX_BYTES:
+            return self._send_json({'ok': False, 'error': 'Plan markdown is too large.'}, 413)
+        try:
+            path = _agent_plans_dir() / f'{session_id}.md'
+            _write_text_atomic(path, markdown)
+        except OSError as exc:
+            return self._send_json({'ok': False, 'error': f'Plan save failed: {exc}'}, 500)
+        self._send_json({'ok': True, 'bytes': len(markdown.encode('utf-8'))})
+
+    def _handle_agent_plan_get(self, query):
+        session_id = str((query.get('id') or [''])[0]).strip()
+        if not AGENT_PLAN_ID_RE.match(session_id):
+            return self._send_json({'ok': False, 'error': 'Invalid plan session id.'}, 400)
+        try:
+            markdown = (_agent_plans_dir() / f'{session_id}.md').read_text(encoding='utf-8')
+        except OSError:
+            return self._send_json({'ok': True, 'markdown': None})
+        self._send_json({'ok': True, 'markdown': markdown})
 
     def _handle_media_upload(self):
         try:

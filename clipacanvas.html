@@ -3499,6 +3499,50 @@ main.control-room #splitRight {
   padding: 0 0 4px;
 }
 .project-file-row .dock-link { font-size: 0.44rem; }
+.project-library {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 0 0 6px;
+}
+.project-library[hidden] { display: none; }
+.project-library-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  border-top: 1px solid var(--line);
+  padding-top: 5px;
+}
+.project-library-head span {
+  font-family: var(--mono);
+  font-size: 0.44rem;
+  letter-spacing: 1.4px;
+  color: var(--muted);
+}
+.project-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  background: transparent;
+  border: 1px solid transparent;
+  padding: 4px 6px;
+  cursor: pointer;
+  text-align: left;
+  font-family: var(--mono);
+  font-size: 0.46rem;
+  letter-spacing: 0.6px;
+  color: var(--ink);
+}
+.project-row:hover,
+.project-row:focus-visible { border-color: var(--line-strong); color: var(--go); outline: none; }
+.project-row .project-when {
+  margin-left: auto;
+  color: var(--muted);
+  font-size: 0.4rem;
+  letter-spacing: 1px;
+}
 .dock-link.import-link {
   color: var(--go);
   letter-spacing: 1.6px;
@@ -4357,6 +4401,13 @@ body.asset-dragging * { cursor: grabbing !important; user-select: none !importan
           <button type="button" class="dock-link" id="projectOpen" title="Open a project file">OPEN PROJECT</button>
           <input type="file" id="projectFileInput" accept=".json,.ccproj.json,application/json" hidden>
         </div>
+        <div class="project-library" id="projectLibrary" hidden>
+          <div class="project-library-head">
+            <span>PROJECT LIBRARY</span>
+            <button type="button" class="dock-link" id="projectLibraryRefresh" title="Refresh the project library">REFRESH</button>
+          </div>
+          <div id="projectLibraryList"></div>
+        </div>
         <input type="file" id="mediaInput" accept="image/png,image/jpeg,image/webp,image/gif,image/avif,image/bmp,video/mp4,video/webm,video/quicktime,video/ogg,audio/mpeg,audio/wav,audio/x-wav,audio/mp4,audio/aac,audio/flac,audio/ogg,audio/opus,.mp4,.m4v,.mov,.webm,.ogv,.mp3,.wav,.m4a,.aac,.flac,.oga,.opus" multiple hidden>
         <div class="bins-row" id="binsRow"></div>
         <div class="bins-hint">CLICK TO INSPECT · DOUBLE-CLICK TO INSERT · DRAG TO TRACK</div>
@@ -4912,6 +4963,8 @@ body.asset-dragging * { cursor: grabbing !important; user-select: none !importan
           <div class="timeline-head">
             <span class="eyebrow">TIMELINE</span>
             <div class="timeline-actions">
+              <button type="button" id="boxUndo" class="timeline-btn icon" title="Undo (Ctrl+Z)" disabled>↶</button>
+              <button type="button" id="boxRedo" class="timeline-btn icon" title="Redo (Ctrl+Shift+Z / Ctrl+Y)" disabled>↷</button>
               <button type="button" id="boxAdd" class="timeline-btn" title="Add a blank scene after the selected clip">+ SCENE</button>
               <button type="button" id="boxSplit" class="timeline-btn" title="Split clips at the playhead (S)">SPLIT</button>
               <button type="button" id="transitionAdd" class="timeline-btn" title="Add or edit a transition on the cut touching the selected clip">TRANSITION</button>
@@ -7422,7 +7475,7 @@ const CHAT_STORE_KEY = 'clipacanvas.aiChat';
 const CHAT_CONTEXT_MESSAGES = 12;
 const CHAT_CODE_CONTEXT_LIMIT = 8000;
 const CHAT_REQUEST_TIMEOUT_MS = 190000;
-const CHAT_TOOL_MAX_STEPS = 6;
+const CHAT_TOOL_MAX_STEPS = 24;
 const MODELS_REFRESH_DEBOUNCE_MS = 600;
 const KEYS_SAVE_DEBOUNCE_MS = 600;
 const CHATLOG_SAVE_DEBOUNCE_MS = 800;
@@ -7454,6 +7507,7 @@ const CHAT_SYSTEM_PROMPT = [
   '- The timeline is the deliverable: it is an NLE-style sequence with V1-V4 video tracks, a playhead and a project bin of imported assets. Each logic box is one code scene with its own complete HTML document. Scenes play at their start times and export as a single video. The editor always shows only the selected clip.',
   '- Imported images and videos live in the project bin; the user inserts them at the playhead or drags them onto a track, then trims and splits the resulting clips. They are the user\'s media: never replace, convert or delete them unless the user explicitly asks. Use add_scene only for new code scenes.',
   '- For a sequence, a story, an ad with several beats, an intro/outro, or any request for "another scene", "scene two", "add a scene" or multiple scenes: write the first scene with insert_animation_code (when it belongs in the selected scene) and call add_scene once for every additional scene. One tool call and one HTML document per scene. Never merge several scenes into one HTML file and never simulate extra scenes inside a single document.',
+  '- A multi-scene brief is a production, not a single reply. Count the scenes the user asked for and keep calling tools across rounds until every one of them exists on the timeline, then add the requested transitions, overlays and audio, and only then write a short closing summary. Never stop after the first scene, never wait for the user to say "continue", and never replace an existing scene to make room for a new one. The app keeps executing your tool calls until you stop calling tools.',
   '- When the user asks to add a scene to an existing edit, call add_scene. Do not rewrite or replace the existing scene unless the user asked to change it.',
   '- Use add_scene with layer:"same" for normal cuts that follow the previous scene, and layer:"above" for titles, captions, logos or overlays that must sit on top of another scene. Overlay scenes must use a fully transparent page background (html, body { background: transparent; margin: 0; }).',
   '- Give every scene a duration that matches its animation length; that duration is used on the timeline and in the export. Pass duration to add_scene for a new scene, and to insert_animation_code when you fill a scene or change its animation length.',
@@ -9334,15 +9388,15 @@ function setChatThinking(el, text) {
 // The elephant carries the conversation and drives tools. One provider request
 // per round; conversation state is rebuilt every time so tool effects are
 // current, then the tool-call turn and results are appended for the next round.
-async function runElephantTurn({ userText, provider, apiKey, resolved, editorCodeBefore, onProgress, stealth = false }) {
+async function runElephantTurn({ userText, provider, apiKey, resolved, editorCodeBefore, onProgress, stealth = false, maxSteps = CHAT_TOOL_MAX_STEPS }) {
   const toolTurns = [];
   const toolsUsed = [];
   const toolTraces = [];
   const repeatedCalls = new Map();
-  let outcome = { reply: '', codeAfter: null, modelName: null };
+  let outcome = { reply: '', codeAfter: null, modelName: null, toolsUsed, error: '' };
   const report = (text) => { if (typeof onProgress === 'function' && text) onProgress(text); };
 
-  for (let step = 0; step <= CHAT_TOOL_MAX_STEPS; step++) {
+  for (let step = 0; step <= maxSteps; step++) {
     const response = await fetchWithTimeout(buildApiUrl('/api/llm/chat'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -9366,6 +9420,7 @@ async function runElephantTurn({ userText, provider, apiKey, resolved, editorCod
       }
       const message = payload?.error || `Backend returned ${response.status}`;
       if (!stealth) addChatMessage('error', `Chat failed: ${message}`);
+      outcome.error = message;
       return outcome;
     }
 
@@ -9373,14 +9428,18 @@ async function runElephantTurn({ userText, provider, apiKey, resolved, editorCod
       chatState.knownGood[provider][resolved.tier] = payload.model;
       saveChatState();
     }
+    if (!stealth && step === 0 && payload.toolsDisabled) {
+      addChatMessage('error', 'This model rejected the editor tools, so it can only return plain code. Switch models to create multiple scenes.');
+    }
 
     const reply = payload.text.trim();
     const calls = Array.isArray(payload.toolCalls) ? payload.toolCalls : [];
     const modelAction = (String(reply || '').split('\n').map(line => line.trim()).find(Boolean) || '').slice(0, 120);
 
     if (calls.length) {
-      if (step >= CHAT_TOOL_MAX_STEPS) {
+      if (step >= maxSteps) {
         if (!stealth) addChatMessage('error', 'The assistant kept requesting tools past the step limit. Ask it to continue.');
+        outcome.error = 'tool step limit reached';
         return outcome;
       }
       const callTurns = calls.map((call, index) => ({
@@ -9404,7 +9463,12 @@ async function runElephantTurn({ userText, provider, apiKey, resolved, editorCod
           ? null
           : appendChatToolTrace(call.name, 'running', 'running…');
         let toolResult;
-        if (repeatable && repeatedCalls.has(signature)) {
+        if (call.name === 'add_scene' && repeatedCalls.has(signature)) {
+          toolResult = {
+            ok: false,
+            error: 'This exact scene was already added in this turn. Continue with the next distinct scene.'
+          };
+        } else if (repeatable && repeatedCalls.has(signature)) {
           toolResult = repeatedCalls.get(signature);
         } else {
           try {
@@ -9412,7 +9476,7 @@ async function runElephantTurn({ userText, provider, apiKey, resolved, editorCod
           } catch (error) {
             toolResult = { ok: false, error: (error && error.message) || String(error) };
           }
-          if (repeatable) repeatedCalls.set(signature, toolResult);
+          if (repeatable || call.name === 'add_scene') repeatedCalls.set(signature, toolResult);
         }
         if (!toolsUsed.includes(call.name)) toolsUsed.push(call.name);
         const summary = summarizeChatToolResult(call.name, toolResult);
@@ -9437,6 +9501,7 @@ async function runElephantTurn({ userText, provider, apiKey, resolved, editorCod
 
     if (!reply || looksLikeStructuredDump(reply)) {
       if (!stealth) addChatMessage('error', 'The model returned no readable reply (internal reasoning only). Try again or rephrase.');
+      outcome.error = 'no readable reply';
       return outcome;
     }
 
@@ -9466,9 +9531,212 @@ async function runElephantTurn({ userText, provider, apiKey, resolved, editorCod
     if (!stealth) {
       addChatMessage('assistant', reply, { provider, modelName: payload.model || resolved.model.name }, note, codeBefore, toolTraces, codeAfter);
     }
-    return { reply, codeAfter, modelName: payload.model || resolved.model.name };
+    return { reply, codeAfter, modelName: payload.model || resolved.model.name, toolsUsed, error: '' };
   }
+  outcome.error = 'no reply after tool loop';
   return outcome;
+}
+
+// ── LARGE-BRIEF PLANNER ──────────────────────────────────
+// Big briefs (a film, a storyboard, many scenes) are decomposed into a hidden
+// markdown plan and executed step by step. Each step is a small focused agent
+// turn, which avoids one giant reply, timeouts and repeated single-scene
+// overwrites. The plan file lives on disk and is never rendered in the chat.
+const LARGE_BRIEF_MIN_CHARS = 1400;
+const PLAN_MAX_STEPS = 18;
+const PLAN_STEP_TOOL_STEPS = 8;
+
+const PLAN_SYSTEM_PROMPT = [
+  'You are the production planner for Clip.A.Canvas, an AI video editor.',
+  'Turn the user brief into a short execution plan that an AI editor will run step by step with timeline tools.',
+  'Return ONLY valid JSON, no markdown fences: {"title":"...","steps":[{"title":"...","instruction":"..."}]}',
+  'Rules:',
+  '- One step per scene. Never merge several scenes into one step and never split one scene across steps.',
+  '- If the brief specifies export settings, the first step applies them with set_export_settings.',
+  '- Include one step for transitions, one for overlays or titles, one for voiceover/audio when requested, and a final render/verify step.',
+  '- Each instruction must be self-contained, name the exact tool to use (set_export_settings, insert_animation_code, add_scene, create_overlay, add_transition, render_video), and carry the exact durations, timings and on-screen text from the brief.',
+  '- Do not include HTML code in the plan.',
+  `- Maximum ${PLAN_MAX_STEPS} steps.`
+].join('\n');
+
+function isLargeBrief(text) {
+  const value = String(text || '');
+  if (value.length >= LARGE_BRIEF_MIN_CHARS) return true;
+  const sceneHits = (value.match(/\bscene\s*0?\d+\b/gi) || []).length;
+  if (sceneHits >= 3) return true;
+  return /\bstoryboard\b/i.test(value) && value.length >= 900;
+}
+
+function parsePlanPayload(text) {
+  let raw = String(text || '').trim();
+  raw = raw.replace(/^```(?:json)?\s*/i, '').replace(/```\s*$/, '').trim();
+  const start = raw.indexOf('{');
+  const end = raw.lastIndexOf('}');
+  if (start >= 0 && end > start) raw = raw.slice(start, end + 1);
+  let data = null;
+  try { data = JSON.parse(raw); } catch (error) { data = null; }
+  if (!data || !Array.isArray(data.steps)) {
+    const lines = String(text || '').split('\n')
+      .map(line => line.replace(/^[-*\d.\s]+/, '').trim())
+      .filter(line => line.length > 12 && !line.startsWith('{') && !line.startsWith('```'));
+    if (lines.length < 2) return null;
+    return {
+      title: 'PRODUCTION PLAN',
+      steps: lines.slice(0, PLAN_MAX_STEPS).map(line => ({ title: line.slice(0, 70), instruction: line }))
+    };
+  }
+  let steps = data.steps
+    .filter(step => step && typeof step === 'object')
+    .map((step, index) => ({
+      title: String(step.title || `Step ${index + 1}`).trim().slice(0, 70),
+      instruction: String(step.instruction || step.detail || '').trim().slice(0, 2000)
+    }))
+    .filter(step => step.instruction);
+  if (!steps.length) return null;
+  if (steps.length > PLAN_MAX_STEPS) {
+    const head = steps.slice(0, PLAN_MAX_STEPS - 1);
+    const tail = steps.slice(PLAN_MAX_STEPS - 1);
+    head.push({
+      title: 'Finish the production',
+      instruction: tail.map(step => `${step.title}: ${step.instruction}`).join('\n').slice(0, 3000)
+    });
+    steps = head;
+  }
+  return { title: String(data.title || 'PRODUCTION PLAN').trim().slice(0, 70), steps };
+}
+
+function planMarkdown(plan, steps, statuses = {}) {
+  const lines = [
+    `# ${plan.title}`,
+    '',
+    `_Hidden production plan · updated ${new Date().toISOString()}_`,
+    ''
+  ];
+  steps.forEach((step, index) => {
+    const checked = statuses[index] ? 'x' : ' ';
+    lines.push(`- [${checked}] ${String(index + 1).padStart(2, '0')}. ${step.title}`);
+    lines.push(`  ${step.instruction.replace(/\s+/g, ' ').slice(0, 360)}`);
+  });
+  return `${lines.join('\n')}\n`;
+}
+
+async function saveAgentPlan(sessionId, markdown) {
+  if (!durableProjectsEnabled() || !sessionId) return false;
+  try {
+    const response = await fetch(buildApiUrl('/api/agent/plan'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sessionId, markdown })
+    });
+    return response.ok;
+  } catch (error) {
+    console.error('agent plan save failed:', error);
+    return false;
+  }
+}
+
+async function generateProductionPlan({ userText, provider, apiKey, resolved }) {
+  const response = await fetchWithTimeout(buildApiUrl('/api/llm/chat'), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      provider,
+      apiKey,
+      model: resolved.model.name,
+      allowFallback: !resolved.manual,
+      tools: false,
+      messages: [
+        { role: 'system', content: PLAN_SYSTEM_PROMPT },
+        { role: 'system', content: `Current export settings: ${JSON.stringify(currentSettingsSnapshot())}` },
+        { role: 'user', content: String(userText || '').slice(0, 20000) }
+      ]
+    })
+  }, CHAT_REQUEST_TIMEOUT_MS);
+  const payload = await response.json().catch(() => null);
+  if (!response.ok || !payload || !payload.ok) {
+    throw new Error(payload?.error || `Planner returned ${response.status}`);
+  }
+  const plan = parsePlanPayload(payload.text);
+  if (!plan) throw new Error('The planner returned no usable steps.');
+  return plan;
+}
+
+function buildPlanStepPrompt({ userText, steps, index }) {
+  const step = steps[index];
+  const done = steps.slice(0, index).map((item, i) => `${i + 1}. ${item.title} (done)`);
+  const next = steps.slice(index + 1, index + 7).map((item, i) => `${index + 2 + i}. ${item.title}`);
+  return [
+    `Execute step ${index + 1} of ${steps.length} from a hidden production plan. Work only on this step.`,
+    'Use the app tools. Do not paste code into the chat, do not ask questions, do not restate the plan.',
+    `CURRENT STEP — ${step.title}\n${step.instruction}`,
+    done.length ? `COMPLETED:\n${done.join('\n')}` : 'COMPLETED: none',
+    next.length ? `UPCOMING (context only, do not execute now):\n${next.join('\n')}` : '',
+    `FULL BRIEF (source of truth for timings, text and constraints):\n${String(userText || '').slice(0, 12000)}`
+  ].filter(Boolean).join('\n\n');
+}
+
+async function runPlannedTurn({ userText, provider, apiKey, resolved, editorCodeBefore, onProgress }) {
+  const report = (text) => { if (typeof onProgress === 'function' && text) onProgress(text); };
+  const sessionId = activeSession()?.id || '';
+  let plan;
+  try {
+    report('Planning the production…');
+    plan = await generateProductionPlan({ userText, provider, apiKey, resolved });
+  } catch (error) {
+    return { reply: '', codeAfter: null, modelName: null, toolsUsed: [], error: `Planning failed: ${error?.message || error}` };
+  }
+
+  const steps = plan.steps;
+  const statuses = {};
+  await saveAgentPlan(sessionId, planMarkdown(plan, steps, statuses));
+  const failures = [];
+  let last = null;
+  let lastModel = resolved.model.name;
+
+  for (let index = 0; index < steps.length; index++) {
+    const step = steps[index];
+    report(`PLAN ${index + 1}/${steps.length} · ${step.title}`);
+    chatTurnWroteCode = false;
+    chatTurnPendingRender = false;
+    chatTurnRenderBlocked = false;
+    let outcome = null;
+    for (let attempt = 0; attempt < 2; attempt++) {
+      const prompt = buildPlanStepPrompt({ userText, steps, index });
+      outcome = await runElephantTurn({
+        userText: prompt,
+        provider,
+        apiKey,
+        resolved,
+        editorCodeBefore,
+        onProgress: report,
+        stealth: true,
+        maxSteps: PLAN_STEP_TOOL_STEPS
+      });
+      if (outcome && !outcome.error) break;
+      await sleep(900 + attempt * 1200);
+    }
+    last = outcome || last;
+    if (outcome?.modelName) lastModel = outcome.modelName;
+    const ok = Boolean(outcome && !outcome.error && (outcome.toolsUsed?.length || outcome.reply));
+    statuses[index] = ok;
+    await saveAgentPlan(sessionId, planMarkdown(plan, steps, statuses));
+    if (!ok) failures.push(`${index + 1}. ${step.title} — ${outcome?.error || 'no tool action'}`);
+  }
+
+  const codeAfter = last?.codeAfter || null;
+  const summary = failures.length
+    ? `PLAN FINISHED · ${steps.length - failures.length}/${steps.length} steps completed. Failed: ${failures.slice(0, 3).join(' | ')}`
+    : `PLAN COMPLETE · ${steps.length}/${steps.length} steps executed · ${timelineState.clips.length} clips on the timeline.`;
+  addChatMessage(
+    'assistant',
+    summary,
+    { provider, modelName: lastModel },
+    `PLANNED · ${steps.length} STEPS`,
+    null,
+    [],
+    codeAfter
+  );
+  return { reply: summary, codeAfter, modelName: lastModel, toolsUsed: [], error: '', planSteps: steps.length };
 }
 
 async function sendChat() {
@@ -9521,20 +9789,48 @@ async function sendChat() {
   let renderPending = false;
 
   try {
-    const first = await runElephantTurn({
-      userText: text,
-      provider,
-      apiKey,
-      resolved,
-      editorCodeBefore,
-      onProgress: reportAction
-    });
-    renderPending = chatTurnPendingRender;
+    let plannedMode = isLargeBrief(text);
+    let first;
+    if (plannedMode) {
+      first = await runPlannedTurn({
+        userText: text,
+        provider,
+        apiKey,
+        resolved,
+        editorCodeBefore,
+        onProgress: reportAction
+      });
+      if (first.error) {
+        addChatMessage('error', `Plan mode failed: ${first.error}. Running the brief as a single turn instead.`);
+        plannedMode = false;
+        first = await runElephantTurn({
+          userText: text,
+          provider,
+          apiKey,
+          resolved,
+          editorCodeBefore,
+          onProgress: reportAction
+        });
+        renderPending = chatTurnPendingRender;
+      } else {
+        renderPending = false;
+      }
+    } else {
+      first = await runElephantTurn({
+        userText: text,
+        provider,
+        apiKey,
+        resolved,
+        editorCodeBefore,
+        onProgress: reportAction
+      });
+      renderPending = chatTurnPendingRender;
+    }
     if (first.reply) {
       generateChatTitle(activeSession(), provider, apiKey, first.modelName || resolved.model.name);
     }
 
-    if (first.codeAfter) {
+    if (!plannedMode && first.codeAfter) {
       // Fresh goldfish pass: stateless and read-only, then the elephant (which
       // remembers the conversation) applies at most one invisible fix turn.
       reportAction('Checking the code for errors…');
@@ -9863,6 +10159,96 @@ const timelineState = {
   playhead: 0,
   selectedAssetId: null
 };
+
+// Snapshot undo for timeline mutations. Playhead moves and asset analysis
+// updates are excluded so they never create undo steps.
+const TIMELINE_HISTORY_LIMIT = 80;
+let timelineHistoryPast = [];
+let timelineHistoryFuture = [];
+let timelineHistorySignature = '';
+let timelineHistorySuspended = false;
+
+function timelineHistorySnapshot() {
+  return JSON.stringify({
+    clips: timelineState.clips,
+    transitions: timelineState.transitions,
+    audioTracks: timelineState.audioTracks,
+    layers: timelineState.layers
+  });
+}
+
+function updateTimelineHistoryButtons() {
+  const undoBtn = document.getElementById('boxUndo');
+  if (undoBtn) undoBtn.disabled = !timelineHistoryPast.length;
+  const redoBtn = document.getElementById('boxRedo');
+  if (redoBtn) redoBtn.disabled = !timelineHistoryFuture.length;
+}
+
+function resetTimelineHistory() {
+  timelineHistoryPast = [];
+  timelineHistoryFuture = [];
+  timelineHistorySignature = timelineHistorySnapshot();
+  updateTimelineHistoryButtons();
+}
+
+function recordTimelineHistory() {
+  if (timelineHistorySuspended) return;
+  const snapshot = timelineHistorySnapshot();
+  if (snapshot === timelineHistorySignature) return;
+  if (timelineHistorySignature) {
+    timelineHistoryPast.push(timelineHistorySignature);
+    if (timelineHistoryPast.length > TIMELINE_HISTORY_LIMIT) timelineHistoryPast.shift();
+  }
+  timelineHistorySignature = snapshot;
+  timelineHistoryFuture = [];
+  updateTimelineHistoryButtons();
+}
+
+function applyTimelineHistorySnapshot(snapshot) {
+  const parsed = JSON.parse(snapshot);
+  timelineHistorySuspended = true;
+  try {
+    timelineState.clips = Array.isArray(parsed.clips) ? parsed.clips : [];
+    timelineState.transitions = Array.isArray(parsed.transitions) ? parsed.transitions : [];
+    timelineState.audioTracks = sanitizeAudioTracks(parsed.audioTracks);
+    timelineState.layers = Math.max(1, Math.min(4, Number(parsed.layers) || 1));
+    timelineState.activeId = timelineState.clips[0] ? timelineState.clips[0].id : null;
+    timelineState.selectedAssetId = null;
+    timelineState.playhead = Math.max(0, Math.min(timelineTotalSeconds(), timelineState.playhead));
+    saveTimelineState(true);
+    applyActiveClipToEditor({ preview: true, timing: true });
+    renderLogicBoxes();
+    renderProjectBin();
+    updateStageTimeline();
+    renderInspector();
+    updateMonitorTime();
+    positionPlayhead(timelineState.playhead);
+  } finally {
+    timelineHistorySuspended = false;
+  }
+  timelineHistorySignature = timelineHistorySnapshot();
+  updateTimelineHistoryButtons();
+}
+
+function undoTimeline() {
+  if (!timelineHistoryPast.length) return false;
+  const current = timelineHistorySnapshot();
+  const snapshot = timelineHistoryPast.pop();
+  timelineHistoryFuture.push(current);
+  applyTimelineHistorySnapshot(snapshot);
+  setStatus('UNDO', '');
+  return true;
+}
+
+function redoTimeline() {
+  if (!timelineHistoryFuture.length) return false;
+  const current = timelineHistorySnapshot();
+  const snapshot = timelineHistoryFuture.pop();
+  timelineHistoryPast.push(current);
+  applyTimelineHistorySnapshot(snapshot);
+  setStatus('REDO', '');
+  return true;
+}
 
 function sanitizeAudioTracks(raw) {
   const stored = Array.isArray(raw) ? raw : [];
@@ -10913,9 +11299,11 @@ function timelineSummaryForChat() {
 
 function saveTimelineState(immediate = false) {
   const write = () => {
+    recordTimelineHistory();
     try {
       pruneTransitions();
       localStorage.setItem(TIMELINE_KEY, JSON.stringify({
+        savedAt: new Date().toISOString(),
         activeId: timelineState.activeId,
         layers: timelineState.layers,
         playhead: timelineState.playhead,
@@ -10965,6 +11353,7 @@ function saveTimelineState(immediate = false) {
         }))
       }));
       setSaveState('saved');
+      scheduleDurableProjectSave();
     } catch (error) { console.error(error); }
   };
   if (timelineSaveTimer) clearTimeout(timelineSaveTimer);
@@ -11060,7 +11449,7 @@ function sanitizeAssetAnalysis(raw) {
   };
 }
 
-function loadTimelineState() {
+function loadTimelineState(persist = true) {
   let stored = null;
   try { stored = JSON.parse(localStorage.getItem(TIMELINE_KEY) || 'null'); }
   catch (error) { stored = null; }
@@ -11195,7 +11584,7 @@ function loadTimelineState() {
     .map(sanitizeTransition)
     .filter(Boolean);
   pruneTransitions();
-  saveTimelineState(true);
+  if (persist) saveTimelineState(true);
 }
 
 function setEmptySceneHint(visible) {
@@ -13868,6 +14257,187 @@ function initProjectChrome() {
   setSaveState('saved');
 }
 
+// ── DURABLE PROJECT STORE ────────────────────────────────
+// The WebView runs with a private profile, so localStorage is wiped between
+// launches. The full project (timeline, assets, name) is mirrored to
+// %APPDATA%/ClipACanvas/projects/autosave.ccproj.json by the local server and
+// restored on boot. The same endpoint backs the named project library.
+let durableSaveTimer = null;
+let durableSaveInFlight = false;
+let durableSaveQueued = false;
+let durableSaveDeferred = false;
+let projectRestoreState = 'idle';
+
+function durableProjectsEnabled() {
+  if (isDesktopShell()) return true;
+  try { return ['127.0.0.1', 'localhost'].includes(window.location.hostname); } catch (error) { return false; }
+}
+
+function projectRestoreSettled() {
+  return projectRestoreState !== 'idle' && projectRestoreState !== 'loading';
+}
+
+function scheduleDurableProjectSave() {
+  if (!durableProjectsEnabled()) return;
+  if (!projectRestoreSettled()) { durableSaveDeferred = true; return; }
+  if (durableSaveTimer) clearTimeout(durableSaveTimer);
+  durableSaveTimer = setTimeout(() => {
+    durableSaveTimer = null;
+    pushDurableProjectSave();
+  }, 700);
+}
+
+async function pushDurableProjectSave() {
+  if (!durableProjectsEnabled()) return false;
+  if (!projectRestoreSettled()) { durableSaveDeferred = true; return false; }
+  if (durableSaveInFlight) { durableSaveQueued = true; return false; }
+  durableSaveInFlight = true;
+  try {
+    const response = await fetch(buildApiUrl('/api/project'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(buildProjectFilePayload())
+    });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    setSaveState('saved');
+    return true;
+  } catch (error) {
+    console.error('project autosave failed:', error);
+    setStatus(`Project autosave failed: ${error?.message || error}`, 'err');
+    return false;
+  } finally {
+    durableSaveInFlight = false;
+    if (durableSaveQueued) {
+      durableSaveQueued = false;
+      scheduleDurableProjectSave();
+    }
+  }
+}
+
+async function restoreDurableProject() {
+  if (!durableProjectsEnabled() || projectRestoreState !== 'idle') return false;
+  projectRestoreState = 'loading';
+  try {
+    const response = await fetch(buildApiUrl('/api/project'));
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const data = await response.json();
+    const payload = data?.project;
+    if (!payload || payload.format !== PROJECT_FILE_FORMAT) {
+      projectRestoreState = 'empty';
+      return false;
+    }
+    let localSavedAt = '';
+    try { localSavedAt = JSON.parse(localStorage.getItem(TIMELINE_KEY) || 'null')?.savedAt || ''; } catch (error) { localSavedAt = ''; }
+    if (localSavedAt && payload.savedAt && localSavedAt >= payload.savedAt) {
+      projectRestoreState = 'local-newer';
+      return false;
+    }
+    const applied = applyProjectPayload(payload, { confirm: false });
+    projectRestoreState = applied ? 'restored' : 'failed';
+    if (applied) setStatus(`PROJECT RESTORED · ${payload.projectName || 'UNTITLED PROJECT'} · DISK AUTOSAVE`, 'ok');
+    return applied;
+  } catch (error) {
+    projectRestoreState = 'failed';
+    console.error('project restore failed:', error);
+    return false;
+  } finally {
+    if (projectRestoreState === 'loading') projectRestoreState = 'failed';
+    if (projectRestoreState === 'empty') saveTimelineState(true);
+    if (projectRestoreState !== 'restored') resetTimelineHistory();
+    if (durableSaveDeferred) {
+      durableSaveDeferred = false;
+      scheduleDurableProjectSave();
+    }
+  }
+}
+
+async function saveProjectToLibrary() {
+  if (!durableProjectsEnabled()) return null;
+  try {
+    const response = await fetch(buildApiUrl('/api/projects'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: currentProjectName(),
+        project: buildProjectFilePayload()
+      })
+    });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const data = await response.json();
+    if (data?.project) refreshProjectLibrary();
+    return data?.project || null;
+  } catch (error) {
+    console.error('project library save failed:', error);
+    return null;
+  }
+}
+
+function projectLibraryTime(iso) {
+  const date = new Date(iso || '');
+  if (Number.isNaN(date.getTime())) return '';
+  const now = new Date();
+  const sameDay = date.toDateString() === now.toDateString();
+  return sameDay
+    ? date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    : date.toLocaleDateString([], { month: 'short', day: 'numeric' });
+}
+
+async function refreshProjectLibrary() {
+  const section = document.getElementById('projectLibrary');
+  const list = document.getElementById('projectLibraryList');
+  if (!section || !list || !durableProjectsEnabled()) return;
+  try {
+    const response = await fetch(buildApiUrl('/api/projects'));
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const data = await response.json();
+    const projects = Array.isArray(data?.projects) ? data.projects : [];
+    list.textContent = '';
+    section.hidden = projects.length === 0;
+    for (const entry of projects) {
+      const row = document.createElement('button');
+      row.type = 'button';
+      row.className = 'project-row';
+      row.dataset.projectId = entry.id || '';
+      const name = document.createElement('span');
+      name.className = 'project-row-name';
+      name.textContent = entry.name || 'PROJECT';
+      const when = document.createElement('span');
+      when.className = 'project-when';
+      when.textContent = projectLibraryTime(entry.savedAt);
+      row.append(name, when);
+      row.addEventListener('click', () => openLibraryProject(entry.id));
+      list.appendChild(row);
+    }
+  } catch (error) {
+    console.error('project library load failed:', error);
+  }
+}
+
+async function openLibraryProject(projectId) {
+  if (!projectId) return;
+  try {
+    const response = await fetch(buildApiUrl(`/api/projects/open?id=${encodeURIComponent(projectId)}`));
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const data = await response.json();
+    if (!data?.project) throw new Error('Project not found.');
+    if (!window.confirm('Open this project? The current timeline will be replaced.')) return;
+    if (applyProjectPayload(data.project)) {
+      setStatus(`PROJECT OPENED · ${data.entry?.name || projectId}`, 'ok');
+      refreshProjectLibrary();
+    }
+  } catch (error) {
+    setStatus(`Project open failed: ${error?.message || error}`, 'err');
+  }
+}
+
+window.addEventListener('pagehide', () => {
+  if (!durableProjectsEnabled() || !projectRestoreSettled()) return;
+  try {
+    const blob = new Blob([JSON.stringify(buildProjectFilePayload())], { type: 'application/json' });
+    navigator.sendBeacon(buildApiUrl('/api/project'), blob);
+  } catch (error) { /* best-effort flush on close */ }
+});
+
 const PROJECT_FILE_FORMAT = 'clipacanvas-project';
 const PROJECT_FILE_VERSION = 1;
 
@@ -13897,7 +14467,7 @@ function projectFileSlug() {
   return name || 'project';
 }
 
-function applyProjectPayload(payload) {
+function applyProjectPayload(payload, options = {}) {
   if (!payload || payload.format !== PROJECT_FILE_FORMAT) {
     throw new Error('Not a Clip.A.Canvas project file.');
   }
@@ -13908,8 +14478,9 @@ function applyProjectPayload(payload) {
   if (!timeline || !Array.isArray(timeline.clips)) {
     throw new Error('Project file has no timeline.');
   }
-  if (!window.confirm('Open this project? The current timeline will be replaced.')) return false;
+  if (options.confirm !== false && !window.confirm('Open this project? The current timeline will be replaced.')) return false;
   const stored = {
+    savedAt: payload.savedAt || new Date().toISOString(),
     clips: timeline.clips,
     transitions: timeline.transitions,
     audioTracks: timeline.audioTracks,
@@ -13940,6 +14511,7 @@ function applyProjectPayload(payload) {
     }
   }
   setSaveState('saved');
+  resetTimelineHistory();
   return true;
 }
 
@@ -13949,8 +14521,12 @@ function saveProjectFile() {
   setStatus('Saving project…', 'busy');
   if (isDesktopShell() && typeof window.pywebview.api.save_project_file === 'function') {
     window.pywebview.api.save_project_file(filename, json).then(result => {
-      setStatus(result?.saved ? `PROJECT SAVED · ${result.path || filename}` : 'Project save cancelled',
-        result?.saved ? 'ok' : '');
+      if (result?.saved) {
+        setStatus(`PROJECT SAVED · ${result.path || filename}`, 'ok');
+        saveProjectToLibrary();
+      } else {
+        setStatus('Project save cancelled', '');
+      }
     }).catch(error => setStatus(`Project save failed: ${error}`, 'err'));
     return;
   }
@@ -13984,6 +14560,8 @@ async function openProjectFile() {
 function initProjectFileControls() {
   document.getElementById('projectSave')?.addEventListener('click', saveProjectFile);
   document.getElementById('projectOpen')?.addEventListener('click', openProjectFile);
+  document.getElementById('projectLibraryRefresh')?.addEventListener('click', refreshProjectLibrary);
+  refreshProjectLibrary();
   document.getElementById('projectFileInput')?.addEventListener('change', async (event) => {
     const file = event.target.files?.[0];
     event.target.value = '';
@@ -14328,7 +14906,7 @@ function initVoiceStudio() {
 }
 
 function initLogicTimeline() {
-  loadTimelineState();
+  loadTimelineState(false);
   applyActiveClipToEditor({ preview: false, timing: false });
   renderLogicBoxes();
   renderProjectBin();
@@ -14338,6 +14916,8 @@ function initLogicTimeline() {
   }
 
   document.getElementById('boxAdd')?.addEventListener('click', () => addLogicClip());
+  document.getElementById('boxUndo')?.addEventListener('click', undoTimeline);
+  document.getElementById('boxRedo')?.addEventListener('click', redoTimeline);
   document.getElementById('boxSplit')?.addEventListener('click', splitAtPlayhead);
   document.getElementById('boxDup')?.addEventListener('click', () => addLogicClip({ duplicate: true }));
   document.getElementById('boxDel')?.addEventListener('click', deleteLogicClip);
@@ -14972,6 +15552,19 @@ function initLogicTimeline() {
   document.addEventListener('keydown', (event) => {
     const target = event.target;
     if (target && (target.closest('input, textarea, select, [contenteditable="true"]') || target.closest('.monaco-editor'))) return;
+    if (event.ctrlKey || event.metaKey) {
+      const key = String(event.key || '').toLowerCase();
+      if (key === 'z') {
+        event.preventDefault();
+        if (event.shiftKey) redoTimeline(); else undoTimeline();
+        return;
+      }
+      if (key === 'y') {
+        event.preventDefault();
+        redoTimeline();
+        return;
+      }
+    }
     if (event.ctrlKey || event.metaKey || event.altKey) return;
     if (event.key === 's' || event.key === 'S') {
       event.preventDefault();
@@ -14995,6 +15588,8 @@ function initLogicTimeline() {
       setPlayhead(timelineTotalSeconds(), { preview: true });
     }
   });
+
+  resetTimelineHistory();
 }
 
 function showDropMarker(track, ratio, options = {}) {
@@ -15249,6 +15844,7 @@ function initControlRoom() {
   initChatShortcut();
   initChatHistoryPopover();
   initLogicTimeline();
+  restoreDurableProject();
   renderProjectBin();
   switchRightTab('inspector');
   const latestRun = readRunHistory()[0];

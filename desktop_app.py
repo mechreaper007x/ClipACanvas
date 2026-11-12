@@ -132,7 +132,7 @@ class DesktopApi:
         target_path = window.create_file_dialog(
             webview.SAVE_DIALOG,
             save_filename=suggested_name or "clipacanvas-project.ccproj.json",
-            file_types=("Clip.A.Canvas project (*.json)", "All files (*.*)"),
+            file_types=("ClipACanvas project (*.json)", "All files (*.*)"),
         )
         if not target_path:
             return {"saved": False}
@@ -153,7 +153,7 @@ class DesktopApi:
 
         selected = window.create_file_dialog(
             webview.OPEN_DIALOG,
-            file_types=("Clip.A.Canvas project (*.json;*.ccproj.json)", "All files (*.*)"),
+            file_types=("ClipACanvas project (*.json)", "All files (*.*)"),
         )
         if not selected:
             return {"selected": False}
@@ -284,11 +284,19 @@ def main() -> int:
         webview.start(
             debug=os.environ.get("CLIPACANVAS_DEBUG") == "1",
             func=on_window_ready,
+            private_mode=False,
+            storage_path=str(webview_storage_path()),
         )
     finally:
         shutdown()
 
     return 0
+
+
+def webview_storage_path() -> Path:
+    base = Path(os.environ.get("APPDATA") or os.path.expanduser("~")) / "ClipACanvas" / "webview"
+    base.mkdir(parents=True, exist_ok=True)
+    return base
 
 
 if __name__ == "__main__":

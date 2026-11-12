@@ -3921,3 +3921,104 @@
 
 - Rebuild `dist/ClipACanvas.exe` so it includes the live provider fixes; Mistral 3.0 remains account-rate-limited.
 - Rebuilt `dist/ClipACanvas.exe`/zip after the hosted fixes and verified through the packaged server: new Mistral models/voices are present and a live Gemini TTS request returned a 2.6 s WAV.
+
+## 2026-11-12 (Dogfooding fixes: durable projects, A/V export, undo/redo)
+
+### Summary
+
+- First-time-user dogfooding of the packaged app exposed three blockers: the InPrivate WebView profile wiped the timeline and imported-media metadata on close; SAVE PROJECT failed before its dialog (`Clip.A.Canvas project (*.json) is not a valid file filter`); and the packaged renderer was stale, so exports lacked the images/audio the timeline showed.
+- Added a durable project store: `/api/project` autosaves the full project (timeline, assets, lanes, name) to `%APPDATA%/ClipACanvas/projects/autosave.ccproj.json`; `/api/projects` keeps named project files plus a recent-projects index. The client autosaves after every timeline edit, restores on launch before any autosave can overwrite, flushes with `sendBeacon` on close, and shows a PROJECT LIBRARY list in the PROJECT tab.
+- Fixed the pywebview filter names (`ClipACanvas project (*.json)`), enabled a persistent WebView2 profile (`private_mode=False` + `storage_path`), and kept disk autosave as the primary store.
+- Added snapshot undo/redo for timeline mutations (toolbar buttons, Ctrl+Z, Ctrl+Shift+Z, Ctrl+Y); playhead moves and asset analysis are not undo steps.
+- Studied [x777/frontstage](https://github.com/x777/frontstage) (GPL-3.0) for project-session, project-registry and export patterns; no code copied.
+
+### Files Touched
+
+- `clipacanvas.html` (durable autosave/restore, project library, history, loadTimelineState persist flag)
+- `serve.py` (project autosave/library endpoints, atomic writes, validation)
+- `desktop_app.py` (save/open filters, persistent WebView2 profile)
+- `tests/_check_project_persistence.py`, `tests/_check_film_export.py`, `tests/_check_timeline_history.py`, `tests/_check_packaged_persistence_render.py` (new)
+
+### Verification
+
+- `_check_project_persistence.py` PASS: edit → disk autosave → wipe storage → reload restores name, clips, assets, playhead; library save/reopen via the PROJECT tab.
+- `_check_film_export.py` PASS: five images at 0–10 s, 1 s dissolve, music A2 + SFX A3; pixel and volume probes match.
+- `_check_timeline_history.py` PASS: undo/redo buttons and shortcuts; playhead moves add no history; text inputs keep native undo.
+- Existing `_check_media_timeline.py`, `_check_audio_import.py`, `_check_project_ops.py`, `_check_workspace.py` PASS.
+- `_check_packaged_persistence_render.py` PASS in the real WebView2 over CDP: 1920×1080 30 fps MP4 with two images, dissolve, A2 music and A3 SFX (`output/uitest/renders/packaged-film-1080p.mp4`); packaged undo/redo and the PROJECT LIBRARY row were exercised; relaunch restored name, 4 clips, 4 assets, lanes and bin.
+
+### Build
+
+- Rebuilt `dist/ClipACanvas.exe` (final 23:16, 463 MB) and `dist/ClipACanvas-windows.zip` with Python 3.11 after the undo/redo and project-library UI were added.
+
+### Commits
+
+- None (not requested).
+
+### Open Items
+
+- Synthetic mouse input remains inert in WebView2 automation (keyboard/CDP paths used instead); physical mouse input was usable by the user.
+- The observed 60 s composition cap and the malformed 0.5 s clip when inserting exactly at 60 s are not fixed.
+- Native SAVE/OPEN dialog flow is fixed at the filter level and parsed by pywebview; the dialog itself was not automated end-to-end in this pass.
+- Frontstage-inspired features not started: keyframes/effects, captions, FCPXML interop.
+
+## 2026-11-13 (CLIPPPA: multi-scene tool calling)
+
+### Summary
+
+- Root cause of "CLIPPPA can't create multiple scenes": `_gemini_schema_types` treated every dict key named `type` as a JSON-schema keyword and stringified its value. The `add_transition`/`update_transition` tools have a *parameter* named `type`, so their schema became `"type": "{'TYPE': 'STRING', ...}"`. Gemini rejected all 17 tools with HTTP 400; the server silently retried without tools, so the model replied with one HTML document per turn and the client auto-inserted it into the selected scene, overwriting scene 1.
+- Fixed the schema converter to only uppercase scalar `type` keywords and to recurse through property named `type`.
+- The server now reports `toolsDisabled` and the chat shows a visible error instead of silently degrading.
+- Raised the agent tool-round budget from 6 to 24, raised Gemini/Mistral HTTP timeouts from 40 s to 150 s, strengthened the system prompt to finish every scene in a multi-scene brief in one turn, and added a duplicate-`add_scene` guard to stop runaway loops.
+
+### Files Touched
+
+- `serve.py` (schema converter, toolsDisabled flag, LLM timeouts)
+- `clipacanvas.html` (system prompt, tool-step budget, tools-disabled warning, duplicate scene guard)
+- `tests/_check_llm_tools.py`, `tests/_check_clipppa_multiscene.py`, `tests/_check_packaged_clipppa.py` (new)
+
+### Verification
+
+- `_check_llm_tools.py` PASS; live Gemini call now returns an `add_scene` function call instead of a 400.
+- `_check_clipppa_multiscene.py` PASS: one chat turn created SCENE 01/02/03 at 0/1/2 s via `insert_animation_code` + two `add_scene` calls, with tool traces and no page errors.
+- `_check_packaged_clipppa.py` PASS in the rebuilt exe: one chat turn created SCENE 01 (0 s) and SCENE 02 (1 s) via `insert_animation_code` + `add_scene`, no tools-disabled warning.
+- Rebuilt `dist/ClipACanvas.exe` (00:55, 463 MB) and `dist/ClipACanvas-windows.zip` with Python 3.11.
+
+### Open Items
+
+- No agent tools yet for TTS voiceover or placing bin audio/assets on A1–A3; the 54 s challenge still needs those via the manual UI.
+- Gemini free-tier quotas can still fail mid-production; the fallback loop logs model switches.
+
+## 2026-11-13 (Large briefs: hidden plan mode, provider retries)
+
+### Summary
+
+- Large briefs (≥1400 chars, ≥3 scene mentions or a storyboard) no longer go to the model in one turn. The chat first asks the same provider for a JSON production plan (max 18 steps), writes it to a hidden markdown file at `%APPDATA%/ClipACanvas/agent-plans/<sessionId>.md`, then executes each step as its own focused tool turn (max 8 tool rounds per step, 2 attempts) with the full brief as context.
+- The plan file is never rendered in the chat. The UI shows live progress (`PLAN 2/9 · …`) and a final `PLAN COMPLETE · N/N steps executed · X clips` message with a `PLANNED · N STEPS` note.
+- If planning fails, the turn falls back to a normal single turn with a visible error instead of dead-ending.
+- Provider resilience: HTTP 423/500/502/503/504 and network/timeout errors are retried on the same model twice (1.5 s → 3 s backoff) before model switching; 423 and 5xx now surface specific messages ("locked this request", "temporarily unavailable (code) after retries") instead of a generic failure.
+- Mistral "not reachable" was diagnosed: `/v1/models` returns 56 models and `mistral-large-latest` tool calling works; the old 40 s client timeout was cutting off long generations. Gemini/Mistral request timeouts are now 150 s.
+
+### Files Touched
+
+- `clipacanvas.html` (planner prompt/parser, hidden plan save, step executor, plan progress and summary, large-brief routing in `sendChat`, system prompt, tool-step budget, duplicate `add_scene` guard)
+- `serve.py` (model retry loop and messages, 150 s LLM timeouts, `/api/agent/plan` GET/POST with atomic writes)
+- `tests/_check_agent_plan.py`, `tests/_check_packaged_agent_plan.py`, `tests/_check_llm_retry.py` (new); `tests/_check_llm_tools.py`, `tests/_check_clipppa_multiscene.py`, `tests/_check_packaged_clipppa.py` (kept green)
+
+### Verification
+
+- `_check_agent_plan.py` PASS: a ~3.9 k-char brief produced a 3-step hidden plan; every step ticked `- [x]` in the `.md`, chat showed `PLAN COMPLETE · 3/3`, two scenes at 0/1 s, a 2 s 120-frame render, and neither the plan title nor its instructions appeared in the chat.
+- `_check_packaged_agent_plan.py` PASS in the rebuilt exe (WebView2 over CDP, mocked LLM): same plan file, scenes and render checks inside `dist/ClipACanvas.exe`.
+- `_check_llm_retry.py` PASS: two injected 503s are retried (1.5 s, 3 s) and the third call succeeds; a permanent 423 returns "Gemini locked this request (423). Try a different model."
+- `_check_llm_tools.py` PASS: 17 tool schemas valid for both providers.
+
+### Build
+
+- Rebuilt `dist/ClipACanvas.exe` (01:39, 463 MB) and `dist/ClipACanvas-windows.zip` with Python 3.11 so the packaged app includes plan mode, retries and the plan endpoint.
+
+### Open Items
+
+- Gemini free-tier quotas can still interrupt a long planned production mid-run; each step retries twice, then the run continues with remaining steps and reports failures in the summary.
+- No agent tools yet for TTS voiceover or placing bin audio/assets on A1–A3; the 54 s challenge still needs those via the manual UI.
+- The observed 60 s composition cap and the malformed 0.5 s clip when inserting exactly at 60 s remain unfixed.
+- No git commit/push for this entry (not requested).
