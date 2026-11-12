@@ -4108,7 +4108,7 @@
 
 ### Commits
 
-- Local commit created for this change set (no push).
+- `b667995` - `feat: in-app project dialogs, unsaved-work guard and sequenced names` (local only, no push).
 
 ### Open Items
 
