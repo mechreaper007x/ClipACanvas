@@ -664,44 +664,19 @@ GEMINI_TTS_VOICES = [
     "Vindemiatrix", "Sadachbia", "Sadaltager", "Sulafat",
 ]
 MISTRAL_TTS_URL = "https://api.mistral.ai/v1/audio/speech"
-MISTRAL_TTS_MODEL = "voxtral-mini-tts-3-0"
+MISTRAL_TTS_MODELS = [
+    {"id": "voxtral-mini-tts-latest", "label": "Voxtral Mini TTS (speech v1)"},
+    {"id": "voxtral-mini-tts-3-0", "label": "Voxtral Mini TTS 3.0"},
+]
+MISTRAL_TTS_MODEL = MISTRAL_TTS_MODELS[0]["id"]
+# Speech v1 preset voice ids verified live on 2026-11-12. The legacy voice_*
+# catalog from the deprecated TTS docs is rejected by this endpoint.
 MISTRAL_TTS_VOICES = [
-    ("voice_447", "English (US)"),
-    ("voice_478", "English (US)"),
-    ("voice_485", "English (US)"),
-    ("voice_3150", "English (US)"),
-    ("voice_1787", "English (UK)"),
-    ("voice_1786", "English (UK)"),
-    ("voice_1788", "English (UK)"),
-    ("voice_590", "English (UK)"),
-    ("voice_591", "English (UK)"),
-    ("voice_3149", "English (UK)"),
-    ("voice_3147", "English (UK)"),
-    ("voice_592", "French"),
-    ("voice_3137", "French"),
-    ("voice_589", "French"),
-    ("voice_3141", "French"),
-    ("voice_483", "Spanish"),
-    ("voice_481", "German"),
-    ("voice_482", "Italian"),
-    ("voice_480", "Portuguese"),
-    ("voice_479", "Arabic"),
-    ("voice_3143", "Catalan"),
-    ("voice_3139", "Hindi"),
-    ("voice_3153", "Hindi"),
-    ("voice_3146", "Hungarian"),
-    ("voice_3133", "Japanese"),
-    ("voice_3136", "Korean"),
-    ("voice_3135", "Korean"),
-    ("voice_3145", "Dutch"),
-    ("voice_3134", "Norwegian"),
-    ("voice_3154", "Polish"),
-    ("voice_3155", "Romanian"),
-    ("voice_3132", "Russian"),
-    ("voice_3138", "Turkish"),
-    ("voice_3140", "Ukrainian"),
-    ("voice_3144", "Vietnamese"),
-    ("voice_3142", "Chinese"),
+    ("gb_jane_neutral", "English (UK)"),
+    ("gb_oliver_neutral", "English (UK)"),
+    ("en_paul_neutral", "English (US)"),
+    ("en_paul_sad", "English (US)"),
+    ("fr_marie_neutral", "French"),
 ]
 _SAPI_VOICE_CACHE = {"at": 0.0, "voices": [], "error": ""}
 _SAPI_VOICE_LOCK = threading.Lock()
@@ -800,12 +775,12 @@ def tts_provider_registry() -> dict:
             "available": bool(keys.get("mistral")),
             "reason": "" if keys.get("mistral") else "Add a Mistral API key in Settings.",
             "requiresKey": "mistral",
-            "models": [{"id": MISTRAL_TTS_MODEL, "label": "Voxtral Mini TTS 3.0"}],
+            "models": MISTRAL_TTS_MODELS,
             "voices": [{"id": voice, "label": f"{voice} · {language}", "language": language} for voice, language in MISTRAL_TTS_VOICES],
             "languages": sorted({language for _, language in MISTRAL_TTS_VOICES}),
             "formats": ["wav", "mp3"],
-            "supports": {"speed": False, "style": False, "emotion": False, "voiceCloning": True, "streaming": False},
-            "notes": "Preset voices only in this UI; cloning needs a reference audio upload and is not exposed yet.",
+            "supports": {"speed": False, "style": False, "emotion": False, "voiceCloning": False, "streaming": False},
+            "notes": "Speech v1 preset voices verified live; styles are baked into the voice name. Cloning needs a reference upload and is not exposed yet.",
             "terms": "Sends the script to api.mistral.ai. The key stays in the backend.",
         },
     ]
@@ -883,7 +858,26 @@ def _gemini_tts_synthesize(text: str, model: str, voice: str, style: str) -> byt
         raise RuntimeError(f"Gemini TTS rejected the request ({exc.code}): {detail or exc.reason}") from exc
     except urllib.error.URLError as exc:
         raise RuntimeError(f"Could not reach Gemini TTS: {exc.reason}") from exc
-    output = data.get("output_audio") if isinstance(data, dict) else None
+    return _gemini_tts_audio_bytes(data)
+
+
+def _gemini_tts_audio_bytes(data) -> bytes:
+    """Read WAV audio from an Interactions response (current and legacy shapes)."""
+    output = None
+    for step in data.get("steps") or []:
+        if not isinstance(step, dict):
+            continue
+        for item in step.get("content") or []:
+            if (isinstance(item, dict) and item.get("type") == "audio"
+                    and isinstance(item.get("data"), str) and item.get("data")):
+                output = item
+                break
+        if output:
+            break
+    if output is None:
+        legacy = data.get("output_audio") if isinstance(data, dict) else None
+        if isinstance(legacy, dict) and isinstance(legacy.get("data"), str):
+            output = legacy
     if not isinstance(output, dict) or not output.get("data"):
         raise RuntimeError("Gemini TTS returned no audio data.")
     mime = str(output.get("mime_type") or "").lower()
@@ -895,12 +889,12 @@ def _gemini_tts_synthesize(text: str, model: str, voice: str, style: str) -> byt
         raise RuntimeError("Gemini TTS returned invalid audio data.") from exc
 
 
-def _mistral_tts_synthesize(text: str, voice: str, audio_format: str) -> bytes:
+def _mistral_tts_synthesize(text: str, model: str, voice: str, audio_format: str) -> bytes:
     key = _load_saved_keys().get("mistral", "")
     if not key:
         raise PermissionError("Mistral API key is not configured. Add it in Settings.")
     body = {
-        "model": MISTRAL_TTS_MODEL,
+        "model": model or MISTRAL_TTS_MODEL,
         "input": text,
         "voice_id": voice,
         "response_format": audio_format,
@@ -998,7 +992,7 @@ def synthesize_speech(payload: dict) -> dict:
     elif provider_id == "gemini":
         audio_bytes = _gemini_tts_synthesize(text, model, voice, style)
     else:
-        audio_bytes = _mistral_tts_synthesize(text, voice, audio_format)
+        audio_bytes = _mistral_tts_synthesize(text, model, voice, audio_format)
     if len(audio_bytes) < 64:
         raise RuntimeError("The speech provider returned an empty audio file.")
 

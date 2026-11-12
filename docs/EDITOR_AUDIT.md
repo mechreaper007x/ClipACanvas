@@ -287,3 +287,19 @@ The operation layer exposes the existing timeline actions as validated, structur
 Frontend: `clipacanvas.html` (state `:8974`, persistence `:9164-9314`, render plan `:9240-9374`, timeline `:9959-10810`, preview `:9424-9435`, playhead `:11012-11040`, drag/trim `:11403-11538`, chat tools `:8288-8450`, bin `:11671-11868`).
 Backend: `serve.py` (`/render` `:951-1040`, media `:1751-1806`, chat `:642-829`, prefs `:606-620`), `playwright_render.py` (`build_sequence_document` `:301-458`, FFmpeg `:599-731`), `desktop_app.py:170-243`, `mcp/src/clipacanvas_mcp/render_tool.py:19-201`, `tui/src/clipacanvas_tui/`.
 Tests: `tests/_check_workspace.py`, `_check_bin_dragdrop.py`, `_check_webview_dragdrop.py`, `_check_media_timeline.py`, `_check_audio_import.py`, `_check_scene_embed.py`, `_check_media_overlay.py`, `_check_logic_timeline.py`, `frontend_render_matrix.py`, `desktop_smoke.py`.
+
+## Addendum — Phase 7 (hosted provider live verification)
+
+Verified on 2026-11-12 against the real stored keys (keys were loaded by the backend only and never printed or committed).
+
+### Results
+
+- **Gemini TTS:** live request returned a 4.88 s / 24 kHz mono WAV through `/api/tts/generate`; the Voiceover Studio generated and played it. The live Interactions response carries audio in `steps[].content[]` (`type: "audio"`), not `output_audio`; the parser now accepts both shapes and is unit-tested.
+- **Gemini content analysis:** live vision analysis on a synthetic three-shot test video returned an accurate description, tags and confidence 0.95 from `gemini-2.5-flash` with 3 uploaded keyframes. Live transcription of synthetic TTS audio returned the exact sentence with a 0.0 s start. Only generated test media was uploaded.
+- **Mistral TTS:** the key is valid (models list reachable) but the speech endpoint rejects the legacy `voice_447` catalog for speech v1. `voxtral-mini-tts-latest` with the documented speech-v1 voices works live; five voices were verified (`gb_jane_neutral`, `gb_oliver_neutral`, `en_paul_neutral`, `en_paul_sad`, `fr_marie_neutral`) in both mp3 and wav. The Studio generated a 2.56 s WAV through the live provider. `voxtral-mini-tts-3-0` returns the account's 429 rate limit, so `latest` is the default and 3.0 remains selectable.
+- The provider registry now lists the speech-v1 voice catalog and both Mistral models; the voice catalog is no longer the deprecated `voice_*` list.
+
+### Limitations
+
+- The Mistral 3.0 rate limit is account-side; the app surfaces the provider error instead of hiding or retrying indefinitely.
+- Hosted calls still require the user's keys in the backend store; no key material is exposed to the frontend or logs.

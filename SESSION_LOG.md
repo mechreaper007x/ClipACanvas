@@ -3891,3 +3891,32 @@
 - Rebuilt `dist/ClipACanvas.exe` (21:34, 463 MB) and `dist/ClipACanvas-windows.zip` with Python 3.11 after this change set.
 - Packaged launch/UI smoke (`run_packaged_full.py`) passed its structural checks; its render leg failed on a hidden `#clipLength` selector in that untracked legacy script, not on app behavior.
 - Post-build follow-ups (sync the Monaco editor before serializing a project; audio clips report their A-lane in the agent timeline summary) were verified with `_check_frame_lanes_project` and `_check_chat_scenes`.
+
+## 2026-11-12 (Phase 7: hosted provider live verification)
+
+### Summary
+
+- Loaded the stored Gemini/Mistral keys only in the backend and ran live checks.
+- Fixed Gemini TTS response parsing: live audio arrives in `steps[].content[]` (`type: "audio"`), not `output_audio`; both shapes now parse and are unit-tested.
+- Replaced the deprecated Mistral `voice_*` catalog with speech-v1 voices verified live (`gb_jane_neutral`, `gb_oliver_neutral`, `en_paul_neutral`, `en_paul_sad`, `fr_marie_neutral`); `voxtral-mini-tts-latest` is the working default (3.0 returns the account's 429 rate limit).
+- Live-verified Gemini vision (3 synthetic keyframes, accurate description/tags, confidence 0.95) and transcription (exact sentence), plus the Voiceover Studio UI for Gemini and Mistral.
+
+### Files Touched
+
+- `serve.py` (Gemini audio parser, Mistral models/voices, model passthrough)
+- `tests/_check_tts.py` (response-shape and catalog assertions)
+- `docs/EDITOR_AUDIT.md`, `SESSION_LOG.md`
+
+### Verification
+
+- Live: Gemini TTS 4.88 s WAV; Mistral 3.38 s mp3 / 2.48 s wav; Studio produced 2.92 s Gemini and 2.56 s Mistral WAVs; Gemini semantic analysis and transcript live.
+- `_check_tts.py` PASS after the parser/catalog changes.
+- No key material was printed, logged or committed.
+
+### Commits
+
+- This hosted-verification change set committed locally; not pushed.
+
+### Open Items
+
+- Rebuild `dist/ClipACanvas.exe` so it includes the live provider fixes; Mistral 3.0 remains account-rate-limited.

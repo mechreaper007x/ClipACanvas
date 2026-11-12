@@ -20,6 +20,24 @@ ffmpeg = resolve_ffmpeg_exe()
 OUT = ROOT / "output" / "playwright"
 OUT.mkdir(parents=True, exist_ok=True)
 
+import serve
+
+wav_token = base64.b64encode(b"RIFF-shape-test").decode()
+assert serve._gemini_tts_audio_bytes({
+    "steps": [{"type": "model_output", "content": [{"type": "audio", "data": wav_token, "mime_type": "audio/wav"}]}]
+}) == b"RIFF-shape-test"
+legacy_token = base64.b64encode(b"RIFF-legacy").decode()
+assert serve._gemini_tts_audio_bytes({"output_audio": {"data": legacy_token, "mime_type": "audio/wav"}}) == b"RIFF-legacy"
+try:
+    serve._gemini_tts_audio_bytes({"steps": []})
+    raise AssertionError("empty Gemini response was accepted")
+except RuntimeError:
+    pass
+mistral_provider = next(p for p in serve.tts_provider_registry()["providers"] if p["id"] == "mistral")
+assert mistral_provider["models"][0]["id"] == "voxtral-mini-tts-latest", mistral_provider["models"]
+assert "gb_jane_neutral" in [voice["id"] for voice in mistral_provider["voices"]]
+print("hosted response shapes: OK")
+
 
 def max_volume(path: Path, start: float, length: float) -> float:
     proc = subprocess.run(
