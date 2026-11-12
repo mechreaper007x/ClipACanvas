@@ -548,7 +548,8 @@ def _save_keys_to_disk(keys: dict) -> None:
 
 _DEFAULT_PREFS = {
     "theme": "dark",
-    "panels": {"colLeft": 300, "colRight": 344, "rowChat": 340},
+    "projectName": "UNTITLED PROJECT",
+    "panels": {"colLeft": 300, "colRight": 344, "rowChat": 324},
     "fonts": {"family": "ibm-plex-mono", "sizePct": 100},
     "codeColors": {"text": "", "keyword": "", "string": "", "number": "", "comment": ""},
     "performance": {"gpuBoost": False},
@@ -579,6 +580,11 @@ def _sanitize_prefs(raw: dict) -> dict:
             value = raw["panels"].get(key)
             if isinstance(value, (int, float)):
                 prefs["panels"][key] = int(min(max(value, limits[0]), limits[1]))
+    project_name = raw.get("projectName")
+    if isinstance(project_name, str):
+        cleaned_name = project_name.strip()[:40]
+        if cleaned_name:
+            prefs["projectName"] = cleaned_name
     if isinstance(raw.get("fonts"), dict):
         if raw["fonts"].get("family") in _FONT_FAMILIES:
             prefs["fonts"]["family"] = raw["fonts"]["family"]
@@ -1332,6 +1338,8 @@ class ClipACanvasHandler(SimpleHTTPRequestHandler):
         merged = _load_prefs()
         if isinstance(payload.get('theme'), str):
             merged['theme'] = payload['theme']
+        if isinstance(payload.get('projectName'), str):
+            merged['projectName'] = payload['projectName']
         if isinstance(payload.get('panels'), dict):
             merged['panels'] = {**merged['panels'], **payload['panels']}
         if isinstance(payload.get('fonts'), dict):

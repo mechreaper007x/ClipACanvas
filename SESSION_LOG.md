@@ -3523,3 +3523,134 @@
 - External OS file-drop over the stage is relayed from inside the scene iframe but was only exercised programmatically, not with a real drag from Explorer.
 - Scene repositions update the scene code style only; scene animations that key the element position could override it.
 - `dist/ClipACanvas.exe` still needs a rebuild for the media, overlay, audio, composite-preview and scene-embed work.
+
+## 2026-11-12 (NLE workspace refactor: full-width timeline, tabs, monitor)
+
+### Summary
+
+- Header reduced to 58px: wordmark, editable project name, SAVED/EDITING state, DOWNLOAD, EXPORT, layout reset, settings, history. Render progress stays in the timeline strip.
+- Left panel is now tabbed PROJECT | CODE. PROJECT holds the media bin (moved out of the dock), import controls and a scene list; selecting a scene opens its source in CODE. CODE holds Monaco, now with horizontal scrolling instead of wrapping.
+- Right panel is tabbed INSPECTOR | CLIPPPA | RECIPE, opening on INSPECTOR. The media inspector moved here unchanged; code clips get a new inspector (start, end, duration, track, OPEN CODE, SPLIT AT PLAYHEAD).
+- Timeline spans the full window (1632 of 1664px). Added CTRL/SHIFT+wheel zoom and scroll, − FIT + controls, a 1× indicator, track headers with clip counts, per-kind clip treatments (emerald code, filmstrip image, steel-striped video, real-peak amber audio waveform) and fixed 74px tracks.
+- Program monitor gained a transport bar: play/pause (Space, works from inside the preview iframe too), HH:MM:SS:FF current/duration timecode, frame-rate chip, FIT/1:1 toggle and fullscreen.
+- Snapping is now 6px in time-space instead of a fixed 0.16s, so trims work at any zoom and timeline width.
+- Project name persists through the existing /api/prefs store (new `projectName` key), not localStorage alone.
+
+### Files Touched
+
+- `clipacanvas.html`
+- `serve.py`
+- `tests/_check_workspace.py` (new)
+- `tests/_viz_workspace.py` (new)
+- `tests/_check_media_timeline.py`, `tests/_check_scene_embed.py`, `tests/_check_audio_import.py`, `tests/_check_logic_timeline.py`, `tests/desktop_smoke.py`
+- `SESSION_LOG.md`
+
+### Verification
+
+- `_check_workspace.py`: tabs, bin in left panel, 1632px timeline, playback advances the playhead, zoom narrows the view and FIT resets, media import opens the Inspector, chat and recipe intact; no overflow at 1664×916, 1440×900, 1280×720; preview stays 9:16; timeline share 35%/36%/45%.
+- Passed: `_check_media_overlay.py`, `_check_media_timeline.py`, `_check_scene_embed.py`, `_check_audio_import.py`, `_check_logic_timeline.py`, `_check_sequence_ui.py`, `_check_chat_scenes.py`, `_check_sequence_render.py`, `_check_aspect_resolution.py`, `desktop_smoke.py`, `desktop_duration_smoke.py`. No page or console errors.
+- Screenshots: `output/playwright/workspace-before-1664.png` (old layout) vs `workspace-final-1664.png`, `workspace-final-1440.png`, `workspace-final-1280.png`; plus code-tab, zoomed, media-inspector, chat and light/violet theme shots.
+- Desktop app restarted (PID 5608, server 127.0.0.1:65411); the live page serves the new tabs, 1632px timeline, monitor transport and export button with no console errors.
+
+### Commits
+
+- None. The task instructions require explicit permission before committing or pushing.
+
+### Open Items
+
+- Code scenes show no cached frame thumbnail on timeline clips; capturing a frame needs an extra renderer, which the constraints forbid. Code clips use a distinct emerald treatment instead.
+- Playback rebuilds the preview only at clip/bucket boundaries; code animations run on their own clock and are not seeked.
+- Undo/redo was not added because no state history exists yet.
+- `dist/ClipACanvas.exe` still needs a rebuild for the workspace, media, overlay, audio and scene-embed work.
+
+## 2026-11-12 (Full-surface timeline drops)
+
+### Summary
+
+- Imported media can now be dragged from PROJECT · MEDIA anywhere onto the timeline, not only the 74px track lanes. Dropping in the empty area below the tracks falls back to the bottom track (V1) at the pointer's time and overlays above an occupied scene.
+- Bin cards show the image itself as the drag ghost; while over the timeline the target lane is outlined, a `DROP TO ADD TO THE TIMELINE` badge appears and the drop marker follows the pointer. Drag end clears all feedback.
+- The timeline dragover/drop listeners moved from `#logicTracks` to `#etTracksWrap` so the empty surface participates.
+
+### Files Touched
+
+- `clipacanvas.html`
+- `tests/_check_workspace.py`
+- `SESSION_LOG.md`
+
+### Verification
+
+- `_check_workspace.py` now drags a freshly imported card into the empty timeline area and asserts the drop badge, then a created clip at 1.7s on V2 above the scene. All other workspace checks pass at 1664/1440/1280.
+- `_check_scene_embed.py` still passes (bin → stage embed at 69.8%/29.8%, in-preview drag to 91.7%/42.1%).
+
+### Commits
+
+- Committed and pushed in the Milestone 1 workspace commit.
+
+### Open Items
+
+- `dist/ClipACanvas.exe` still needs a rebuild.
+
+## 2026-11-12 (Bin drag drop: pointer controller in WebView2)
+
+### Summary
+
+- Root cause of "dragging from the bin does nothing": in the desktop WebView2 runtime an in-page HTML5 drag from a bin card strips the custom `application/x-clipacanvas-asset` MIME type (`types` only had `text/uri-list`, `text/html`, `Files`) and the page never receives `dragover`/`drop`, so the timeline handlers never run. Chromium-only tests had hidden this.
+- Replaced bin-card HTML5 DnD with a single pointer-events controller: 6px threshold, thumbnail ghost, `elementFromPoint` target resolution, timeline or Program Monitor target, commit on pointer release, cleanup on pointercancel/blur/Escape, one-shot click suppression so a drop does not also select the asset.
+- Native HTML5 handlers remain only for OS file drops (timeline, stage, bin). Bin cards and their thumbnails are `draggable="false"`, so the two systems never compete.
+- Drop feedback: target lane highlighted (`drop-over`/`drop-invalid`), vertical marker with time bubble, hint text `DROP AT 1.20s · V1` or `NO FREE TRACK AT 3.00s`.
+- Dropping on the empty area below the tracks still falls back to V1 at the pointer time; occupied stacks reject with the existing status message and insert nothing.
+
+### Files Touched
+
+- `clipacanvas.html`
+- `tests/_check_bin_dragdrop.py` (new, 12 scenarios incl. real export)
+- `tests/_check_webview_dragdrop.py` (new, drives the real WebView2 window over CDP)
+- `SESSION_LOG.md`
+
+### Verification
+
+- `_check_bin_dragdrop.py`: PASS in Chromium — image V1 @20%/75%, V2, video keeps 1.2s, audio stays audio on V3, two sequential drops, occupied stack rejected with `NO FREE TRACK` and no clip, overlay to V3, empty-area drop, Escape cancel, zoomed mapping, persistence/selection, real `#btnConvert` export (magenta center `(252,0,251)`).
+- `_check_webview_dragdrop.py`: PASS in the actual WebView2 runtime (Edg/157.0.4341.46) via CDP: import → pointer drag → `DROP AT 1.50s · V1` → clip on V1 at 1.5s/3s, inspector follows, empty-area drop at 3.2s on V1.
+- Regression suites after the change: `_check_workspace.py`, `_check_scene_embed.py` (bin → stage drag still works), `_check_media_overlay.py`, `_check_media_timeline.py`, `_check_audio_import.py`, `desktop_smoke.py` — all PASS.
+- Screenshot: `output/playwright/bin-drag-hover.png`, `output/playwright/webview-dragdrop.png`.
+
+### Commits
+
+- Committed and pushed in the Milestone 1 workspace commit.
+
+### Open Items
+
+- Native HTML5 drags cannot be driven by synthetic CDP input on Windows WebView2, so the WebView check used pointer events through CDP; a final physical-mouse drag in the desktop window is still worth a human confirmation.
+- `dist/ClipACanvas.exe` still needs a rebuild.
+
+## 2026-11-12 (Milestone 0 audit + Milestone 1 operation layer)
+
+### Summary
+
+- Added `docs/EDITOR_AUDIT.md`: evidence-based audit of the frontend, renderer, media, preview/playback, export, persistence, MCP/TUI and tests; implemented vs partial vs missing; preserve/refactor lists; proposed versioned/tick-based project model (not implemented); risks; Milestone 1 status and Milestone 2–4 order.
+- Added the structured project-operation layer `projectOps` in `clipacanvas.html`, exposed as `window.projectOps`. Validated calls: `snapshot`, `seek`, `selectClip`, `createTrack`, `createComposition`, `insertAsset`, `moveClip`, `trimClip`, `splitClip`, `deleteClip`, `duplicateClip`. Each mutation goes through the existing persist/repaint/preview path; moves reject occupied ranges; inserts reuse overlay policy; trims validate length and media in-points.
+- `createSceneClip` now accepts an explicit `track`; the chat `add_scene` tool uses `projectOps.createComposition` so AI and UI share the same structured path.
+- Extracted `deleteClipById` from `deleteLogicClip`; ripple behavior and status text are unchanged.
+- No UI controls were added without backing behavior. Keyframes, transitions, typed tracks, undo/redo and frame stepping remain deferred to Milestone 2/3.
+
+### Files Touched
+
+- `clipacanvas.html`
+- `docs/EDITOR_AUDIT.md` (new)
+- `tests/_check_project_ops.py` (new)
+- `SESSION_LOG.md`
+
+### Verification
+
+- `tests/_check_project_ops.py` (new): PASS — explicit-track composition, track creation, asset insert, move + occupied rejection, image/video trim with `sourceIn`, split, duplicate, seek, ripple delete, invalid IDs, DOM/render-plan sync, snapshot shape, reload persistence.
+- Regressions after the change: `_check_chat_scenes.py`, `_check_logic_timeline.py`, `_check_media_timeline.py`, `_check_workspace.py`, `desktop_smoke.py` — all PASS.
+- Real WebView2 drag test (`_check_webview_dragdrop.py`) re-run on the final build — PASS (Edg/157).
+
+### Commits
+
+- Committed and pushed in the Milestone 1 workspace commit.
+
+### Open Items
+
+- Milestone 2: project clock/frame stepping, integer frame ticks with v1→v2 adapter, typed tracks and track controls, undo/redo, playback/export tests.
+- `dist/ClipACanvas.exe` still needs a rebuild.

@@ -105,7 +105,8 @@ with tempfile.TemporaryDirectory() as tmp_name:
             # Selecting the audio asset opens the audio inspector without a picture.
             page.evaluate(f"selectAsset('{audio_asset['id']}')")
             page.wait_for_timeout(400)
-            assert page.locator("#codePaneTitle").inner_text() == "PROJECT MEDIA"
+            assert page.locator("#mediaInspector").is_visible()
+            assert page.locator("#inspectorTag").inner_text() == "MEDIA"
             assert page.locator("#miKind").inner_text() == "AUDIO"
             assert page.locator("#miPreview audio").count() == 1
             assert page.locator("#miFitField").is_hidden()

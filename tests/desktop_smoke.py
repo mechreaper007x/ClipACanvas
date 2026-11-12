@@ -104,7 +104,7 @@ def main() -> int:
             "codeInput": page.locator("#codeInput").count(),
             "monacoHost": page.locator("#monacoHost").count(),
             "codec": page.locator("#codec").count(),
-            "renderButton": page.locator("button", has_text="Convert").count(),
+            "renderButton": page.locator("#btnConvert").count(),
         }
 
         # 3. Removed bloat sections must be gone.
@@ -191,15 +191,16 @@ def main() -> int:
             "chatNew": page.locator("#chatNew").count(),
             "chatHistoryList": page.locator("#chatHistoryList").count(),
         }
-        editor_box = page.locator("#monacoHost").bounding_box()
-        chat_box = page.locator("#aiChat").bounding_box()
+        page.click("#tabAssistant")
+        page.wait_for_timeout(250)
         stage_box = page.locator(".stage-pane").bounding_box()
         side_box = page.locator(".code-pane").bounding_box()
-        chat_right_of_editor = bool(editor_box and chat_box and chat_box["x"] >= editor_box["x"] + editor_box["width"] - 1)
+        right_box = page.locator(".right-pane").bounding_box()
+        chat_right_of_editor = bool(side_box and right_box and right_box["x"] >= side_box["x"] + side_box["width"] - 1)
         stage_center_between = bool(
-            side_box and stage_box and chat_box
+            side_box and stage_box and right_box
             and side_box["x"] + side_box["width"] <= stage_box["x"] + 1
-            and stage_box["x"] + stage_box["width"] <= chat_box["x"] + 1
+            and stage_box["x"] + stage_box["width"] <= right_box["x"] + 1
         )
 
         # Sending without an API key surfaces an inline error bubble and opens
@@ -434,7 +435,7 @@ def main() -> int:
             "(() => { const s = getComputedStyle(document.documentElement);"
             " return s.getPropertyValue('--col-left').trim() === '340px'"
             " && s.getPropertyValue('--col-right').trim() === '304px'"
-            " && s.getPropertyValue('--row-chat').trim() === '280px'; })()"
+            " && s.getPropertyValue('--row-chat').trim() === '264px'; })()"
         ) and panels_stable_after_left and panels_stable_after_right
 
         # Growing the chat row must never make the page scrollable. When the
@@ -450,7 +451,7 @@ def main() -> int:
             " const headerTop = document.querySelector('header').getBoundingClientRect().top;"
             " const noOverflow = se.scrollHeight - se.clientHeight <= 1;"
             " return window.scrollY === 0 && Math.abs(headerTop) < 1 && noOverflow"
-            " && s.getPropertyValue('--row-chat').trim() === '500px'; })()"
+            " && s.getPropertyValue('--row-chat').trim() === '484px'; })()"
         )
         rects_after_tall = panel_rects()
         # The dock spans the full width, so growing it shortens every column;

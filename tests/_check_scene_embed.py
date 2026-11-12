@@ -84,7 +84,8 @@ with tempfile.TemporaryDirectory() as tmp_name:
             assert "<img" in state["code"] and asset_url in state["code"], state["code"][-400:]
             assert state["code"].lower().rindex("<img") < state["code"].lower().rindex("</body>"), "media not inside the scene body"
             assert "inside" in page.locator("#statusBar").inner_text()
-            assert "ANIMATION CODE" == page.locator("#codePaneTitle").inner_text()
+            assert page.locator("#codeClipName").inner_text().startswith("SCENE 01")
+            assert page.locator("#clipInspector").is_visible()
             assert "clipacanvas-scene-media" in page.evaluate("document.getElementById('liveFrame').srcdoc")
 
             from PIL import Image
@@ -190,7 +191,8 @@ with tempfile.TemporaryDirectory() as tmp_name:
 
             # Clicking the picture in the preview selects the asset in the bin,
             # so REMOVE FROM SCENE is one click away.
-            assert page.locator("#codePaneTitle").inner_text() == "PROJECT MEDIA"
+            assert page.locator("#mediaInspector").is_visible()
+            assert page.locator("#inspectorTag").inner_text() == "MEDIA"
             assert page.locator("#miRemoveScene").is_visible()
 
             browser.close()

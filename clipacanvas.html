@@ -233,12 +233,12 @@ body {
 *::-webkit-scrollbar-button:single-button { display: none; width: 0; height: 0; }
 /* ── HEADER ── */
 header {
-  padding: 8px 28px 4px;
+  padding: 6px 20px 4px;
   border-bottom: 1px solid var(--line);
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 24px;
+  gap: 18px;
 }
 
 .wordmark {
@@ -250,9 +250,9 @@ header {
 
 .wordmark-logo {
   display: block;
-  height: clamp(38px, 4vw, 52px);
+  height: clamp(28px, 3vw, 38px);
   width: auto;
-  max-width: min(220px, 40vw);
+  max-width: min(200px, 30vw);
   object-fit: contain;
   object-position: left center;
   filter: drop-shadow(0 0 12px rgba(var(--go-rgb), 0.14));
@@ -2603,8 +2603,9 @@ main.control-room #splitRight {
 
 .dock-left {
   display: flex;
+  flex: 1 1 auto;
   flex-direction: column;
-  gap: 8px;
+  gap: 0;
   min-width: 0;
   min-height: 0;
 }
@@ -2904,20 +2905,13 @@ main.control-room #splitRight {
   border-right: 1px solid var(--line);
   color: var(--muted);
   font-family: var(--mono);
-  font-size: 0.55rem;
+  font-size: 0.52rem;
   font-weight: 600;
-  letter-spacing: 1.8px;
+  letter-spacing: 1.5px;
   text-transform: uppercase;
-  padding: 0 14px;
+  padding: 0 12px;
   cursor: pointer;
   white-space: nowrap;
-}
-.right-tab:first-child {
-  font-family: var(--display);
-  font-size: 0.72rem;
-  font-weight: 700;
-  letter-spacing: 0.4px;
-  text-transform: none;
 }
 .right-tab.active {
   color: var(--ink);
@@ -3161,9 +3155,9 @@ main.control-room #splitRight {
 .dock-body {
   flex: 1;
   min-height: 0;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 430px;
-  gap: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
   align-items: stretch;
 }
 .dock-bins {
@@ -3211,7 +3205,52 @@ main.control-room #splitRight {
   border: 1px solid var(--line);
   background: var(--panel-3);
   overflow: hidden;
-  cursor: pointer;
+  cursor: grab;
+}
+.dock-bin:active { cursor: grabbing; }
+.dock-bin .bin-art img,
+.dock-bin .bin-art video { -webkit-user-drag: none; }
+body.asset-dragging,
+body.asset-dragging * { cursor: grabbing !important; user-select: none !important; }
+.asset-drag-ghost {
+  position: fixed;
+  z-index: 60;
+  width: 122px;
+  display: flex;
+  flex-direction: column;
+  pointer-events: none;
+  border: 1px solid rgba(var(--go-rgb), 0.65);
+  background: var(--panel-3);
+  box-shadow: 0 16px 34px rgba(0, 0, 0, 0.5);
+}
+.asset-drag-ghost img,
+.asset-drag-ghost video {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+  background: #08090b;
+}
+.asset-drag-ghost .asset-drag-audio {
+  display: grid;
+  place-items: center;
+  aspect-ratio: 16 / 9;
+  background: #0a0908;
+  color: var(--go);
+  font-family: var(--mono);
+  font-size: 0.55rem;
+  letter-spacing: 1px;
+}
+.asset-drag-ghost b {
+  padding: 4px 6px;
+  font-family: var(--mono);
+  font-size: 0.5rem;
+  font-weight: 600;
+  letter-spacing: 0.6px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--ink);
 }
 .dock-bin.current,
 .dock-bin.selected { border-color: rgba(var(--go-rgb), 0.55); }
@@ -3385,12 +3424,433 @@ main.control-room #splitRight {
   white-space: nowrap;
 }
 
-@media (max-width: 1180px) {
-  .dock-body { grid-template-columns: minmax(0, 1fr) 300px; }
-  .bins-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .bin-no { font-size: 0.75rem; }
-  .dock-meta { display: none; }
+/* ── WORKSPACE SHELL: PROJECT/CODE TABS, INSPECTOR, MONITOR TRANSPORT ── */
+.project-strip {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  flex: 0 1 auto;
 }
+.project-name {
+  width: 190px;
+  max-width: 26vw;
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid transparent;
+  color: var(--ink);
+  font-family: var(--mono);
+  font-size: 0.6rem;
+  letter-spacing: 1.4px;
+  padding: 4px 2px;
+  outline: none;
+  text-transform: uppercase;
+}
+.project-name:hover { border-bottom-color: var(--line-strong); }
+.project-name:focus { border-bottom-color: var(--go); }
+.save-state {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-family: var(--mono);
+  font-size: 0.42rem;
+  letter-spacing: 1.2px;
+  color: var(--muted-3);
+  white-space: nowrap;
+}
+.save-state i {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--go);
+  box-shadow: 0 0 6px rgba(var(--go-rgb), 0.6);
+}
+.save-state.unsaved { color: var(--muted-2); }
+.save-state.unsaved i { background: var(--burn); box-shadow: 0 0 6px rgba(255, 68, 0, 0.6); }
+.head-actions { display: flex; align-items: center; gap: 8px; margin-left: auto; }
+.head-export { width: auto; flex: 0 0 auto; padding: 7px 12px; font-size: 0.5rem; letter-spacing: 1.1px; }
+.head-actions .head-icon svg { width: 13px; height: 13px; display: block; }
+
+.left-tabs {
+  flex: 0 0 38px;
+  display: flex;
+  align-items: stretch;
+  border-bottom: 1px solid var(--line);
+  min-width: 0;
+}
+.left-tab {
+  background: transparent;
+  border: 0;
+  border-right: 1px solid var(--line);
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 0.52rem;
+  font-weight: 600;
+  letter-spacing: 1.6px;
+  text-transform: uppercase;
+  padding: 0 14px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.left-tab.active {
+  color: var(--ink);
+  background: rgba(var(--go-rgb), 0.03);
+  box-shadow: inset 0 -2px 0 var(--go);
+}
+.left-tab:hover { color: var(--ink); }
+.left-tabs-line { flex: 1; min-width: 0; }
+.left-tabs .pane-tag {
+  display: flex;
+  align-items: center;
+  padding: 0 10px;
+  max-width: 42%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.project-panel,
+.code-panel-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.project-panel[hidden],
+.code-panel-body[hidden] { display: none; }
+#projectBin.dock-bins {
+  flex: 1 1 auto;
+  min-height: 120px;
+  padding: 10px 12px 4px;
+  border-left: 0;
+  gap: 7px;
+}
+#projectBin .bins-row {
+  grid-template-columns: repeat(auto-fill, minmax(112px, 1fr));
+  gap: 8px;
+}
+.scene-block {
+  flex: 0 1 auto;
+  max-height: 36%;
+  min-height: 84px;
+  display: flex;
+  flex-direction: column;
+  border-top: 1px solid var(--line);
+}
+.panel-subhead {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 12px 5px;
+  font-family: var(--mono);
+  font-size: 0.46rem;
+  letter-spacing: 1.6px;
+  color: var(--muted-2);
+}
+.panel-subhead .mono-dim { margin-left: auto; }
+.scene-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 0 8px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.scene-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 7px;
+  border: 1px solid transparent;
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+  color: var(--muted-2);
+  font-family: var(--mono);
+  font-size: 0.5rem;
+  letter-spacing: 0.5px;
+  min-width: 0;
+}
+.scene-row:hover { background: var(--hover); color: var(--ink); }
+.scene-row.active {
+  border-color: rgba(var(--go-rgb), 0.5);
+  background: rgba(var(--go-rgb), 0.05);
+  color: var(--ink);
+}
+.scene-row .scene-index { color: var(--go); font-size: 0.44rem; }
+.scene-row .scene-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.scene-row .scene-track,
+.scene-row .scene-time { color: var(--muted-3); font-size: 0.42rem; white-space: nowrap; }
+
+.inspector-panel {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.inspector-panel[hidden] { display: none; }
+.inspector-head {
+  flex: 0 0 32px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 0 14px;
+  border-bottom: 1px solid var(--line-soft);
+}
+.inspector-empty {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 20px;
+  text-align: center;
+  color: var(--muted-3);
+}
+.inspector-empty[hidden],
+.clip-inspector[hidden] { display: none; }
+.inspector-empty b {
+  font-family: var(--mono);
+  font-size: 0.5rem;
+  font-weight: 500;
+  letter-spacing: 2px;
+  color: var(--muted-2);
+}
+.inspector-empty span {
+  font-family: var(--mono);
+  font-size: 0.44rem;
+  letter-spacing: 1px;
+  line-height: 1.6;
+}
+.clip-inspector {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.monitor-bar {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 2px;
+  min-height: 26px;
+}
+.monitor-btn {
+  border: 1px solid var(--line-soft);
+  background: transparent;
+  color: var(--muted-2);
+  font-family: var(--mono);
+  font-size: 0.48rem;
+  letter-spacing: 1px;
+  padding: 4px 8px;
+  cursor: pointer;
+}
+.monitor-btn:hover {
+  color: var(--go);
+  border-color: rgba(var(--go-rgb), 0.45);
+  background: rgba(var(--go-rgb), 0.04);
+}
+.monitor-btn.active {
+  color: var(--go);
+  border-color: rgba(var(--go-rgb), 0.6);
+  background: rgba(var(--go-rgb), 0.06);
+}
+.monitor-play { width: 28px; padding: 4px 0; text-align: center; display: flex; align-items: center; justify-content: center; }
+.monitor-btn svg { width: 11px; height: 11px; display: block; }
+.monitor-time {
+  font-family: var(--mono);
+  font-size: 0.52rem;
+  letter-spacing: 0.8px;
+  color: var(--ink-soft);
+  white-space: nowrap;
+}
+.monitor-time #monitorTime { color: var(--go); }
+.monitor-sep { margin: 0 6px; color: var(--muted-3); }
+.monitor-spacer { flex: 1; }
+.monitor-chip { font-family: var(--mono); font-size: 0.44rem; letter-spacing: 1px; color: var(--muted-3); white-space: nowrap; }
+
+#previewContainer:fullscreen,
+#previewContainer:-webkit-full-screen {
+  margin: 0;
+  width: 100vw;
+  height: 100vh;
+  border: 0;
+  background: #000;
+}
+
+.timeline-zoom {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  margin-left: auto;
+}
+.timeline-btn.icon { width: 20px; padding: 3px 0; text-align: center; font-size: 0.55rem; line-height: 1; }
+.timeline-zoom-label {
+  font-family: var(--mono);
+  font-size: 0.42rem;
+  letter-spacing: 0.6px;
+  color: var(--muted-3);
+  min-width: 26px;
+  text-align: right;
+}
+.timeline-meta { margin-left: 10px; }
+.et-drop-hint {
+  position: absolute;
+  left: 50%;
+  bottom: 14px;
+  transform: translateX(-50%);
+  font-family: var(--mono);
+  font-size: 0.48rem;
+  letter-spacing: 1.6px;
+  color: var(--go);
+  background: var(--panel);
+  border: 1px solid rgba(var(--go-rgb), 0.4);
+  padding: 5px 10px;
+  pointer-events: none;
+  z-index: 6;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.32);
+  white-space: nowrap;
+}
+.et-drop-hint[hidden] { display: none; }
+.et-drop-hint.invalid {
+  color: var(--danger-ink);
+  border-color: rgba(255, 90, 90, 0.45);
+}
+.drop-marker-time {
+  position: absolute;
+  top: 2px;
+  left: 4px;
+  font-family: var(--mono);
+  font-size: 0.44rem;
+  letter-spacing: 0.6px;
+  color: var(--go);
+  background: var(--panel);
+  border: 1px solid rgba(var(--go-rgb), 0.32);
+  padding: 1px 4px;
+  white-space: nowrap;
+  pointer-events: none;
+}
+.drop-marker.invalid {
+  background: var(--danger-ink);
+  box-shadow: 0 0 10px rgba(255, 90, 90, 0.5);
+}
+.drop-marker.invalid::before { border-top-color: var(--danger-ink); }
+.drop-marker.invalid .drop-marker-time {
+  color: var(--danger-ink);
+  border-color: rgba(255, 90, 90, 0.42);
+}
+.et-lane.drop-over {
+  background-color: rgba(var(--go-rgb), 0.045);
+  box-shadow: inset 0 0 0 1px rgba(var(--go-rgb), 0.28);
+}
+.et-lane.drop-invalid {
+  background-color: rgba(255, 90, 90, 0.05);
+  box-shadow: inset 0 0 0 1px rgba(255, 90, 90, 0.32);
+}
+.et-tracks {
+  background-image: linear-gradient(90deg, var(--line-soft) 1px, transparent 1px);
+  background-size: calc((100% - 54px) / 4) 100%;
+  background-position: 54px 0;
+}
+.et-lane { overflow: hidden; }
+.et-row {
+  flex: 0 0 74px;
+  min-height: 74px;
+  max-height: none;
+  overflow: hidden;
+}
+
+.et-label { flex-direction: column; gap: 0; }
+.et-label b {
+  font-family: var(--mono);
+  font-size: 0.46rem;
+  font-weight: 600;
+  letter-spacing: 1px;
+  color: var(--muted-2);
+}
+.et-label em {
+  font-style: normal;
+  font-family: var(--mono);
+  font-size: 0.38rem;
+  letter-spacing: 0.6px;
+  color: var(--muted-3);
+}
+
+.logic-box.code {
+  border-left-color: var(--go);
+  background: linear-gradient(180deg, rgba(var(--go-rgb), 0.045), rgba(99, 102, 90, 0.03));
+}
+.logic-box.code .logic-index { color: var(--go); }
+.logic-box.media.video {
+  border-left-color: #7ea6c9;
+  background-image:
+    repeating-linear-gradient(115deg, rgba(126, 166, 201, 0.07) 0 1px, transparent 1px 10px),
+    linear-gradient(180deg, #1a1d28, #0d0f16);
+}
+.logic-box.media.audio {
+  border-left-color: #c9b06a;
+  background-image: linear-gradient(180deg, #1c1a12, #0d0c08);
+}
+.logic-box .logic-wave {
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  top: 4px;
+  bottom: 4px;
+  display: flex;
+  align-items: center;
+  gap: 1px;
+  opacity: 0.5;
+  pointer-events: none;
+  z-index: 0;
+}
+.logic-box .logic-wave i {
+  flex: 1 1 0;
+  min-width: 1px;
+  background: #c9b06a;
+  border-radius: 1px;
+}
+.logic-box .logic-box-head,
+.logic-box .logic-snippet { position: relative; z-index: 1; }
+.logic-box .logic-box-head { padding-right: 10px; }
+
+.bin-wave.real { gap: 1px; }
+.bin-wave.real i { background: rgba(var(--go-rgb), 0.62); min-width: 1px; }
+.bin-audio-mark {
+  font-family: var(--mono);
+  font-size: 0.44rem;
+  letter-spacing: 2.6px;
+  color: rgba(var(--go-rgb), 0.66);
+}
+.scene-empty {
+  padding: 6px 8px;
+  font-family: var(--mono);
+  font-size: 0.44rem;
+  letter-spacing: 1.2px;
+  color: var(--muted-3);
+}
+#previewContainer.stage-fullscreen {
+  position: fixed;
+  inset: 0;
+  z-index: 99990;
+  width: 100vw;
+  height: 100vh;
+  margin: 0;
+  border: 0;
+}
+
+@media (max-width: 1400px) {
+  .project-name { width: 140px; }
+}
+
 @media (max-width: 1100px) {
   .timeline-meta { display: none; }
   .timeline-actions { gap: 3px; }
@@ -3409,10 +3869,17 @@ main.control-room #splitRight {
   <div class="wordmark">
     <img class="wordmark-logo" src="logo_neon_overlay.png" alt="Clip.A.Canvas logo">
   </div>
+  <div class="project-strip">
+    <input id="projectName" class="project-name" value="UNTITLED PROJECT" aria-label="Project name" spellcheck="false" autocomplete="off">
+    <span class="save-state" id="saveState"><i></i><span id="saveStateText">SAVED</span></span>
+  </div>
   <div class="head-actions">
+    <button class="btn btn-download btn-xs head-export" id="btnDownload" onclick="downloadVideo()" disabled>DOWNLOAD</button>
+    <button class="btn btn-convert btn-xs head-export" id="btnConvert" onclick="startConvert()">EXPORT</button>
+    <button type="button" id="layoutBtn" class="head-btn head-icon" title="Reset panel layout" aria-label="Reset panel layout"><svg viewBox="0 0 14 14" aria-hidden="true"><rect x="1.5" y="2" width="11" height="10" fill="none" stroke="currentColor" stroke-width="1.1"/><path d="M5 2v10M10 2v10" stroke="currentColor" stroke-width="1.1"/></svg></button>
     <button type="button" id="settingsBtn" class="head-btn head-icon" title="App settings — theme, model, API keys" aria-label="Settings">⚙</button>
     <button type="button" id="historyBtn" class="head-btn" title="Render history">
-      <span>⏱ HISTORY</span><span id="historyCount" class="history-count"></span>
+      <span>HISTORY</span><span id="historyCount" class="history-count"></span>
     </button>
   </div>
 </header>
@@ -3427,55 +3894,51 @@ main.control-room #splitRight {
 </div>
 
 <main class="control-room">
-  <aside class="code-pane">
-    <div class="pane-head">
-      <span class="eyebrow" id="codePaneTitle">ANIMATION CODE</span>
+  <aside class="code-pane" id="leftPane">
+    <div class="left-tabs" role="tablist" aria-label="Project and code">
+      <button type="button" id="tabProject" class="left-tab active" role="tab" aria-selected="true" aria-controls="projectPanel">PROJECT</button>
+      <button type="button" id="tabCodePane" class="left-tab" role="tab" aria-selected="false" aria-controls="codePanel" tabindex="-1">CODE</button>
+      <span class="left-tabs-line"></span>
       <span class="pane-tag" id="codePaneTag">HTML · CSS · JS</span>
     </div>
-    <div id="monacoHost"></div>
-    <textarea id="codeInput" spellcheck="false" style="display:none"></textarea>
-    <div id="mediaInspector" class="media-inspector" hidden>
-      <div class="mi-preview" id="miPreview"></div>
-      <div class="mi-head">
-        <span class="mi-name" id="miName">—</span>
-        <span class="mi-kind" id="miKind">IMAGE</span>
+
+    <section id="projectPanel" class="project-panel" role="tabpanel" aria-labelledby="tabProject">
+      <div class="dock-bins" id="projectBin">
+        <div class="bins-head">
+          <span class="eyebrow">PROJECT · MEDIA</span>
+          <span class="mono-dim" id="binsCount">0 ASSETS</span>
+          <button type="button" class="dock-link import-link" id="mediaAdd" title="Import images, video or audio into the project bin">+ IMPORT</button>
+          <button type="button" class="dock-link" onclick="showHistoryPop()" title="Open render history">RENDERS</button>
+        </div>
+        <input type="file" id="mediaInput" accept="image/png,image/jpeg,image/webp,image/gif,image/avif,image/bmp,video/mp4,video/webm,video/quicktime,video/ogg,audio/mpeg,audio/wav,audio/x-wav,audio/mp4,audio/aac,audio/flac,audio/ogg,audio/opus,.mp4,.m4v,.mov,.webm,.ogv,.mp3,.wav,.m4a,.aac,.flac,.oga,.opus" multiple hidden>
+        <div class="bins-row" id="binsRow"></div>
+        <div class="bins-hint">CLICK TO INSPECT · DOUBLE-CLICK TO INSERT · DRAG TO TRACK</div>
       </div>
-      <div class="mi-fields">
-        <label class="mi-field">
-          <span>AVAILABLE</span>
-          <span class="mi-static" id="miAvailable">—</span>
-        </label>
-        <label class="mi-field">
-          <span id="miDurationLabel">CLIP LENGTH</span>
-          <input id="miDuration" type="number" min="0.5" max="60" step="0.1" value="3">
-        </label>
-        <label class="mi-field" id="miSourceInField" hidden>
-          <span>SOURCE IN · SLIP</span>
-          <input id="miSourceIn" type="number" min="0" max="60" step="0.1" value="0">
-        </label>
-        <label class="mi-field" id="miFitField">
-          <span>FIT</span>
-          <select id="miFit">
-            <option value="contain">Contain</option>
-            <option value="cover">Cover</option>
-          </select>
-        </label>
+
+      <div class="scene-block">
+        <div class="panel-subhead">
+          <span>SCENES</span>
+          <span class="mono-dim" id="sceneCount">0</span>
+        </div>
+        <div class="scene-list" id="sceneList"></div>
       </div>
-      <div class="mi-actions">
-        <button type="button" id="miEmbedScene" class="timeline-btn media-btn" hidden>INSERT INTO SCENE</button>
-        <button type="button" id="miRemoveScene" class="timeline-btn" hidden>REMOVE FROM SCENE</button>
-        <button type="button" id="miInsert" class="timeline-btn media-btn">INSERT AT PLAYHEAD</button>
-        <button type="button" id="miSelectInBin" class="timeline-btn">SHOW IN PROJECT</button>
+    </section>
+
+    <section id="codePanel" class="code-panel-body" role="tabpanel" aria-labelledby="tabCodePane" hidden>
+      <div class="pane-head">
+        <span class="eyebrow" id="codePaneTitle">ANIMATION CODE</span>
+        <span class="pane-tag" id="codeClipName">—</span>
       </div>
-      <p class="mi-note" id="miNote"></p>
-    </div>
+      <div id="monacoHost"></div>
+      <textarea id="codeInput" spellcheck="false" style="display:none"></textarea>
+    </section>
   </aside>
   <div class="split split-v" id="splitLeft" title="Drag to resize code panel"></div>
 
   <section class="stage-pane">
     <div class="stage-head">
       <div class="stage-title">
-        <span class="eyebrow">LIVE PREVIEW</span>
+        <span class="eyebrow">PROGRAM MONITOR</span>
         <span class="stage-meta" id="stageResLabel">540 × 960 · 60 FPS</span>
       </div>
       <span class="stage-live"><i></i>LIVE</span>
@@ -3554,12 +4017,21 @@ main.control-room #splitRight {
       </div>
     </div>
 
+    <div class="monitor-bar">
+      <button type="button" id="playToggle" class="monitor-btn monitor-play" title="Play / pause (Space)" aria-label="Play"><svg viewBox="0 0 12 12" aria-hidden="true"><path d="M3 2l7 4-7 4z" fill="currentColor"/></svg></button>
+      <span class="monitor-time"><span id="monitorTime">00:00:00:00</span><span class="monitor-sep">/</span><span id="monitorDuration">00:00:00:00</span></span>
+      <span class="monitor-spacer"></span>
+      <span class="monitor-chip" id="monitorFps">60 FPS</span>
+      <button type="button" id="fitToggle" class="monitor-btn" title="Fit preview to the monitor">FIT</button>
+      <button type="button" id="monitorFullscreen" class="monitor-btn" title="Fullscreen program monitor" aria-label="Fullscreen monitor"><svg viewBox="0 0 12 12" aria-hidden="true"><path d="M1.5 4.5V1.5h3M8 1.5h2.5v3M10.5 8v2.5H8M4 10.5H1.5V8" stroke="currentColor" fill="none" stroke-width="1.2"/></svg></button>
+    </div>
   </section>
-  <div class="split split-v" id="splitRight" title="Drag to resize assistant panel"></div>
+  <div class="split split-v" id="splitRight" title="Drag to resize inspector panel"></div>
 
   <aside class="right-pane">
-    <div class="right-tabs" role="tablist" aria-label="Assistant and recipe">
-      <button type="button" id="tabAssistant" class="right-tab active" role="tab" aria-selected="true" aria-controls="aiChat">Clipppa</button>
+    <div class="right-tabs" role="tablist" aria-label="Inspector, assistant and recipe">
+      <button type="button" id="tabInspector" class="right-tab active" role="tab" aria-selected="true" aria-controls="inspectorPanel">INSPECTOR</button>
+      <button type="button" id="tabAssistant" class="right-tab" role="tab" aria-selected="false" aria-controls="aiChat" tabindex="-1">Clipppa</button>
       <button type="button" id="tabRecipe" class="right-tab" role="tab" aria-selected="false" aria-controls="recipePanel" tabindex="-1">RECIPE</button>
       <span class="right-tabs-line"></span>
       <button type="button" id="chatHistoryBtn" class="right-util" title="Chat history">CHATS</button>
@@ -3573,7 +4045,90 @@ main.control-room #splitRight {
       <div id="chatHistoryList"></div>
     </div>
 
-    <section id="aiChat" class="assistant-panel ai-chat" role="tabpanel" aria-labelledby="tabAssistant">
+    <section id="inspectorPanel" class="inspector-panel" role="tabpanel" aria-labelledby="tabInspector">
+      <div class="inspector-head">
+        <span class="eyebrow">INSPECTOR</span>
+        <span class="pane-tag" id="inspectorTag">NO SELECTION</span>
+      </div>
+      <div class="inspector-empty" id="inspectorEmpty">
+        <b>NO SELECTION</b>
+        <span>SELECT A CLIP ON THE TIMELINE OR A MEDIA ASSET</span>
+      </div>
+      <div id="clipInspector" class="clip-inspector" hidden>
+        <div class="mi-head">
+          <span class="mi-name" id="ciName">—</span>
+          <span class="mi-kind" id="ciKind">CODE</span>
+        </div>
+        <div class="mi-fields">
+          <label class="mi-field">
+            <span>START</span>
+            <span class="mi-static" id="ciStart">—</span>
+          </label>
+          <label class="mi-field">
+            <span>END</span>
+            <span class="mi-static" id="ciEnd">—</span>
+          </label>
+          <label class="mi-field">
+            <span>DURATION</span>
+            <input id="ciDuration" type="number" min="0.5" max="60" step="0.1" value="3">
+          </label>
+          <label class="mi-field">
+            <span>TRACK</span>
+            <span class="mi-static" id="ciTrack">V1</span>
+          </label>
+        </div>
+        <div class="mi-actions">
+          <button type="button" id="ciOpenCode" class="timeline-btn media-btn">OPEN CODE</button>
+          <button type="button" id="ciSplit" class="timeline-btn">SPLIT AT PLAYHEAD</button>
+        </div>
+        <p class="mi-note" id="ciNote">HTML · CSS · JS composition. Duration changes ripple later clips on the same track.</p>
+      </div>
+      <div id="mediaInspector" class="media-inspector" hidden>
+        <div class="mi-preview" id="miPreview"></div>
+        <div class="mi-head">
+          <span class="mi-name" id="miName">—</span>
+          <span class="mi-kind" id="miKind">IMAGE</span>
+        </div>
+        <div class="mi-fields">
+          <label class="mi-field">
+            <span>AVAILABLE</span>
+            <span class="mi-static" id="miAvailable">—</span>
+          </label>
+          <label class="mi-field">
+            <span id="miDurationLabel">CLIP LENGTH</span>
+            <input id="miDuration" type="number" min="0.5" max="60" step="0.1" value="3">
+          </label>
+          <label class="mi-field" id="miSourceInField" hidden>
+            <span>SOURCE IN · SLIP</span>
+            <input id="miSourceIn" type="number" min="0" max="60" step="0.1" value="0">
+          </label>
+          <label class="mi-field" id="miFitField">
+            <span>FIT</span>
+            <select id="miFit">
+              <option value="contain">Contain</option>
+              <option value="cover">Cover</option>
+            </select>
+          </label>
+          <label class="mi-field">
+            <span>TRACK</span>
+            <span class="mi-static" id="miTrack">—</span>
+          </label>
+          <label class="mi-field">
+            <span>STARTS</span>
+            <span class="mi-static" id="miStart">—</span>
+          </label>
+        </div>
+        <div class="mi-actions">
+          <button type="button" id="miEmbedScene" class="timeline-btn media-btn" hidden>INSERT INTO SCENE</button>
+          <button type="button" id="miRemoveScene" class="timeline-btn" hidden>REMOVE FROM SCENE</button>
+          <button type="button" id="miInsert" class="timeline-btn media-btn">INSERT AT PLAYHEAD</button>
+          <button type="button" id="miSelectInBin" class="timeline-btn">SHOW IN PROJECT</button>
+        </div>
+        <p class="mi-note" id="miNote"></p>
+      </div>
+    </section>
+
+    <section id="aiChat" class="assistant-panel ai-chat" role="tabpanel" aria-labelledby="tabAssistant" hidden>
       <div class="assistant-head">
         <span class="assistant-name">Clipppa<span class="assistant-dot"></span></span>
         <button type="button" id="assistantNewChat" class="assistant-new-chat" title="New chat" aria-label="Start a new chat"></button>
@@ -3779,14 +4334,12 @@ main.control-room #splitRight {
 
   <section class="transport-dock">
     <div class="dock-head">
-      <span class="eyebrow">EDIT</span>
+      <span class="eyebrow">RENDER</span>
       <span class="dock-meta" id="dockMeta">NO RENDER YET</span>
       <span class="dock-spacer"></span>
       <span class="progress-eta" id="progressEta">&nbsp;</span>
       <span class="progress-pct idle" id="progressPct">READY</span>
       <button type="button" class="btn btn-preview btn-xs" onclick="runPreview()">PREVIEW</button>
-      <button class="btn btn-download btn-xs" id="btnDownload" onclick="downloadVideo()" disabled>DOWNLOAD</button>
-      <button class="btn btn-convert btn-xs" id="btnConvert" onclick="startConvert()">CONVERT TO VIDEO</button>
     </div>
 
     <div class="dock-body">
@@ -3801,6 +4354,12 @@ main.control-room #splitRight {
               <button type="button" id="boxDel" class="timeline-btn danger" title="Ripple delete the selected clip — the gap closes">DEL</button>
               <button type="button" id="layerAdd" class="timeline-btn" title="Add a video track above the top track">+ LAYER</button>
             </div>
+            <div class="timeline-zoom" role="group" aria-label="Timeline zoom">
+              <button type="button" id="zoomOut" class="timeline-btn icon" title="Zoom out">−</button>
+              <button type="button" id="zoomFit" class="timeline-btn" title="Fit the sequence to the view">FIT</button>
+              <button type="button" id="zoomIn" class="timeline-btn icon" title="Zoom in">+</button>
+              <span class="timeline-zoom-label" id="timelineZoomLabel">1×</span>
+            </div>
             <span class="timeline-meta" id="timelineMeta">1 BOX · 1 LAYER · 4.00s</span>
             <span class="timeline-time" id="timelineTime">0.00s</span>
           </div>
@@ -3811,27 +4370,16 @@ main.control-room #splitRight {
           <div class="et-tracks-wrap" id="etTracksWrap">
             <div class="et-tracks" id="logicTracks"></div>
             <div class="timeline-playhead" id="timelinePlayhead"><span class="playhead-grip" title="Drag to scrub"></span></div>
-            <div class="drop-marker" id="dropMarker" hidden></div>
+            <div class="drop-marker" id="dropMarker" hidden><span class="drop-marker-time" id="dropMarkerTime"></span></div>
+            <div class="et-drop-hint" id="etDropHint" hidden></div>
           </div>
         </section>
-      </div>
-
-      <div class="dock-bins" id="projectBin">
-        <div class="bins-head">
-          <span class="eyebrow">PROJECT · MEDIA</span>
-          <span class="mono-dim" id="binsCount">0 ASSETS</span>
-          <button type="button" class="dock-link import-link" id="mediaAdd" title="Import images, video or audio into the project bin">+ IMPORT</button>
-          <button type="button" class="dock-link" onclick="showHistoryPop()" title="Open render history">RENDERS</button>
-        </div>
-        <input type="file" id="mediaInput" accept="image/png,image/jpeg,image/webp,image/gif,image/avif,image/bmp,video/mp4,video/webm,video/quicktime,video/ogg,audio/mpeg,audio/wav,audio/x-wav,audio/mp4,audio/aac,audio/flac,audio/ogg,audio/opus,.mp4,.m4v,.mov,.webm,.ogv,.mp3,.wav,.m4a,.aac,.flac,.oga,.opus" multiple hidden>
-        <div class="bins-row" id="binsRow"></div>
-        <div class="bins-hint">CLICK TO INSPECT · DOUBLE-CLICK TO INSERT · DRAG TO TRACK</div>
       </div>
     </div>
 
     <div class="dock-foot">
       <div id="statusBar">STANDBY</div>
-      <span class="dock-keys">⌘K CHAT · ⌘↵ CONVERT</span>
+      <span class="dock-keys">SPACE PLAY · SHIFT+WHEEL SCROLL · ⌘K CHAT</span>
     </div>
   </section>
 
@@ -4845,6 +5393,10 @@ window.addEventListener('message', (event) => {
     }
   } else if (data.kind === 'snapshot' && data.snapshot && typeof data.snapshot === 'object') {
     previewRuntime.snapshot = data.snapshot;
+  } else if (data.kind === 'key' && (data.code === 'Space' || data.key === ' ')) {
+    // The preview iframe owns focus after a click, so relay Space to the
+    // monitor transport instead of losing the shortcut inside the sandbox.
+    togglePlayback();
   }
   previewRuntime.updatedAt = Date.now();
 });
@@ -4883,6 +5435,7 @@ const PREVIEW_REPORTER = '<script ' + PREVIEW_REPORTER_MARK + '>(function(){'
   + 'var send=function(kind,payload){try{parent.postMessage(Object.assign({source:"clipacanvas-preview",kind:kind},payload||{}),"*")}catch(e){}};'
   + 'addEventListener("error",function(e){send("error",{message:(e.message||"Script error")+" @ "+(e.lineno||0)+":"+(e.colno||0)})},true);'
   + 'addEventListener("unhandledrejection",function(e){send("rejection",{message:String((e.reason&&e.reason.message)||e.reason||"unhandled rejection")})});'
+  + 'addEventListener("keydown",function(e){if(e.code==="Space"||e.key===" "){send("key",{key:e.key,code:e.code})}},true);'
   + 'setTimeout(function(){var s={canvases:0,svg:0,videos:0,animations:0,textChars:0};try{s.canvases=document.querySelectorAll("canvas").length;'
   + 's.svg=document.querySelectorAll("svg").length;s.videos=document.querySelectorAll("video").length;'
   + 's.animations=(document.getAnimations?document.getAnimations().length:0);'
@@ -4982,7 +5535,8 @@ function updatePreviewScale() {
 
   const containerWidth = Math.max(container.clientWidth, 1);
   const containerHeight = Math.max(container.clientHeight, 1);
-  const scale = Math.min(containerWidth / width, containerHeight / height);
+  const fitScale = Math.min(containerWidth / width, containerHeight / height);
+  const scale = previewFitMode === 'actual' ? 1 : fitScale;
   const safeScale = Number.isFinite(scale) && scale > 0 ? scale : 1;
   const scaledWidth = width * safeScale;
   const scaledHeight = height * safeScale;
@@ -5034,6 +5588,8 @@ window.addEventListener('load', () => {
   if (lastCode && !codeInput.value.trim()) codeInput.value = lastCode;
   if (codeInput) codeInput.addEventListener('input', () => {
     if (codeInput.value.trim()) setEmptySceneHint(false);
+    const active = activeClip();
+    if (active && !clipIsMedia(active) && active.code !== codeInput.value) setSaveState('unsaved');
     updateTimingSummary();
     syncActiveClipFromEditor();
     try { localStorage.setItem('clipacanvas.lastCode', codeInput.value); } catch (error) { console.error(error); }
@@ -7788,14 +8344,14 @@ async function executeChatTool(call) {
     if (!code) {
       return { ok: false, error: 'code is required for a new scene; use insert_animation_code to fill the selected scene instead' };
     }
-    const created = createSceneClip({
+    const created = projectOps.createComposition({
       code,
       name: args.name,
       duration: args.duration,
       layer: args.layer,
       start: args.start
     });
-    if (created.error) return { ok: false, error: created.error };
+    if (!created.ok) return { ok: false, error: created.error };
     chatTurnWroteCode = true;
     const clip = created.clip;
     return {
@@ -8301,23 +8857,73 @@ function initChat() {
 initChat();
 
 // ── CONTROL ROOM ──────────────────────────────────────────
+const RIGHT_TABS = ['inspector', 'assistant', 'recipe'];
+const RIGHT_TAB_PANELS = { inspector: 'inspectorPanel', assistant: 'aiChat', recipe: 'recipePanel' };
+const RIGHT_TAB_BUTTONS = { inspector: 'tabInspector', assistant: 'tabAssistant', recipe: 'tabRecipe' };
+
 function switchRightTab(name) {
-  const isRecipe = name === 'recipe';
-  const assistantTab = document.getElementById('tabAssistant');
-  const recipeTab = document.getElementById('tabRecipe');
-  const assistant = document.getElementById('aiChat');
-  const recipe = document.getElementById('recipePanel');
-  if (!assistantTab || !recipeTab || !assistant || !recipe) return;
-  assistantTab.classList.toggle('active', !isRecipe);
-  recipeTab.classList.toggle('active', isRecipe);
-  assistantTab.setAttribute('aria-selected', String(!isRecipe));
-  recipeTab.setAttribute('aria-selected', String(isRecipe));
-  assistantTab.tabIndex = isRecipe ? -1 : 0;
-  recipeTab.tabIndex = isRecipe ? 0 : -1;
-  assistant.hidden = isRecipe;
-  recipe.hidden = !isRecipe;
+  if (!RIGHT_TABS.includes(name)) name = 'inspector';
+  for (const key of RIGHT_TABS) {
+    const tab = document.getElementById(RIGHT_TAB_BUTTONS[key]);
+    const panel = document.getElementById(RIGHT_TAB_PANELS[key]);
+    if (!tab || !panel) continue;
+    const active = key === name;
+    tab.classList.toggle('active', active);
+    tab.setAttribute('aria-selected', String(active));
+    tab.tabIndex = active ? 0 : -1;
+    panel.hidden = !active;
+  }
   closeComposerModelMenu();
-  if (isRecipe) updateTimingSummary();
+  if (name === 'recipe') updateTimingSummary();
+  if (name === 'inspector') renderInspector();
+}
+
+function switchLeftTab(name) {
+  const isCode = name === 'code';
+  const projectTab = document.getElementById('tabProject');
+  const codeTab = document.getElementById('tabCodePane');
+  const project = document.getElementById('projectPanel');
+  const code = document.getElementById('codePanel');
+  if (!projectTab || !codeTab || !project || !code) return;
+  projectTab.classList.toggle('active', !isCode);
+  codeTab.classList.toggle('active', isCode);
+  projectTab.setAttribute('aria-selected', String(!isCode));
+  codeTab.setAttribute('aria-selected', String(isCode));
+  projectTab.tabIndex = isCode ? -1 : 0;
+  codeTab.tabIndex = isCode ? 0 : -1;
+  project.hidden = isCode;
+  code.hidden = !isCode;
+  if (isCode && window.__monacoEditor) {
+    try { window.__monacoEditor.layout(); } catch (error) { console.error(error); }
+  }
+}
+
+let sceneListTimer = 0;
+function scheduleSceneListRender() {
+  clearTimeout(sceneListTimer);
+  sceneListTimer = setTimeout(renderSceneList, 90);
+}
+
+function renderSceneList() {
+  const list = document.getElementById('sceneList');
+  if (!list) return;
+  const scenes = timelineState.clips.filter(clip => !clipIsMedia(clip));
+  const count = document.getElementById('sceneCount');
+  if (count) count.textContent = String(scenes.length);
+  if (!scenes.length) {
+    list.innerHTML = '<span class="scene-empty">NO SCENES YET</span>';
+    return;
+  }
+  list.innerHTML = scenes.map((clip, index) => {
+    const active = clip.id === timelineState.activeId;
+    const title = `${clip.name} · ${formatTimelineTime(clip.start)} → ${formatTimelineTime(clipEnd(clip))}`;
+    return `<button type="button" class="scene-row${active ? ' active' : ''}" data-scene-id="${escapeHtml(clip.id)}" title="${escapeHtml(title)}">` +
+      `<span class="scene-index">${String(index + 1).padStart(2, '0')}</span>` +
+      `<span class="scene-name">${escapeHtml(clip.name)}</span>` +
+      `<span class="scene-track">V${(Number(clip.track) || 0) + 1}</span>` +
+      `<span class="scene-time">${formatTimelineTime(clip.duration)}</span>` +
+      '</button>';
+  }).join('');
 }
 
 function syncAssistantModelLabels() {
@@ -8410,7 +9016,6 @@ function openMediaPicker() {
   mediaPickerAt = now;
   document.getElementById('mediaInput')?.click();
 }
-let draggedAssetId = null;
 
 function newClipId() {
   return 'box-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 6);
@@ -8587,6 +9192,7 @@ function saveTimelineState(immediate = false) {
           fit: clip.fit === 'cover' ? 'cover' : 'contain'
         }))
       }));
+      setSaveState('saved');
     } catch (error) { console.error(error); }
   };
   if (timelineSaveTimer) clearTimeout(timelineSaveTimer);
@@ -8747,7 +9353,7 @@ function buildCompositePreview(at, options = {}) {
       const duration = Math.max(0.05, (Number(clip.duration) || 0) - offset);
       html = mediaWrapperHtml(
         { url: clipMediaUrl(clip), kind: clip.type, sourceIn, duration, fit: clip.fit },
-        { preview: true, autoplay: false, sourceIn, duration, fit: clip.fit }
+        { preview: true, autoplay: playbackState.playing, sourceIn, duration, fit: clip.fit }
       );
     } else {
       const code = clip.id === active?.id && activeCode != null
@@ -8832,7 +9438,9 @@ function previewMediaSource({ url, kind, sourceIn = 0, duration = 0, fit = 'cont
 
 function applyActiveClipToEditor(options = {}) {
   const clip = activeClip();
+  const codeName = document.getElementById('codeClipName');
   if (!clip) {
+    if (codeName) codeName.textContent = '—';
     hideMediaInspector();
     setEmptySceneHint(false);
     const editor = document.getElementById('codeInput');
@@ -8850,10 +9458,12 @@ function applyActiveClipToEditor(options = {}) {
     if (options.timing !== false) updateTimingSummary();
     return;
   }
+  if (codeName) codeName.textContent = `${clip.name} · V${(Number(clip.track) || 0) + 1}`;
   hideMediaInspector();
   const editor = document.getElementById('codeInput');
   if (editor && editor.value !== clip.code) {
     editor.value = clip.code;
+    setSaveState('saved');
     try { localStorage.setItem('clipacanvas.lastCode', clip.code); }
     catch (error) { console.error(error); }
   }
@@ -8988,14 +9598,49 @@ let mediaInspectorTarget = null;
 let mediaInsertDuration = null;
 let mediaInsertFit = 'contain';
 
-function setMediaInspectorVisible(visible) {
-  const host = document.getElementById('monacoHost');
-  const inspector = document.getElementById('mediaInspector');
-  if (host) host.hidden = visible;
-  if (inspector) inspector.hidden = !visible;
-  if (!visible && window.__monacoEditor) {
-    try { window.__monacoEditor.layout(); } catch (error) { console.error(error); }
+function activeCodeClip() {
+  const clip = activeClip();
+  return clip && !clipIsMedia(clip) ? clip : null;
+}
+
+function renderInspector() {
+  const media = document.getElementById('mediaInspector');
+  const clipPanel = document.getElementById('clipInspector');
+  const empty = document.getElementById('inspectorEmpty');
+  const tag = document.getElementById('inspectorTag');
+  const mediaVisible = Boolean(mediaInspectorTarget);
+  const clip = mediaVisible ? null : activeCodeClip();
+  if (media) media.hidden = !mediaVisible;
+  if (clipPanel) clipPanel.hidden = !clip;
+  if (empty) empty.hidden = mediaVisible || Boolean(clip);
+  if (tag) tag.textContent = mediaVisible ? 'MEDIA' : (clip ? 'CODE CLIP' : 'NO SELECTION');
+  if (clip) fillClipInspector(clip);
+}
+
+function fillClipInspector(clip) {
+  const name = document.getElementById('ciName');
+  if (name) name.textContent = clip.name || 'SCENE';
+  const kind = document.getElementById('ciKind');
+  if (kind) kind.textContent = 'CODE';
+  const start = document.getElementById('ciStart');
+  if (start) start.textContent = formatTimelineTime(clip.start);
+  const end = document.getElementById('ciEnd');
+  if (end) end.textContent = formatTimelineTime(clipEnd(clip));
+  const track = document.getElementById('ciTrack');
+  if (track) track.textContent = `V${(Number(clip.track) || 0) + 1}`;
+  const duration = document.getElementById('ciDuration');
+  if (duration && document.activeElement !== duration) {
+    duration.value = (Math.round((Number(clip.duration) || 0.5) * 100) / 100).toFixed(2);
   }
+  const note = document.getElementById('ciNote');
+  if (note) {
+    const index = timelineState.clips.indexOf(clip);
+    note.textContent = `${String(index + 1).padStart(2, '0')} · HTML · CSS · JS composition · ${formatTimelineTime(clip.start)} → ${formatTimelineTime(clipEnd(clip))}.`;
+  }
+}
+
+function setMediaInspectorVisible() {
+  renderInspector();
 }
 
 function inspectorArtHtml(asset) {
@@ -9018,16 +9663,16 @@ function showMediaInspectorForClip(clip) {
     name: clip.mediaName || clip.name
   };
   mediaInspectorTarget = { mode: 'clip', id: clip.id };
-  const title = document.getElementById('codePaneTitle');
-  const tag = document.getElementById('codePaneTag');
-  if (title) title.textContent = 'MEDIA CLIP';
-  if (tag) tag.textContent = `V${(Number(clip.track) || 0) + 1} · ${clip.type.toUpperCase()}`;
   const art = document.getElementById('miPreview');
   if (art) art.innerHTML = inspectorArtHtml(asset);
   const name = document.getElementById('miName');
   if (name) name.textContent = asset.name || clip.mediaName || clip.name;
   const kind = document.getElementById('miKind');
   if (kind) kind.textContent = mediaKindTag(clip.type);
+  const miTrack = document.getElementById('miTrack');
+  if (miTrack) miTrack.textContent = `V${(Number(clip.track) || 0) + 1}`;
+  const miStart = document.getElementById('miStart');
+  if (miStart) miStart.textContent = formatTimelineTime(clip.start);
   const available = document.getElementById('miAvailable');
   if (available) {
     available.textContent = clip.type === 'image'
@@ -9066,22 +9711,23 @@ function showMediaInspectorForClip(clip) {
     note.textContent = `V${(Number(clip.track) || 0) + 1} · starts ${formatTimelineTime(clip.start)} · ends ${formatTimelineTime(clipEnd(clip))}. Drag either edge to trim; SPLIT or S cuts at the playhead.`;
   }
   setMediaInspectorVisible(true);
+  switchRightTab('inspector');
   renderProjectBin();
 }
 
 function showMediaInspectorForAsset(asset) {
   if (!asset) { hideMediaInspector(); return; }
   mediaInspectorTarget = { mode: 'asset', id: asset.id };
-  const title = document.getElementById('codePaneTitle');
-  const tag = document.getElementById('codePaneTag');
-  if (title) title.textContent = 'PROJECT MEDIA';
-  if (tag) tag.textContent = mediaKindTag(asset.kind);
   const art = document.getElementById('miPreview');
   if (art) art.innerHTML = inspectorArtHtml(asset);
   const name = document.getElementById('miName');
   if (name) name.textContent = asset.name;
   const kind = document.getElementById('miKind');
   if (kind) kind.textContent = mediaKindTag(asset.kind);
+  const miTrack = document.getElementById('miTrack');
+  if (miTrack) miTrack.textContent = 'PROJECT';
+  const miStart = document.getElementById('miStart');
+  if (miStart) miStart.textContent = '—';
   const available = document.getElementById('miAvailable');
   if (available) {
     available.textContent = asset.kind === 'image'
@@ -9122,16 +9768,13 @@ function showMediaInspectorForAsset(asset) {
       : 'INSERT INTO SCENE embeds the media in the scene (drag it on the preview to move it). REMOVE takes it back out. INSERT AT PLAYHEAD adds a separate clip/layer instead, or drop it straight onto the preview.';
   }
   setMediaInspectorVisible(true);
+  switchRightTab('inspector');
   renderProjectBin();
 }
 
 function hideMediaInspector() {
   mediaInspectorTarget = null;
-  const title = document.getElementById('codePaneTitle');
-  const tag = document.getElementById('codePaneTag');
-  if (title) title.textContent = 'ANIMATION CODE';
-  if (tag) tag.textContent = 'HTML · CSS · JS';
-  setMediaInspectorVisible(false);
+  renderInspector();
 }
 
 function refreshMediaInspector() {
@@ -9366,9 +10009,9 @@ function updateSceneMediaPosition(scene, src, left, top) {
 function renderTimelineRuler() {
   const ruler = document.getElementById('timelineRuler');
   if (!ruler) return;
-  const total = timelineTotalSeconds();
+  const span = timelineViewSpan();
   ruler.innerHTML = Array.from({ length: 5 }, (_, index) => {
-    const t = total * (index / 4);
+    const t = timelineView.start + span * (index / 4);
     return `<span style="left:${index * 25}%">${formatTimelineTime(t)}</span>`;
   }).join('');
 }
@@ -9376,17 +10019,17 @@ function renderTimelineRuler() {
 function renderLogicBoxes() {
   const host = document.getElementById('logicTracks');
   if (!host) return;
-  const total = timelineTotalSeconds();
+  clampTimelineView();
   const rows = [];
   for (let track = timelineState.layers - 1; track >= 0; track--) {
-    const boxes = timelineState.clips
-      .filter(clip => clip.track === track)
+    const trackClips = timelineState.clips.filter(clip => clip.track === track);
+    const boxes = trackClips
       .slice()
       .sort((a, b) => a.start - b.start)
       .map(clip => {
         const index = timelineState.clips.indexOf(clip);
-        const left = Math.max(0, Math.min(100, ((Number(clip.start) || 0) / total) * 100));
-        const width = Math.max(1.5, Math.min(100 - left, (clip.duration / total) * 100));
+        const left = timeToTimelinePct(clip.start);
+        const width = Math.max(1.5, (clip.duration / timelineViewSpan()) * 100);
         const soloAuto = timelineState.clips.length === 1 && !clip.explicitDuration && !clipIsMedia(clip);
         const durationLabel = soloAuto ? 'AUTO' : formatTimelineTime(clip.duration);
         const isMedia = clipIsMedia(clip);
@@ -9395,7 +10038,7 @@ function renderLogicBoxes() {
           ? `;--thumb:url('${mediaUrl}')`
           : '';
         const classes = 'logic-box'
-          + (isMedia ? ' media' : '')
+          + (isMedia ? ' media' : ' code')
           + (isMedia && clip.type === 'video' ? ' video' : '')
           + (isMedia && clip.type === 'audio' ? ' audio' : '')
           + (isMedia && clip.type === 'image' && mediaUrl ? ' has-thumb' : '')
@@ -9404,7 +10047,11 @@ function renderLogicBoxes() {
         const sourceRange = isMedia && clip.type !== 'image' && clipSourceIn(clip) > 0
           ? `IN ${clipSourceIn(clip).toFixed(1)}s · `
           : '';
+        const wave = isMedia && clip.type === 'audio'
+          ? `<span class="logic-wave" aria-hidden="true">${audioWaveBars(clipAsset(clip), 56)}</span>`
+          : '';
         return `<div class="${classes}" data-id="${clip.id}" title="${escapeHtml(sourceRange + formatTimelineTime(clip.start) + ' → ' + formatTimelineTime(clipEnd(clip)))}" style="left:${left}%;width:${width}%${thumbStyle}">` +
+          wave +
           `<div class="logic-trim" title="Drag to trim the in point"></div>` +
           `<div class="logic-box-head"><span class="logic-index">${String(index + 1).padStart(2, '0')}</span>` +
           `<span class="logic-name" title="Double-click to rename">${escapeHtml(clip.name)}</span>` +
@@ -9414,12 +10061,13 @@ function renderLogicBoxes() {
           `</div>`;
       }).join('');
     rows.push(`<div class="et-row" data-track="${track}">` +
-      `<div class="et-label"><span>V${track + 1}</span></div>` +
+      `<div class="et-label"><b>V${track + 1}</b><em>${trackClips.length} CLIP${trackClips.length === 1 ? '' : 'S'}</em></div>` +
       `<div class="et-lane" data-track="${track}">${boxes}</div>` +
       `</div>`);
   }
   host.innerHTML = rows.join('');
   renderTimelineRuler();
+  scheduleSceneListRender();
   const del = document.getElementById('boxDel');
   if (del) del.disabled = !timelineState.clips.length;
   const dup = document.getElementById('boxDup');
@@ -9439,6 +10087,7 @@ function selectLogicClip(id, options = {}) {
   if (!changed) {
     if (clipIsMedia(clip)) showMediaInspectorForClip(clip);
     else hideMediaInspector();
+    scheduleSceneListRender();
     if (hadAsset) renderProjectBin();
     if (options.preview !== false) {
       syncActiveClipFromEditor(true);
@@ -9471,9 +10120,12 @@ function createSceneClip(options = {}) {
   const active = activeClip();
   const sameTrack = Math.max(0, Math.min(3, Number(active?.track) || 0));
   const above = String(options.layer || 'same') === 'above';
-  const track = above
-    ? Math.min(3, Math.max(timelineState.layers, sameTrack + 1))
-    : sameTrack;
+  const explicitTrack = Number.isFinite(Number(options.track)) && options.track !== null && options.track !== '';
+  const track = explicitTrack
+    ? Math.max(0, Math.min(3, Number(options.track)))
+    : (above
+      ? Math.min(3, Math.max(timelineState.layers, sameTrack + 1))
+      : sameTrack);
   const fallbackDuration = above && active
     ? Math.max(0.5, Number(active.duration) || DEFAULT_SCENE_SECONDS)
     : DEFAULT_SCENE_SECONDS;
@@ -9527,7 +10179,7 @@ function createSceneClip(options = {}) {
   return { clip };
 }
 
-function snapTimelineEdge(value, ignoreId) {
+function snapTimelineEdge(value, ignoreId, thresholdSeconds) {
   const target = Math.max(0, Number(value) || 0);
   const candidates = [0, Number(timelineState.playhead) || 0];
   for (const clip of timelineState.clips) {
@@ -9535,7 +10187,10 @@ function snapTimelineEdge(value, ignoreId) {
     candidates.push(Math.max(0, Number(clip.start) || 0), clipEnd(clip));
   }
   let best = target;
-  let bestDistance = TIMELINE_SNAP_SECONDS;
+  // Snapping is a pixel affordance: the threshold is derived from the current
+  // zoom, so a 6px pull never snaps at wide zoom levels but still grabs edges
+  // when the user zooms in.
+  let bestDistance = Math.max(0.002, Number(thresholdSeconds) || TIMELINE_SNAP_SECONDS);
   for (const candidate of candidates) {
     const distance = Math.abs(target - candidate);
     if (distance < bestDistance) {
@@ -9948,14 +10603,11 @@ function placeAssetClipAt(asset, track, at) {
   });
 }
 
-function deleteLogicClip() {
-  const clip = activeClip();
-  if (!clip) {
-    setStatus('Select a clip to delete.', 'err');
-    return;
-  }
+function deleteClipById(clipId) {
+  const clip = timelineState.clips.find(item => item.id === clipId);
+  if (!clip) return { error: 'Clip not found.' };
   const index = timelineState.clips.findIndex(item => item.id === clip.id);
-  if (index < 0) return;
+  if (index < 0) return { error: 'Clip not found.' };
   const removedEnd = clipEnd(clip);
   const removedDuration = Math.max(0.5, Number(clip.duration) || 0.5);
   timelineState.clips.splice(index, 1);
@@ -9973,7 +10625,21 @@ function deleteLogicClip() {
   renderLogicBoxes();
   renderProjectBin();
   updateStageTimeline();
-  setStatus(`Ripple deleted ${clip.name} — gap closed`, 'ok');
+  return { clip, next };
+}
+
+function deleteLogicClip() {
+  const clip = activeClip();
+  if (!clip) {
+    setStatus('Select a clip to delete.', 'err');
+    return;
+  }
+  const result = deleteClipById(clip.id);
+  if (result.error) {
+    setStatus(result.error, 'err');
+    return;
+  }
+  setStatus(`Ripple deleted ${result.clip.name} — gap closed`, 'ok');
 }
 
 function splitAtPlayhead() {
@@ -10017,6 +10683,196 @@ function addTimelineLayer() {
   setStatus(`Layer V${timelineState.layers} added — drag a box onto it`, 'ok');
 }
 
+// Structured project operations. UI actions, tests and future agents all use
+// these validated calls so the timeline has one mutation/persist/preview path.
+const projectOps = Object.freeze({
+  snapshot() {
+    return {
+      name: currentProjectName(),
+      settings: currentSettingsSnapshot(),
+      playhead: Number(timelineState.playhead) || 0,
+      duration: timelineTotalSeconds(),
+      layers: timelineState.layers,
+      activeId: timelineState.activeId,
+      clips: timelineState.clips.map(clip => ({
+        id: clip.id,
+        name: clip.name,
+        type: clip.type,
+        start: Number(clip.start) || 0,
+        duration: Number(clip.duration) || 0,
+        track: Number(clip.track) || 0,
+        assetId: clip.assetId || '',
+        sourceIn: clipSourceIn(clip),
+        fit: clip.fit || 'contain',
+        explicitDuration: Boolean(clip.explicitDuration),
+        codeLength: String(clip.code || '').length
+      })),
+      assets: timelineState.assets.map(asset => ({
+        id: asset.id,
+        name: asset.name,
+        kind: asset.kind,
+        duration: Number(asset.duration) || 0,
+        url: asset.url
+      }))
+    };
+  },
+
+  seek(seconds) {
+    setPlayhead(seconds, { preview: true });
+    return { ok: true, playhead: timelineState.playhead };
+  },
+
+  selectClip(clipId) {
+    const clip = timelineState.clips.find(item => item.id === clipId);
+    if (!clip) return { ok: false, error: 'Clip not found.' };
+    selectLogicClip(clip.id);
+    return { ok: true, clipId: clip.id };
+  },
+
+  createTrack() {
+    if (timelineState.layers >= 4) return { ok: false, error: 'Layer limit is 4.' };
+    addTimelineLayer();
+    return { ok: true, layers: timelineState.layers };
+  },
+
+  createComposition(options = {}) {
+    const created = createSceneClip({
+      code: options.code,
+      name: options.name,
+      duration: options.duration,
+      layer: options.layer,
+      start: options.start,
+      track: options.track
+    });
+    if (created.error) return { ok: false, error: created.error };
+    return { ok: true, clipId: created.clip.id, clip: created.clip };
+  },
+
+  insertAsset(assetId, options = {}) {
+    const asset = findAsset(assetId);
+    if (!asset) return { ok: false, error: 'Asset not found.' };
+    const track = Math.max(0, Math.min(3, Number.isFinite(Number(options.track)) ? Number(options.track) : 0));
+    const at = roundClipTime(Math.max(0, Math.min(TIMELINE_MAX_SECONDS - 0.5,
+      Number.isFinite(Number(options.at)) ? Number(options.at) : timelineState.playhead)));
+    const clip = placeAssetClipAt(asset, track, at);
+    if (!clip) return { ok: false, error: 'All tracks are occupied at that spot.' };
+    return { ok: true, clipId: clip.id, clip };
+  },
+
+  moveClip(clipId, options = {}) {
+    const clip = timelineState.clips.find(item => item.id === clipId);
+    if (!clip) return { ok: false, error: 'Clip not found.' };
+    const track = Math.max(0, Math.min(3, Number.isFinite(Number(options.track)) ? Number(options.track) : clip.track));
+    const at = roundClipTime(Math.max(0, Math.min(TIMELINE_MAX_SECONDS - clip.duration,
+      Number.isFinite(Number(options.at)) ? Number(options.at) : clip.start)));
+    const clash = timelineState.clips.some(item => item.id !== clip.id
+      && item.track === track
+      && at < clipEnd(item) - 1e-6
+      && at + clip.duration > Number(item.start) + 1e-6);
+    if (clash) return { ok: false, error: 'Target spot is occupied on that track.' };
+    clip.start = at;
+    clip.track = track;
+    clip.explicitDuration = true;
+    timelineState.layers = Math.max(timelineState.layers, track + 1);
+    timelineState.activeId = clip.id;
+    timelineState.selectedAssetId = null;
+    saveTimelineState(true);
+    applyActiveClipToEditor({ preview: true });
+    renderLogicBoxes();
+    renderProjectBin();
+    updateStageTimeline();
+    return { ok: true, clipId: clip.id, start: clip.start, track: clip.track };
+  },
+
+  trimClip(clipId, options = {}) {
+    const clip = timelineState.clips.find(item => item.id === clipId);
+    if (!clip) return { ok: false, error: 'Clip not found.' };
+    const oldStart = Number(clip.start) || 0;
+    const oldEnd = clipEnd(clip);
+    const hasEnd = options.end !== undefined && options.end !== null;
+    const hasDuration = options.duration !== undefined && options.duration !== null;
+    const hasStart = options.start !== undefined && options.start !== null;
+    if (!hasStart && !hasEnd && !hasDuration) return { ok: false, error: 'Provide start, end or duration.' };
+    let start = hasStart ? roundClipTime(Number(options.start)) : oldStart;
+    const others = clipsOnTrack(clip.track).filter(item => item.id !== clip.id);
+    const prevEnd = others
+      .filter(item => clipEnd(item) <= oldStart + 1e-6)
+      .reduce((max, item) => Math.max(max, clipEnd(item)), 0);
+    start = Math.max(prevEnd, Math.min(TIMELINE_MAX_SECONDS - 0.5, start));
+    const nextStart = others
+      .filter(item => Number(item.start) >= oldEnd - 1e-6)
+      .reduce((min, item) => Math.min(min, Number(item.start) || 0), TIMELINE_MAX_SECONDS);
+    const requestedEnd = hasEnd
+      ? Number(options.end)
+      : (hasDuration ? start + Number(options.duration) : oldEnd);
+    if (!Number.isFinite(requestedEnd) || requestedEnd - start < 0.5) {
+      return { ok: false, error: 'A clip must be at least 0.5s long.' };
+    }
+    let end = Math.min(nextStart, requestedEnd, TIMELINE_MAX_SECONDS);
+    if (end - start < 0.5) return { ok: false, error: 'No room left on this track.' };
+    if (clipIsMedia(clip) && clip.type !== 'image') {
+      const sourceIn = Math.max(0, roundClipTime(clipSourceIn(clip) + (start - oldStart)));
+      clip.sourceIn = sourceIn;
+      const asset = clipAsset(clip);
+      const available = asset && Number(asset.duration) > 0 ? Math.max(0.5, asset.duration - sourceIn) : end - start;
+      end = Math.min(end, start + available);
+    }
+    clip.start = roundClipTime(start);
+    clip.duration = fitClipDuration(end - start);
+    clip.explicitDuration = true;
+    timelineState.activeId = clip.id;
+    timelineState.selectedAssetId = null;
+    saveTimelineState(true);
+    applyActiveClipToEditor({ preview: true });
+    renderLogicBoxes();
+    renderProjectBin();
+    updateStageTimeline();
+    setStatus(`${clip.name} · ${formatTimelineTime(clip.duration)}`, 'ok');
+    return { ok: true, clipId: clip.id, start: clip.start, duration: clip.duration };
+  },
+
+  splitClip(clipId, at) {
+    const clip = timelineState.clips.find(item => item.id === clipId);
+    if (!clip) return { ok: false, error: 'Clip not found.' };
+    const time = roundClipTime(Number(at));
+    if (!(time > clip.start + 0.05 && time < clipEnd(clip) - 0.05)) {
+      return { ok: false, error: 'The split time is not inside the clip.' };
+    }
+    const right = splitClipRecord(clip, time);
+    if (!right) return { ok: false, error: 'This clip cannot be split there.' };
+    timelineState.clips.push(right);
+    timelineState.activeId = right.id;
+    timelineState.selectedAssetId = null;
+    saveTimelineState(true);
+    applyActiveClipToEditor({ preview: true });
+    renderLogicBoxes();
+    renderProjectBin();
+    updateStageTimeline();
+    setStatus(`Split ${clip.name} at ${formatTimelineTime(time)}`, 'ok');
+    return { ok: true, clipId: right.id, leftId: clip.id };
+  },
+
+  deleteClip(clipId) {
+    const result = deleteClipById(clipId);
+    if (result.error) return { ok: false, error: result.error };
+    setStatus(`Ripple deleted ${result.clip.name} — gap closed`, 'ok');
+    return { ok: true, deletedId: result.clip.id, nextId: result.next?.id || null };
+  },
+
+  duplicateClip(clipId) {
+    const clip = timelineState.clips.find(item => item.id === clipId);
+    if (!clip) return { ok: false, error: 'Clip not found.' };
+    if (timelineState.clips.length >= 40) return { ok: false, error: 'Scene limit is 40.' };
+    selectLogicClip(clip.id, { preview: false });
+    addLogicClip({ duplicate: true });
+    const created = activeClip();
+    if (!created || created.id === clip.id) return { ok: false, error: 'No room left on this layer.' };
+    return { ok: true, clipId: created.id };
+  }
+});
+window.projectOps = projectOps;
+
+
 function beginRenameClip(id) {
   const clip = timelineState.clips.find(item => item.id === id);
   const box = Array.from(document.querySelectorAll('.logic-box')).find(el => el.dataset.id === id);
@@ -10053,10 +10909,316 @@ function beginRenameClip(id) {
   input.addEventListener('blur', () => finish(true));
 }
 
+// ── TIMELINE VIEW (zoom + horizontal scroll in time) ─────
+const timelineView = { zoom: 1, start: 0 };
+
+function timelineViewSpan() {
+  return Math.max(0.5, timelineTotalSeconds() / timelineView.zoom);
+}
+
+function clampTimelineView() {
+  const total = timelineTotalSeconds();
+  const span = timelineViewSpan();
+  if (timelineView.zoom <= 1.001) {
+    timelineView.zoom = 1;
+    timelineView.start = 0;
+    return;
+  }
+  timelineView.start = Math.max(0, Math.min(Math.max(0, total - span), timelineView.start));
+}
+
+function timeToTimelinePct(seconds) {
+  return ((Number(seconds) || 0) - timelineView.start) / timelineViewSpan() * 100;
+}
+
+function timelinePctToTime(pct) {
+  const value = timelineView.start + (Math.max(0, Math.min(100, Number(pct) || 0)) / 100) * timelineViewSpan();
+  return Math.max(0, Math.min(timelineTotalSeconds(), value));
+}
+
+// The full timeline surface accepts media drops: directly over a lane it uses
+// that lane, and anywhere else below the toolbar it falls back to the bottom
+// track (V1). The fixed-height rows leave empty space under them, and dropping
+// there used to be a no-op.
+function timelineDropLane(event) {
+  const direct = document.elementFromPoint(event.clientX, event.clientY)?.closest('.et-lane');
+  if (direct) return direct;
+  const timeline = document.querySelector('.editor-timeline');
+  if (!timeline) return null;
+  const rect = timeline.getBoundingClientRect();
+  if (event.clientX < rect.left || event.clientX > rect.right
+    || event.clientY < rect.top || event.clientY > rect.bottom) return null;
+  const head = timeline.querySelector('.timeline-head')?.getBoundingClientRect();
+  if (head && event.clientY <= head.bottom) return null;
+  const rows = Array.from(timeline.querySelectorAll('.et-row'));
+  if (!rows.length) return null;
+  const hit = rows.find(row => {
+    const box = row.getBoundingClientRect();
+    return event.clientY >= box.top && event.clientY <= box.bottom;
+  });
+  return (hit || rows[rows.length - 1]).querySelector('.et-lane');
+}
+
+// Shared by OS file drops and the pointer-based bin drag: resolves the lane,
+// insertion time and the overlay track a clip would land on.
+function resolveTimelineDrop(clientX, clientY, asset) {
+  const lane = timelineDropLane({ clientX, clientY });
+  if (!lane) return null;
+  const rect = lane.getBoundingClientRect();
+  const at = roundClipTime(timelinePctToTime(((clientX - rect.left) / Math.max(1, rect.width)) * 100));
+  const track = Number(lane.dataset.track) || 0;
+  const length = asset
+    ? Math.max(0.5, Math.min(assetInsertDuration(asset), TIMELINE_MAX_SECONDS - at))
+    : 0;
+  const targetTrack = asset ? overlayTrackFor(at, length, track) : track;
+  return { lane, at, track, targetTrack, invalid: asset ? targetTrack < 0 : false };
+}
+
+function showTimelineDropFeedback(drop, options = {}) {
+  document.querySelectorAll('.et-lane.drop-over, .et-lane.drop-invalid').forEach(el => el.classList.remove('drop-over', 'drop-invalid'));
+  if (!drop) { hideDropMarker(); return; }
+  drop.lane.classList.add(drop.invalid ? 'drop-invalid' : 'drop-over');
+  const label = formatTimelineTime(drop.at);
+  showDropMarker(drop.track, timeToTimelinePct(drop.at) / 100, {
+    at: drop.at,
+    invalid: drop.invalid,
+    label,
+    message: options.file
+      ? `DROP FILE AT ${label}`
+      : (drop.invalid ? `NO FREE TRACK AT ${label}` : `DROP AT ${label} · V${drop.targetTrack + 1}`)
+  });
+}
+
+function updateTimelineZoomLabel() {
+  const label = document.getElementById('timelineZoomLabel');
+  if (!label) return;
+  label.textContent = timelineView.zoom <= 1.001 ? '1×' : `${timelineView.zoom.toFixed(1)}×`;
+}
+
+function setTimelineZoom(zoom) {
+  const total = timelineTotalSeconds();
+  const anchor = timelineState.playhead;
+  const beforePct = total > 0 ? Math.max(0, Math.min(1, (anchor - timelineView.start) / timelineViewSpan())) : 0;
+  timelineView.zoom = Math.max(1, Math.min(8, Number(zoom) || 1));
+  const span = timelineViewSpan();
+  timelineView.start = Math.max(0, Math.min(Math.max(0, total - span), anchor - beforePct * span));
+  clampTimelineView();
+  updateTimelineZoomLabel();
+  renderLogicBoxes();
+  positionPlayhead(timelineState.playhead);
+}
+
+function scrollTimelineBy(seconds) {
+  timelineView.start += Number(seconds) || 0;
+  clampTimelineView();
+  renderLogicBoxes();
+  positionPlayhead(timelineState.playhead);
+}
+
+function fitTimelineView() {
+  timelineView.zoom = 1;
+  timelineView.start = 0;
+  updateTimelineZoomLabel();
+  renderLogicBoxes();
+  positionPlayhead(timelineState.playhead);
+}
+
+function ensurePlayheadVisible() {
+  if (timelineView.zoom <= 1.001) return false;
+  const span = timelineViewSpan();
+  const at = timelineState.playhead;
+  if (at >= timelineView.start && at <= timelineView.start + span) return false;
+  timelineView.start = Math.max(0, Math.min(timelineTotalSeconds() - span, at - span * 0.5));
+  return true;
+}
+
+// ── PROGRAM MONITOR PLAYBACK ─────────────────────────────
+const playbackState = { playing: false, raf: 0, last: 0, clipKey: '' };
+let previewFitMode = 'fit';
+const PLAY_ICON = '<svg viewBox="0 0 12 12" aria-hidden="true"><path d="M3 2l7 4-7 4z" fill="currentColor"/></svg>';
+const PAUSE_ICON = '<svg viewBox="0 0 12 12" aria-hidden="true"><rect x="3" y="2" width="2.2" height="8" fill="currentColor"/><rect x="6.8" y="2" width="2.2" height="8" fill="currentColor"/></svg>';
+
+function formatTimecode(seconds) {
+  const fps = Math.max(1, Number(document.getElementById('frameRate')?.value) || 60);
+  const frames = Math.round(Math.max(0, Number(seconds) || 0) * fps);
+  const totalSeconds = Math.floor(frames / fps);
+  const pad = (value) => String(value).padStart(2, '0');
+  return `${pad(Math.floor(totalSeconds / 3600))}:${pad(Math.floor(totalSeconds / 60) % 60)}:${pad(totalSeconds % 60)}:${pad(frames % fps)}`;
+}
+
+function updateMonitorTime() {
+  const time = document.getElementById('monitorTime');
+  if (time) time.textContent = formatTimecode(timelineState.playhead);
+  const duration = document.getElementById('monitorDuration');
+  if (duration) duration.textContent = formatTimecode(timelineTotalSeconds());
+  const chip = document.getElementById('monitorFps');
+  if (chip) chip.textContent = `${document.getElementById('frameRate')?.value || '60'} FPS`;
+}
+
+function playbackClipKey(at) {
+  const active = clipsAtTime(at);
+  if (!active.length) return 'none';
+  const ids = active.map(clip => clip.id).join(',');
+  return active.some(clip => clipIsMedia(clip)) ? `${ids}|${Math.floor(at * 2)}` : ids;
+}
+
+function togglePlayback() {
+  if (playbackState.playing) { stopPlayback(); return; }
+  const total = timelineTotalSeconds();
+  if (!(total > 0)) return;
+  if (timelineState.playhead >= total - 0.001) setPlayhead(0);
+  playbackState.playing = true;
+  playbackState.last = 0;
+  playbackState.clipKey = '';
+  const button = document.getElementById('playToggle');
+  if (button) {
+    button.innerHTML = PAUSE_ICON;
+    button.classList.add('active');
+    button.setAttribute('aria-label', 'Pause');
+  }
+  playbackState.raf = requestAnimationFrame(playbackTick);
+}
+
+function playbackTick(ts) {
+  if (!playbackState.playing) return;
+  if (!playbackState.last) playbackState.last = ts;
+  const delta = Math.min(0.25, Math.max(0, (ts - playbackState.last) / 1000));
+  playbackState.last = ts;
+  const total = timelineTotalSeconds();
+  const at = timelineState.playhead + delta;
+  if (at >= total) {
+    timelineState.playhead = total;
+    positionPlayhead(total);
+    updateMonitorTime();
+    stopPlayback();
+    return;
+  }
+  timelineState.playhead = at;
+  if (ensurePlayheadVisible()) renderLogicBoxes();
+  positionPlayhead(at);
+  updateMonitorTime();
+  const key = playbackClipKey(at);
+  if (key !== playbackState.clipKey) {
+    playbackState.clipKey = key;
+    previewAtPlayhead();
+  }
+  playbackState.raf = requestAnimationFrame(playbackTick);
+}
+
+function stopPlayback(save = true) {
+  if (!playbackState.playing) return;
+  playbackState.playing = false;
+  cancelAnimationFrame(playbackState.raf);
+  playbackState.raf = 0;
+  const button = document.getElementById('playToggle');
+  if (button) {
+    button.innerHTML = PLAY_ICON;
+    button.classList.remove('active');
+    button.setAttribute('aria-label', 'Play');
+  }
+  if (save) {
+    saveTimelineState(true);
+    previewAtPlayhead();
+  }
+}
+
+function togglePreviewFit() {
+  previewFitMode = previewFitMode === 'fit' ? 'actual' : 'fit';
+  const button = document.getElementById('fitToggle');
+  if (button) {
+    button.textContent = previewFitMode === 'fit' ? 'FIT' : '1:1';
+    button.classList.toggle('active', previewFitMode === 'actual');
+  }
+  updatePreviewScale();
+}
+
+function toggleMonitorFullscreen() {
+  const container = document.getElementById('previewContainer');
+  if (!container) return;
+  if (document.fullscreenElement) { document.exitFullscreen?.(); return; }
+  if (container.requestFullscreen) {
+    container.requestFullscreen().then(queuePreviewScale).catch(() => container.classList.toggle('stage-fullscreen'));
+  } else {
+    container.classList.toggle('stage-fullscreen');
+  }
+}
+
+document.addEventListener('fullscreenchange', () => queuePreviewScale());
+
+function applyClipInspectorDuration() {
+  const clip = activeCodeClip();
+  if (!clip) return;
+  const value = Number(document.getElementById('ciDuration')?.value);
+  if (!Number.isFinite(value) || value <= 0) { renderInspector(); return; }
+  const { next } = clipNeighbors(clip);
+  let max = TIMELINE_MAX_SECONDS - clip.start;
+  if (next) max = Math.min(max, Math.max(0.5, next.start - clip.start));
+  clip.duration = fitClipDuration(Math.max(0.5, Math.min(max, value)));
+  clip.explicitDuration = true;
+  saveTimelineState(true);
+  renderLogicBoxes();
+  updateStageTimeline();
+  renderInspector();
+  previewClipCode(clip);
+}
+
+function resetPanelLayout() {
+  panelSizes.colLeft = 300;
+  panelSizes.colRight = 344;
+  panelSizes.rowChat = 324;
+  clampPanelSizesToViewport();
+  applyPanelSizes();
+  queuePrefsSave();
+  switchLeftTab('project');
+  switchRightTab('inspector');
+  fitTimelineView();
+  setStatus('Workspace layout reset.', 'ok');
+}
+
+// ── PROJECT CHROME (name + save state) ───────────────────
+function setSaveState(state) {
+  const el = document.getElementById('saveState');
+  const text = document.getElementById('saveStateText');
+  if (!el) return;
+  el.classList.toggle('unsaved', state === 'unsaved');
+  if (text) text.textContent = state === 'unsaved' ? 'EDITING' : 'SAVED';
+}
+
+function currentProjectName() {
+  const value = (document.getElementById('projectName')?.value || '').trim().toUpperCase();
+  return value || 'UNTITLED PROJECT';
+}
+
+function applyProjectName(name) {
+  const value = String(name || '').trim().toUpperCase() || 'UNTITLED PROJECT';
+  const input = document.getElementById('projectName');
+  if (input) input.value = value;
+  document.title = `${value} — Clip.A.Canvas`;
+}
+
+function initProjectChrome() {
+  let name = 'UNTITLED PROJECT';
+  try { name = localStorage.getItem('clipacanvas.projectName') || name; }
+  catch (error) { console.error(error); }
+  applyProjectName(name);
+  const input = document.getElementById('projectName');
+  const commit = () => {
+    applyProjectName(input?.value);
+    try { localStorage.setItem('clipacanvas.projectName', currentProjectName()); }
+    catch (error) { console.error(error); }
+    queuePrefsSave();
+  };
+  input?.addEventListener('change', commit);
+  input?.addEventListener('blur', commit);
+  setSaveState('saved');
+}
+
 function setPlayhead(seconds, options = {}) {
+  if (playbackState.playing) stopPlayback(false);
   const total = timelineTotalSeconds();
   const value = Math.round(Math.max(0, Math.min(total, Number(seconds) || 0)) * 100) / 100;
   timelineState.playhead = value;
+  if (ensurePlayheadVisible()) renderLogicBoxes();
   positionPlayhead(value);
   saveTimelineState();
   if (options.preview) previewAtPlayhead();
@@ -10065,10 +11227,12 @@ function setPlayhead(seconds, options = {}) {
 function positionPlayhead(seconds) {
   const total = timelineTotalSeconds();
   const value = Math.max(0, Math.min(total, Number(seconds) || 0));
+  clampTimelineView();
   const playhead = document.getElementById('timelinePlayhead');
-  if (playhead) playhead.style.left = timelinePlayheadLeft((value / total) * 100);
+  if (playhead) playhead.style.left = timelinePlayheadLeft(timeToTimelinePct(value));
   const timeEl = document.getElementById('timelineTime');
   if (timeEl) timeEl.textContent = formatTimelineTime(value);
+  updateMonitorTime();
 }
 
 function previewClipFrame(clip, at) {
@@ -10081,7 +11245,7 @@ function previewClipFrame(clip, at) {
       duration: 0,
       fit: clip.fit,
       name: clip.mediaName || clip.name,
-      autoplay: false
+      autoplay: playbackState.playing
     });
     return;
   }
@@ -10125,9 +11289,8 @@ function setPlayheadFromPointer(event) {
   const ruler = document.getElementById('timelineRuler');
   if (!ruler) return;
   const rect = ruler.getBoundingClientRect();
-  const total = timelineTotalSeconds();
   const ratio = Math.max(0, Math.min(1, (event.clientX - rect.left) / Math.max(1, rect.width)));
-  setPlayhead(ratio * total);
+  setPlayhead(timelinePctToTime(ratio * 100));
 }
 
 function initLogicTimeline() {
@@ -10160,6 +11323,36 @@ function initLogicTimeline() {
     importMediaFiles(files);
   });
 
+  document.getElementById('zoomIn')?.addEventListener('click', () => setTimelineZoom(timelineView.zoom * 1.5));
+  document.getElementById('zoomOut')?.addEventListener('click', () => setTimelineZoom(timelineView.zoom / 1.5));
+  document.getElementById('zoomFit')?.addEventListener('click', fitTimelineView);
+  const wheelTargets = [
+    document.getElementById('etTracksWrap'),
+    document.getElementById('timelineRuler')
+  ].filter(Boolean);
+  const onTimelineWheel = (event) => {
+    const horizontal = event.shiftKey || Math.abs(event.deltaX) > Math.abs(event.deltaY);
+    if (event.ctrlKey || event.metaKey) {
+      event.preventDefault();
+      const rect = event.currentTarget.getBoundingClientRect();
+      const pct = rect.width > 0 ? Math.max(0, Math.min(1, (event.clientX - rect.left) / rect.width)) : 0.5;
+      const anchor = timelinePctToTime(pct * 100);
+      setTimelineZoom(timelineView.zoom * (event.deltaY < 0 ? 1.25 : 0.8));
+      const span = timelineViewSpan();
+      timelineView.start = Math.max(0, Math.min(Math.max(0, timelineTotalSeconds() - span), anchor - pct * span));
+      clampTimelineView();
+      renderLogicBoxes();
+      positionPlayhead(timelineState.playhead);
+      return;
+    }
+    if (horizontal) {
+      event.preventDefault();
+      const delta = (event.deltaX || event.deltaY) / 120;
+      scrollTimelineBy(delta * 0.5 * timelineViewSpan());
+    }
+  };
+  for (const target of wheelTargets) target.addEventListener('wheel', onTimelineWheel, { passive: false });
+
   // Project bin: click to inspect, double-click or + to insert, drag to place.
   const binsRow = document.getElementById('binsRow');
   binsRow?.addEventListener('click', (event) => {
@@ -10190,21 +11383,163 @@ function initLogicTimeline() {
     }
     if (event.target.closest('.bins-empty')) openMediaPicker();
   });
-  binsRow?.addEventListener('dragstart', (event) => {
-    const tile = event.target.closest('.dock-bin');
-    if (!tile?.dataset.assetId) return;
-    draggedAssetId = tile.dataset.assetId;
-    document.getElementById('previewStage')?.classList.add('receiving-drag');
-    try {
-      event.dataTransfer.setData('application/x-clipacanvas-asset', tile.dataset.assetId);
-      event.dataTransfer.effectAllowed = 'copy';
-    } catch (error) { console.error(error); }
-  });
-  binsRow?.addEventListener('dragend', () => {
-    draggedAssetId = null;
-    document.getElementById('previewStage')?.classList.remove('receiving-drag', 'drop-target');
+  // WebView2 strips custom MIME data from in-page drags and never delivers
+  // dragover/drop for them, so assets are dragged with pointer events instead
+  // of HTML5 DnD. Only OS file drops still use the native drag handlers.
+  const assetDrag = { pending: null, active: null };
+  let assetDragGhost = null;
+  let suppressAssetClick = false;
+
+  const clearStageDropFeedback = () => {
+    document.getElementById('previewStage')?.classList.remove('drop-target');
+  };
+
+  const clearAssetDropFeedback = () => {
+    document.querySelectorAll('.et-lane.drop-over, .et-lane.drop-invalid').forEach(el => el.classList.remove('drop-over', 'drop-invalid'));
     hideDropMarker();
+    clearStageDropFeedback();
+  };
+
+  function moveAssetDragGhost(x, y) {
+    if (!assetDragGhost) return;
+    assetDragGhost.style.left = `${x + 14}px`;
+    assetDragGhost.style.top = `${y + 14}px`;
+  }
+
+  function beginAssetDrag(assetId, pointerId, x, y) {
+    const asset = findAsset(assetId);
+    if (!asset) return false;
+    assetDrag.pending = null;
+    assetDrag.active = { assetId, pointerId, target: null };
+    document.body.classList.add('asset-dragging');
+    document.getElementById('previewStage')?.classList.add('receiving-drag');
+    const shortName = String(asset.name || 'MEDIA').replace(/\.[a-z0-9]+$/i, '');
+    const thumb = asset.kind === 'image'
+      ? `<img src="${escapeHtml(asset.url)}" alt="">`
+      : (asset.kind === 'video'
+        ? `<video src="${escapeHtml(asset.url)}#t=0.1" muted playsinline preload="metadata"></video>`
+        : '<span class="asset-drag-audio">AUD</span>');
+    assetDragGhost = document.createElement('div');
+    assetDragGhost.className = 'asset-drag-ghost';
+    assetDragGhost.innerHTML = thumb + `<b>${escapeHtml(shortName)}</b>`;
+    document.body.appendChild(assetDragGhost);
+    moveAssetDragGhost(x, y);
+    return true;
+  }
+
+  function updateAssetDrag(x, y) {
+    const active = assetDrag.active;
+    if (!active) return;
+    moveAssetDragGhost(x, y);
+    const stage = document.elementFromPoint(x, y)?.closest('#previewStage');
+    if (stage) {
+      clearAssetDropFeedback();
+      stage.classList.add('receiving-drag', 'drop-target');
+      const rect = stage.getBoundingClientRect();
+      active.target = {
+        type: 'stage',
+        position: {
+          x: Math.max(0, Math.min(1, (x - rect.left) / Math.max(1, rect.width))) * 100,
+          y: Math.max(0, Math.min(1, (y - rect.top) / Math.max(1, rect.height))) * 100
+        }
+      };
+      return;
+    }
+    const drop = resolveTimelineDrop(x, y, findAsset(active.assetId));
+    if (drop) {
+      clearStageDropFeedback();
+      showTimelineDropFeedback(drop);
+      active.target = { type: 'timeline', drop };
+      return;
+    }
+    clearAssetDropFeedback();
+    active.target = null;
+  }
+
+  function endAssetDrag(commit) {
+    const active = assetDrag.active;
+    assetDrag.pending = null;
+    if (!active) return;
+    assetDrag.active = null;
+    document.body.classList.remove('asset-dragging');
+    document.getElementById('previewStage')?.classList.remove('receiving-drag');
+    clearAssetDropFeedback();
+    assetDragGhost?.remove();
+    assetDragGhost = null;
+    const target = active.target;
+    if (!commit || !target) return;
+    const asset = findAsset(active.assetId);
+    if (!asset) return;
+    suppressAssetClick = true;
+    if (target.type === 'stage') {
+      embedAssetInScene(asset, target.position);
+      return;
+    }
+    placeAssetClipAt(asset, target.drop.track, target.drop.at);
+  }
+
+  binsRow?.addEventListener('pointerdown', (event) => {
+    if (event.button !== 0) return;
+    const tile = event.target.closest('.dock-bin');
+    if (!tile?.dataset.assetId || event.target.closest('.bin-insert')) return;
+    assetDrag.pending = {
+      assetId: tile.dataset.assetId,
+      pointerId: event.pointerId,
+      x: event.clientX,
+      y: event.clientY
+    };
   });
+
+  document.addEventListener('pointermove', (event) => {
+    const active = assetDrag.active;
+    if (active) {
+      if (event.pointerId !== active.pointerId) return;
+      event.preventDefault();
+      updateAssetDrag(event.clientX, event.clientY);
+      return;
+    }
+    const pending = assetDrag.pending;
+    if (!pending || event.pointerId !== pending.pointerId) return;
+    if (Math.hypot(event.clientX - pending.x, event.clientY - pending.y) < 6) return;
+    if (beginAssetDrag(pending.assetId, pending.pointerId, event.clientX, event.clientY)) {
+      updateAssetDrag(event.clientX, event.clientY);
+    } else {
+      assetDrag.pending = null;
+    }
+  }, { passive: false });
+
+  document.addEventListener('pointerup', (event) => {
+    if (assetDrag.active) {
+      if (event.pointerId === assetDrag.active.pointerId) endAssetDrag(true);
+      return;
+    }
+    if (assetDrag.pending && event.pointerId === assetDrag.pending.pointerId) assetDrag.pending = null;
+  });
+
+  document.addEventListener('pointercancel', (event) => {
+    if (assetDrag.active?.pointerId === event.pointerId) endAssetDrag(false);
+    else assetDrag.pending = null;
+  });
+
+  window.addEventListener('blur', () => {
+    if (assetDrag.active) endAssetDrag(false);
+    assetDrag.pending = null;
+  });
+
+  document.addEventListener('keydown', (event) => {
+    if (event.key !== 'Escape' || (!assetDrag.active && !assetDrag.pending)) return;
+    event.preventDefault();
+    endAssetDrag(false);
+  }, true);
+
+  document.addEventListener('click', (event) => {
+    if (!suppressAssetClick) return;
+    suppressAssetClick = false;
+    event.preventDefault();
+    event.stopPropagation();
+  }, true);
+  document.addEventListener('pointerdown', () => { suppressAssetClick = false; }, true);
+
   binsRow?.addEventListener('dragover', (event) => {
     if (event.dataTransfer?.types?.includes('Files')) event.preventDefault();
   });
@@ -10215,14 +11550,12 @@ function initLogicTimeline() {
     importMediaFiles(files);
   });
 
-  // Dropping media on the stage puts it inside the scene at the drop point.
+  // OS file drops on the stage embed the media inside the scene at that point.
   const stageDrop = document.getElementById('previewStage');
   stageDrop?.addEventListener('dragover', (event) => {
-    const assetId = event.dataTransfer?.getData('application/x-clipacanvas-asset') || draggedAssetId;
-    const hasFiles = Boolean(event.dataTransfer?.types?.includes('Files'));
-    if (!assetId && !hasFiles) return;
+    if (!event.dataTransfer?.types?.includes('Files')) return;
     event.preventDefault();
-    if (event.dataTransfer) event.dataTransfer.dropEffect = 'copy';
+    event.dataTransfer.dropEffect = 'copy';
     stageDrop.classList.add('drop-target');
   });
   stageDrop?.addEventListener('dragleave', (event) => {
@@ -10230,28 +11563,19 @@ function initLogicTimeline() {
   });
   stageDrop?.addEventListener('drop', (event) => {
     stageDrop.classList.remove('drop-target', 'receiving-drag');
+    const files = Array.from(event.dataTransfer?.files || []);
+    if (!files.length) return;
+    event.preventDefault();
     const rect = stageDrop.getBoundingClientRect();
     const position = {
       x: Math.max(0, Math.min(1, (event.clientX - rect.left) / Math.max(1, rect.width))) * 100,
       y: Math.max(0, Math.min(1, (event.clientY - rect.top) / Math.max(1, rect.height))) * 100
     };
-    const assetId = event.dataTransfer?.getData('application/x-clipacanvas-asset') || draggedAssetId;
-    draggedAssetId = null;
-    const files = Array.from(event.dataTransfer?.files || []);
-    if (assetId) {
-      event.preventDefault();
-      const asset = findAsset(assetId);
-      if (asset) embedAssetInScene(asset, position);
-      return;
-    }
-    if (files.length) {
-      event.preventDefault();
-      importMediaFiles(files).then(assets => {
-        if (Array.isArray(assets) && assets.length) {
-          embedAssetInScene(assets[assets.length - 1], position);
-        }
-      });
-    }
+    importMediaFiles(files).then(assets => {
+      if (Array.isArray(assets) && assets.length) {
+        embedAssetInScene(assets[assets.length - 1], position);
+      }
+    });
   });
 
   const host = document.getElementById('logicTracks');
@@ -10265,6 +11589,7 @@ function initLogicTimeline() {
   const beginScrub = (event) => {
     const rulerRect = ruler?.getBoundingClientRect();
     if (!rulerRect) return;
+    if (playbackState.playing) stopPlayback(false);
     scrub = { rect: rulerRect };
     setPlayheadFromPointer(event);
     event.preventDefault();
@@ -10288,10 +11613,10 @@ function initLogicTimeline() {
     if (gesture.mode === 'trim-left') {
       const dx = event.clientX - gesture.startX;
       if (!dx) return;
-      const total = gesture.total;
-      const rawStart = gesture.origStart + (dx / gesture.laneWidth) * total;
+      const span = gesture.span;
+      const rawStart = gesture.origStart + (dx / gesture.laneWidth) * span;
       let minStart = gesture.minStart;
-      const start = Math.max(minStart, Math.min(gesture.maxStart, snapTimelineEdge(rawStart, gesture.clip.id)));
+      const start = Math.max(minStart, Math.min(gesture.maxStart, snapTimelineEdge(rawStart, gesture.clip.id, gesture.snap)));
       const delta = Math.round((start - gesture.origStart) * 10) / 10;
       if (!delta) return;
       gesture.clip.start = Math.round(start * 10) / 10;
@@ -10309,8 +11634,8 @@ function initLogicTimeline() {
     if (gesture.mode === 'resize') {
       const dx = event.clientX - gesture.startX;
       if (!dx) return;
-      const raw = gesture.startDuration + (dx / gesture.laneWidth) * gesture.total;
-      const snappedEnd = snapTimelineEdge(gesture.clip.start + Math.max(0.5, raw), gesture.clip.id);
+      const raw = gesture.startDuration + (dx / gesture.laneWidth) * gesture.span;
+      const snappedEnd = snapTimelineEdge(gesture.clip.start + Math.max(0.5, raw), gesture.clip.id, gesture.snap);
       const next = Math.max(
         0.5,
         Math.min(gesture.maxDuration, snappedEnd - gesture.clip.start)
@@ -10335,9 +11660,9 @@ function initLogicTimeline() {
     if (track >= timelineState.layers) {
       timelineState.layers = Math.min(4, track + 1);
     }
-    const rawStart = gesture.origStart + (dx / gesture.laneWidth) * gesture.total;
+    const rawStart = gesture.origStart + (dx / gesture.laneWidth) * gesture.span;
     const pointerStart = Math.max(0, Math.min(TIMELINE_MAX_SECONDS - gesture.clip.duration, rawStart));
-    const desiredStart = roundClipTime(snapTimelineEdge(pointerStart, gesture.clip.id));
+    const desiredStart = roundClipTime(snapTimelineEdge(pointerStart, gesture.clip.id, gesture.snap));
     // Media dragged over an occupied scene spills to the next free layer so it
     // can sit as an overlay instead of being blocked by the scene.
     if (clipIsMedia(gesture.clip) && !clipRangeIsFree(track, desiredStart, gesture.clip.duration, gesture.clip.id)) {
@@ -10363,7 +11688,7 @@ function initLogicTimeline() {
     const maxStart = next ? Math.max(minStart, next.start - gesture.clip.duration) : TIMELINE_MAX_SECONDS - gesture.clip.duration;
     const start = Math.min(
       maxStart,
-      Math.max(minStart, snapTimelineEdge(Math.max(0, Math.min(TIMELINE_MAX_SECONDS - gesture.clip.duration, rawStart)), gesture.clip.id))
+      Math.max(minStart, snapTimelineEdge(Math.max(0, Math.min(TIMELINE_MAX_SECONDS - gesture.clip.duration, rawStart)), gesture.clip.id, gesture.snap))
     );
     gesture.clip.start = Math.round(start * 10) / 10;
     gesture.clip.track = track;
@@ -10444,7 +11769,8 @@ function initLogicTimeline() {
         startDuration: clip.duration,
         maxDuration,
         laneWidth,
-        total: timelineTotalSeconds(),
+        span: timelineViewSpan(),
+        snap: (6 / laneWidth) * timelineViewSpan(),
         moved: false
       };
       return;
@@ -10467,7 +11793,8 @@ function initLogicTimeline() {
         minStart,
         maxStart: clipEnd(clip) - 0.5,
         laneWidth,
-        total: timelineTotalSeconds(),
+        span: timelineViewSpan(),
+        snap: (6 / laneWidth) * timelineViewSpan(),
         moved: false
       };
       return;
@@ -10480,55 +11807,42 @@ function initLogicTimeline() {
       origStart: clip.start,
       origTrack: clip.track,
       laneWidth,
-      total: timelineTotalSeconds(),
+      span: timelineViewSpan(),
+      snap: (6 / laneWidth) * timelineViewSpan(),
       neighbors,
       moved: false
     };
   });
 
-  host.addEventListener('dragover', (event) => {
-    const assetId = event.dataTransfer?.getData('application/x-clipacanvas-asset') || draggedAssetId;
-    const hasFiles = Boolean(event.dataTransfer?.types?.includes('Files'));
-    if (!assetId && !hasFiles) return;
-    const lane = document.elementFromPoint(event.clientX, event.clientY)?.closest('.et-lane');
-    if (!lane) { hideDropMarker(); return; }
+  const clearDropFeedback = () => {
+    document.querySelectorAll('.et-lane.drop-over, .et-lane.drop-invalid').forEach(el => el.classList.remove('drop-over', 'drop-invalid'));
+  };
+  wrap?.addEventListener('dragover', (event) => {
+    if (!event.dataTransfer?.types?.includes('Files')) return;
     event.preventDefault();
-    if (event.dataTransfer) event.dataTransfer.dropEffect = 'copy';
-    const rect = lane.getBoundingClientRect();
-    const total = timelineTotalSeconds();
-    const at = roundClipTime(Math.max(0, Math.min(total, ((event.clientX - rect.left) / Math.max(1, rect.width)) * total)));
-    showDropMarker(lane.dataset.track, at / total);
+    event.dataTransfer.dropEffect = 'copy';
+    showTimelineDropFeedback(resolveTimelineDrop(event.clientX, event.clientY, null), { file: true });
   });
-  host.addEventListener('dragleave', (event) => {
-    if (!host.contains(event.relatedTarget)) hideDropMarker();
+  wrap?.addEventListener('dragleave', (event) => {
+    if (!wrap.contains(event.relatedTarget)) { hideDropMarker(); clearDropFeedback(); }
   });
-  host.addEventListener('drop', (event) => {
+  wrap?.addEventListener('drop', (event) => {
     hideDropMarker();
-    const lane = document.elementFromPoint(event.clientX, event.clientY)?.closest('.et-lane');
-    if (!lane) return;
-    event.preventDefault();
-    const rect = lane.getBoundingClientRect();
-    const total = timelineTotalSeconds();
-    const at = roundClipTime(Math.max(0, Math.min(total, ((event.clientX - rect.left) / Math.max(1, rect.width)) * total)));
-    const track = Number(lane.dataset.track) || 0;
-    const assetId = event.dataTransfer?.getData('application/x-clipacanvas-asset') || draggedAssetId;
-    draggedAssetId = null;
+    clearDropFeedback();
     const files = Array.from(event.dataTransfer?.files || []);
-    if (assetId) {
-      placeAssetClipAt(findAsset(assetId), track, at);
-      return;
-    }
-    if (files.length) {
-      importMediaFiles(files).then(assets => {
-        if (!Array.isArray(assets) || !assets.length) return;
-        let cursor = at;
-        for (const asset of assets) {
-          const clip = placeAssetClipAt(asset, track, cursor);
-          if (!clip) break;
-          cursor = roundClipTime(clipEnd(clip));
-        }
-      });
-    }
+    if (!files.length) return;
+    const drop = resolveTimelineDrop(event.clientX, event.clientY, null);
+    if (!drop) return;
+    event.preventDefault();
+    importMediaFiles(files).then(assets => {
+      if (!Array.isArray(assets) || !assets.length) return;
+      let cursor = drop.at;
+      for (const asset of assets) {
+        const clip = placeAssetClipAt(asset, drop.track, cursor);
+        if (!clip) break;
+        cursor = roundClipTime(clipEnd(clip));
+      }
+    });
   });
 
   host.addEventListener('dblclick', (event) => {
@@ -10546,6 +11860,9 @@ function initLogicTimeline() {
     if (event.key === 's' || event.key === 'S') {
       event.preventDefault();
       splitAtPlayhead();
+    } else if (event.key === ' ' || event.code === 'Space') {
+      event.preventDefault();
+      togglePlayback();
     } else if (event.key === 'Delete' || event.key === 'Backspace') {
       if (!activeClip()) return;
       event.preventDefault();
@@ -10564,16 +11881,34 @@ function initLogicTimeline() {
   });
 }
 
-function showDropMarker(track, ratio) {
+function showDropMarker(track, ratio, options = {}) {
   const marker = document.getElementById('dropMarker');
   if (!marker) return;
+  const invalid = Boolean(options.invalid);
   marker.hidden = false;
+  marker.classList.toggle('invalid', invalid);
   marker.style.left = timelinePlayheadLeft(Math.max(0, Math.min(1, ratio)) * 100);
+  const time = document.getElementById('dropMarkerTime');
+  if (time) time.textContent = options.label || '';
+  const hint = document.getElementById('etDropHint');
+  if (hint) {
+    hint.hidden = false;
+    hint.classList.toggle('invalid', invalid);
+    hint.textContent = options.message || '';
+  }
 }
 
 function hideDropMarker() {
   const marker = document.getElementById('dropMarker');
   if (marker) marker.hidden = true;
+  const time = document.getElementById('dropMarkerTime');
+  if (time) time.textContent = '';
+  const hint = document.getElementById('etDropHint');
+  if (hint) {
+    hint.hidden = true;
+    hint.textContent = '';
+    hint.classList.remove('invalid');
+  }
 }
 
 function timelineRange() {
@@ -10613,6 +11948,8 @@ function updateStageTimeline() {
   if (!document.getElementById('filmTransport')?.classList.contains('rendering')) {
     positionPlayhead(timelineState.playhead);
   }
+  updateMonitorTime();
+  updateTimelineZoomLabel();
 }
 
 function updateTimelinePlayhead(pct) {
@@ -10622,7 +11959,7 @@ function updateTimelinePlayhead(pct) {
   const { start, end, total } = timelineRange();
   const clamped = Math.max(0, Math.min(100, Number(pct) || 0));
   const seconds = start + (end - start) * (clamped / 100);
-  playhead.style.left = timelinePlayheadLeft((seconds / total) * 100);
+  playhead.style.left = timelinePlayheadLeft(timeToTimelinePct(seconds));
   if (timeEl) timeEl.textContent = formatTimelineTime(seconds);
 }
 
@@ -10635,14 +11972,70 @@ function mediaKindTag(kind) {
   return kind === 'video' ? 'VIDEO' : (kind === 'audio' ? 'AUDIO' : 'IMAGE');
 }
 
-function binWaveHtml(name) {
-  const seed = String(name || 'AUDIO');
-  let bars = '';
-  for (let index = 0; index < 16; index += 1) {
-    const height = 22 + ((seed.charCodeAt(index % seed.length) * (index + 3)) % 66);
-    bars += `<i style="height:${height}%"></i>`;
+// Real peak data only: audio is decoded once per asset and the waveform is
+// drawn from the actual samples. Until it decodes, the bin shows a plain
+// AUDIO mark instead of decorative bars.
+const waveformCache = new Map();
+const waveformPending = new Set();
+
+function audioWaveBars(asset, count = 40) {
+  if (!asset || asset.kind !== 'audio') return '';
+  const peaks = waveformCache.get(asset.id);
+  if (!peaks) {
+    requestWaveform(asset);
+    return '';
   }
-  return `<span class="bin-wave">${bars}</span>`;
+  const step = peaks.length / count;
+  let bars = '';
+  for (let index = 0; index < count; index += 1) {
+    const peak = peaks[Math.min(peaks.length - 1, Math.floor(index * step))];
+    bars += `<i style="height:${Math.max(8, Math.round(peak * 100))}%"></i>`;
+  }
+  return bars;
+}
+
+function requestWaveform(asset) {
+  if (!asset || asset.kind !== 'audio' || !asset.url || waveformPending.has(asset.id)) return;
+  waveformPending.add(asset.id);
+  (async () => {
+    try {
+      const response = await fetch(asset.url);
+      if (!response.ok) throw new Error(`waveform fetch ${response.status}`);
+      const buffer = await response.arrayBuffer();
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      const ctx = new AudioCtx();
+      const audio = await ctx.decodeAudioData(buffer);
+      const samples = audio.getChannelData(0);
+      const bars = 96;
+      const block = Math.max(1, Math.floor(samples.length / bars));
+      const stride = Math.max(1, Math.floor(block / 64));
+      const peaks = [];
+      for (let index = 0; index < bars; index += 1) {
+        let peak = 0;
+        const start = index * block;
+        const end = Math.min(samples.length, start + block);
+        for (let cursor = start; cursor < end; cursor += stride) {
+          const value = Math.abs(samples[cursor]);
+          if (value > peak) peak = value;
+        }
+        peaks.push(Math.min(1, peak * 1.4));
+      }
+      waveformCache.set(asset.id, peaks);
+      ctx.close?.();
+      renderProjectBin();
+      renderLogicBoxes();
+    } catch (error) {
+      console.error('waveform failed:', error);
+    } finally {
+      waveformPending.delete(asset.id);
+    }
+  })();
+}
+
+function binAudioHtml(asset) {
+  const bars = audioWaveBars(asset, 32);
+  if (!bars) return '<span class="bin-audio-mark">AUDIO</span>';
+  return `<span class="bin-wave real">${bars}</span>`;
 }
 
 function renderProjectBin() {
@@ -10666,13 +12059,13 @@ function renderProjectBin() {
       ? 'STILL'
       : `${(Number(asset.duration) || 0).toFixed(1)}s`;
     const art = asset.kind === 'video'
-      ? `<video src="${escapeHtml(asset.url)}#t=0.1" muted playsinline preload="metadata"></video>`
+      ? `<video src="${escapeHtml(asset.url)}#t=0.1" muted playsinline preload="metadata" draggable="false"></video>`
       : (asset.kind === 'audio'
-        ? binWaveHtml(asset.name)
-        : `<img src="${escapeHtml(asset.url)}" alt="">`);
+        ? binAudioHtml(asset)
+        : `<img src="${escapeHtml(asset.url)}" alt="" draggable="false">`);
     const kindLabel = asset.kind === 'video' ? 'VID' : (asset.kind === 'audio' ? 'AUD' : 'IMG');
     const shortName = String(asset.name || 'MEDIA').replace(/\.[a-z0-9]+$/i, '');
-    return `<div class="dock-bin${selected ? ' selected' : ''}" data-asset-id="${escapeHtml(asset.id)}" draggable="true" title="${escapeHtml(asset.name)} · ${escapeHtml(duration)}">` +
+    return `<div class="dock-bin${selected ? ' selected' : ''}" data-asset-id="${escapeHtml(asset.id)}" draggable="false" title="${escapeHtml(asset.name)} · ${escapeHtml(duration)}">` +
       `<div class="bin-art">${art}<span class="bin-kind">${kindLabel}</span>` +
       `<button type="button" class="bin-insert" title="Insert at playhead">＋</button></div>` +
       `<div class="bin-label"><span title="${escapeHtml(asset.name)}">${escapeHtml(shortName)}</span><em>${escapeHtml(duration)}</em></div>` +
@@ -10706,26 +12099,39 @@ function attachThumbToLatestRun(thumb) {
 }
 
 function initControlRoom() {
-  document.getElementById('tabAssistant')?.addEventListener('click', () => switchRightTab('assistant'));
-  document.getElementById('tabRecipe')?.addEventListener('click', () => switchRightTab('recipe'));
-  document.getElementById('tabAssistant')?.addEventListener('keydown', (event) => {
-    if (event.key !== 'ArrowRight' && event.key !== 'ArrowLeft') return;
-    event.preventDefault();
-    const next = event.key === 'ArrowRight' ? 'recipe' : 'assistant';
-    switchRightTab(next);
-    document.getElementById(next === 'recipe' ? 'tabRecipe' : 'tabAssistant')?.focus();
+  for (const key of RIGHT_TABS) {
+    const tab = document.getElementById(RIGHT_TAB_BUTTONS[key]);
+    tab?.addEventListener('click', () => switchRightTab(key));
+    tab?.addEventListener('keydown', (event) => {
+      if (event.key !== 'ArrowRight' && event.key !== 'ArrowLeft') return;
+      event.preventDefault();
+      const dir = event.key === 'ArrowRight' ? 1 : -1;
+      const next = RIGHT_TABS[(RIGHT_TABS.indexOf(key) + dir + RIGHT_TABS.length) % RIGHT_TABS.length];
+      switchRightTab(next);
+      document.getElementById(RIGHT_TAB_BUTTONS[next])?.focus();
+    });
+  }
+  document.getElementById('tabProject')?.addEventListener('click', () => switchLeftTab('project'));
+  document.getElementById('tabCodePane')?.addEventListener('click', () => switchLeftTab('code'));
+  document.getElementById('sceneList')?.addEventListener('click', (event) => {
+    const row = event.target.closest('.scene-row');
+    if (!row) return;
+    selectLogicClip(row.dataset.sceneId);
+    switchLeftTab('code');
   });
-  document.getElementById('tabRecipe')?.addEventListener('keydown', (event) => {
-    if (event.key !== 'ArrowRight' && event.key !== 'ArrowLeft') return;
-    event.preventDefault();
-    const next = event.key === 'ArrowLeft' ? 'assistant' : 'recipe';
-    switchRightTab(next);
-    document.getElementById(next === 'recipe' ? 'tabRecipe' : 'tabAssistant')?.focus();
-  });
+  document.getElementById('playToggle')?.addEventListener('click', togglePlayback);
+  document.getElementById('fitToggle')?.addEventListener('click', togglePreviewFit);
+  document.getElementById('monitorFullscreen')?.addEventListener('click', toggleMonitorFullscreen);
+  document.getElementById('layoutBtn')?.addEventListener('click', resetPanelLayout);
+  document.getElementById('ciOpenCode')?.addEventListener('click', () => switchLeftTab('code'));
+  document.getElementById('ciSplit')?.addEventListener('click', splitAtPlayhead);
+  document.getElementById('ciDuration')?.addEventListener('change', applyClipInspectorDuration);
+  initProjectChrome();
   initChatShortcut();
   initChatHistoryPopover();
   initLogicTimeline();
   renderProjectBin();
+  switchRightTab('inspector');
   const latestRun = readRunHistory()[0];
   if (latestRun) {
     const parts = [latestRun.name || 'RENDER'];
@@ -11114,7 +12520,7 @@ const PANEL_LIMITS = {
 const MIN_CENTER_W = 420;
 const MIN_STAGE_H = 260;
 
-const panelSizes = { colLeft: 300, colRight: 344, rowChat: 340 };
+const panelSizes = { colLeft: 300, colRight: 344, rowChat: 324 };
 
 function applyPanelSizes() {
   const root = document.documentElement;
@@ -11203,6 +12609,7 @@ function queuePrefsSave() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         theme: currentThemeKey,
+        projectName: currentProjectName(),
         panels: panelSizes,
         fonts: uiPrefs.fonts,
         codeColors: uiPrefs.codeColors,
@@ -11299,7 +12706,7 @@ function initSettingsUi() {
           if (legacyDefaults) {
             panelSizes.colLeft = 300;
             panelSizes.colRight = 344;
-            panelSizes.rowChat = 340;
+            panelSizes.rowChat = 324;
             queuePrefsSave();
           }
           for (const key of ['colLeft', 'colRight', 'rowChat']) {
@@ -11324,6 +12731,9 @@ function initSettingsUi() {
         if (prefs.performance && typeof prefs.performance === 'object') {
           uiPrefs.performance.gpuBoost = Boolean(prefs.performance.gpuBoost);
           applyGpuBoostUi();
+        }
+        if (typeof prefs.projectName === 'string' && prefs.projectName.trim()) {
+          applyProjectName(prefs.projectName);
         }
       }
     } catch (error) { console.error(error); }
@@ -11369,7 +12779,7 @@ function initMonaco() {
       lineHeight: 22,
       minimap: { enabled: false },
       scrollBeyondLastLine: false,
-      wordWrap: 'on',
+      wordWrap: 'off',
       tabSize: 2,
       automaticLayout: true,
       renderWhitespace: 'none',

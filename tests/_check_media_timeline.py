@@ -95,9 +95,9 @@ with tempfile.TemporaryDirectory() as tmp_name:
             assert page.evaluate("timelineState.clips.filter(c => c.type === 'code').length") == 1, "starter scene changed"
             assert page.locator("#binsCount").inner_text() == "2 ASSETS"
             assert page.locator(".dock-bin").count() == 2
-            assert page.locator("#codePaneTitle").inner_text() == "PROJECT MEDIA"
             assert page.locator("#mediaInspector").is_visible()
-            assert page.evaluate("document.getElementById('monacoHost').hidden")
+            assert page.locator("#inspectorTag").inner_text() == "MEDIA"
+            assert not page.locator("#monacoHost").is_visible()
 
             page.screenshot(path=str(ROOT / "output" / "playwright" / "media-project-bin.png"), full_page=True)
 
@@ -121,7 +121,8 @@ with tempfile.TemporaryDirectory() as tmp_name:
             assert image_clip["code"] == "", "media clip stored a fake HTML wrapper"
             starter = page.evaluate("timelineState.clips.find(c => c.type === 'code')")
             assert starter["start"] == 0, starter
-            assert page.locator("#codePaneTitle").inner_text() == "MEDIA CLIP"
+            assert page.locator("#mediaInspector").is_visible()
+            assert page.locator("#inspectorTag").inner_text() == "MEDIA"
             assert page.locator("#miInsert").is_hidden()
 
             # Insert the video at 3s, then use the inspector for length and slip.

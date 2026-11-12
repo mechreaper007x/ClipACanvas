@@ -36,7 +36,7 @@ with sync_playwright() as p:
     page.wait_for_timeout(1200)
 
     # A fresh timeline is one single track, not a stacked V2 over V1.
-    labels = page.locator(".et-label").all_inner_texts()
+    labels = page.locator(".et-label b").all_inner_texts()
     meta = page.locator("#timelineMeta").inner_text()
     print("initial layers:", labels, "meta:", meta)
     assert labels == ["V1"], labels
@@ -116,7 +116,7 @@ with sync_playwright() as p:
     page.reload(wait_until="load")
     page.wait_for_timeout(1200)
     assert page.locator(".logic-box").count() == 2, "timeline did not persist"
-    labels = page.locator(".et-label").all_inner_texts()
+    labels = page.locator(".et-label b").all_inner_texts()
     print("after reload layers:", labels)
     assert labels == ["V1"], "an empty extra layer survived the reload"
     active_name = page.locator(".logic-box.active .logic-name").inner_text()
@@ -152,7 +152,7 @@ with sync_playwright() as p:
     # Layers appear only when added: +LAYER adds V2 above the single timeline.
     page.click("#layerAdd")
     page.wait_for_timeout(300)
-    labels = page.locator(".et-label").all_inner_texts()
+    labels = page.locator(".et-label b").all_inner_texts()
     print("after add layer:", labels)
     assert labels == ["V2", "V1"], labels
     assert "2 LAYERS" in page.locator("#timelineMeta").inner_text()
@@ -195,7 +195,7 @@ with sync_playwright() as p:
     # Add a layer.
     page.click("#layerAdd")
     page.wait_for_timeout(300)
-    labels = page.locator(".et-label").all_inner_texts()
+    labels = page.locator(".et-label b").all_inner_texts()
     print("after add layer:", labels)
     assert labels == ["V3", "V2", "V1"], labels
     assert "3 LAYERS" in page.locator("#timelineMeta").inner_text()
@@ -211,7 +211,7 @@ with sync_playwright() as p:
     # Empty extra layers collapse on reload; layers come from the clips.
     page.reload(wait_until="load")
     page.wait_for_timeout(1200)
-    labels = page.locator(".et-label").all_inner_texts()
+    labels = page.locator(".et-label b").all_inner_texts()
     print("after reload layers:", labels)
     assert labels == ["V2", "V1"], "empty V3 did not collapse on reload"
 
