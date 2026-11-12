@@ -4,6 +4,25 @@ Date: 2026-11-12
 Branch: `main`
 Baseline: `main` at `b8addc5`; the speech/audio work described in the Phase 3 addendum is uncommitted at the time of writing.
 
+## Addendum — Phase 4 (semantic asset intelligence)
+
+Verified in the working tree on 2026-11-12, after `5fb33dd`.
+
+### What is implemented
+
+- **Local shot detection (offline):** FFmpeg's scene score (threshold 0.3, 320px analysis scale) scans the first 180 seconds of a video; the manifest (`analyzer.version` 2) stores up to 24 shot boundaries as `shots[]` with `start`, `end` and, for the first 12, a keyframe URL. Keyframes are 640px JPEGs extracted into the app-data analysis cache and served read-only at `GET /api/media/frames/<filename>/<n>.jpg`. Images and audio have no shots. Old manifests (v1) rebuild on first use, and project assets refresh automatically because the frontend requires analyzer version 2.
+- **Provider registry:** `GET /api/media/semantic/providers` lists Gemini with live availability (API key present), the verified model (`gemini-2.5-flash`), vision/transcript capabilities, the inline upload cap and a plain-language terms string.
+- **Consent-gated analysis:** `POST /api/media/semantic` rejects any request without `consent: true` (403). It sends at most 6 local keyframe JPEGs (an image is downscaled to one still), plus audio only if transcription was requested: audio assets must be mp3/wav/flac and under 19 MB; video audio is extracted locally to mono 24 kHz mp3 and capped at 5 minutes. The request uses the Gemini Interactions API (`/v1beta/interactions`) with a JSON `response_format.schema`; results are sanitized and merged into the manifest, preserving the user block. Provider failures return explicit 403/400/404/502 errors — there is no silent fallback or automatic upload.
+- **Inspector:** the CONTENT block shows the shot strip with timestamps and previews, AI tags, description and transcript, and the analyzed provider/model/frame count. ANALYZE CONTENT opens a consent panel that states exactly what is uploaded, requires an explicit checkbox and hides until a provider is available. A USER NOTE editor saves a human-confirmed description separately from AI fields; notes survive re-analysis and reload.
+- **Agent access:** `get_asset_analysis` returns the shot list and semantic fields; `search_assets` matches AI tags, subjects and transcript text in addition to names and human notes. The system prompt requires the agent to say "not analyzed" instead of inventing content, and no agent tool can start an upload.
+
+### Limitations
+
+- Shot detection covers only the first 180 seconds and keeps at most 24 boundaries / 12 previews. FFmpeg's scene metric can miss cuts between flat colors (verified: solid red→green→blue clips) while detecting textured footage reliably.
+- Hosted analysis was contract-tested against the documented Interactions API with a stubbed transport; no live Gemini call was made during verification because no hosted key was configured. The exact request body, response parsing, consent gate and error mapping are covered by tests.
+- Gemini is the only semantic provider. Transcript timestamps are model estimates (no word-level alignment), video transcription covers the first 5 minutes, and transcripts are read-only.
+- Shots and semantic data persist with the project in localStorage; there is still no project file format.
+
 ## Addendum — Phase 3 (speech generation and audio mix)
 
 Verified in the working tree on 2026-11-12.
@@ -90,7 +109,7 @@ Verified against the working tree on 2026-11-12, after `bb4772c`.
 | 1 | Improved zoom configuration | Done (presets, slider, numeric entry, anchoring) |
 | 2 | Transition library + generated transitions + overlay UI | Transitions + custom transitions done; overlay attachment UI still deferred |
 | 2 | Voiceover Studio + local/hosted TTS | Not started |
-| 3 | Semantic/visual/audio asset analysis | Not started |
+| 3 | Semantic/visual/audio asset analysis | Done (local shots + keyframes; consent-gated Gemini vision/transcript) |
 | 4 | Full workflow validation + project persistence of all new objects | Partial: overlays, analysis and transitions persist; TTS absent |
 
 ### Dependencies and licensing notes

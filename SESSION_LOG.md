@@ -3792,3 +3792,35 @@
 
 - Hosted TTS request paths verified from docs but not exercised live (no hosted key configured); semantic asset analysis, overlay attachment UI, frame/tick timebase remain.
 - `dist/ClipACanvas.exe` still needs a rebuild.
+
+## 2026-11-12 (Phase 4: semantic asset intelligence)
+
+### Summary
+
+- Added offline shot detection and keyframe extraction for video assets (FFmpeg scene score, first 180 s, up to 24 boundaries / 12 JPEG previews) with a read-only frame route; manifest version 2 now carries `shots[]`.
+- Added a consent-gated Gemini content-analysis path: `GET /api/media/semantic/providers` and `POST /api/media/semantic`. Requests without explicit consent are rejected; the backend uploads at most 6 local keyframes plus optional audio (audio assets mp3/wav/flac <19 MB; video audio extracted to mp3, first 5 minutes) and parses the Interactions API response into description/subjects/tags/suggested uses/transcript.
+- Inspector CONTENT block: shot strip, tags, description, transcript, analyzed provider/frame count, a consent panel with an explicit checkbox, and a user-note editor kept separate from AI fields (notes survive re-analysis and reload).
+- Agent access updated: `get_asset_analysis` includes shots, `search_assets` matches AI tags/subjects/transcript; prompt forbids claiming content when `not_analyzed`, and no tool can start an upload.
+
+### Files Touched
+
+- `serve.py`, `clipacanvas.html`
+- `docs/EDITOR_AUDIT.md` (Phase 4 addendum, plan table)
+- `tests/_check_asset_semantics.py`, `tests/_check_webview_semantics.py` (new)
+- `SESSION_LOG.md`
+
+### Verification
+
+- `_check_asset_semantics.py`: PASS — 3 textured shots at 0/1/2 s with keyframes (JPEG probes), image/audio have no shots, offline inspector strip, no-key provider reason, consent gate (run disabled until checked; server 403 without consent), vision request body (model, JSON schema, 3 image items, JPEG base64), audio transcription item (wav for audio assets, extracted mp3 for video audio), image single-frame path, mock-provider 502 keeps the previous result, technical cache returns the merged semantic manifest, agent tools, reload persistence.
+- `_check_webview_semantics.py`: PASS in WebView2 (Edg/157) — local shots, keyframe fetch as image/jpeg, consent gate without key, note persistence after reload.
+- Regressions PASS: `_check_asset_intelligence`, `_check_workspace`, `_check_overlays`, `_check_project_ops`, `_check_bin_dragdrop`, `_check_e2e_flow`, `_check_media_timeline`, `_check_transitions`, `_check_tts`, `_check_chat_scenes`, `_check_audio_import`, `_check_timeline_zoom`; `py_compile` and `node --check` clean.
+- Artifacts: `output/playwright/asset-semantics.png`, `webview-asset-semantics.png`.
+
+### Commits
+
+- This semantic asset intelligence change set committed locally; not pushed.
+
+### Open Items
+
+- Hosted semantic analysis was contract-tested with a stubbed transport, not a live Gemini call (no hosted key configured). Shot scan is limited to the first 3 minutes.
+- Overlay attachment UI, frame/tick timebase remain; `dist/ClipACanvas.exe` still needs a rebuild.

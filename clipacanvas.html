@@ -2431,6 +2431,131 @@ main.control-room #splitRight {
   color: var(--ink-soft);
 }
 .mi-analysis-grid span:first-child { color: var(--muted-3); }
+.mi-content-block {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-top: 7px;
+  border-top: 1px dashed var(--line-soft);
+}
+.mi-content-block[hidden] { display: none; }
+.mi-shots {
+  display: flex;
+  gap: 4px;
+  overflow-x: auto;
+  padding-bottom: 2px;
+  scrollbar-width: thin;
+}
+.mi-shots[hidden] { display: none; }
+.mi-shot {
+  flex: 0 0 auto;
+  width: 64px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+}
+.mi-shot img {
+  width: 64px;
+  height: 36px;
+  object-fit: cover;
+  border: 1px solid var(--line-soft);
+  background: #000;
+}
+.mi-shot figcaption {
+  font-family: var(--mono);
+  font-size: 0.4rem;
+  color: var(--muted-3);
+  letter-spacing: 0.4px;
+}
+.mi-shots-meta {
+  font-family: var(--mono);
+  font-size: 0.42rem;
+  color: var(--muted-3);
+  letter-spacing: 0.5px;
+}
+.mi-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+}
+.mi-tags[hidden] { display: none; }
+.mi-tags span {
+  font-family: var(--mono);
+  font-size: 0.4rem;
+  padding: 2px 5px;
+  border: 1px solid var(--line-soft);
+  color: var(--ink-soft);
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+}
+.mi-semantic-text {
+  margin: 0;
+  font-family: var(--mono);
+  font-size: 0.46rem;
+  line-height: 1.55;
+  color: var(--ink-soft);
+}
+.mi-semantic-text[hidden] { display: none; }
+.mi-transcript {
+  max-height: 110px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 4px 6px;
+  border-left: 2px solid var(--line-soft);
+}
+.mi-transcript[hidden] { display: none; }
+.mi-transcript p {
+  margin: 0;
+  font-family: var(--mono);
+  font-size: 0.44rem;
+  line-height: 1.5;
+  color: var(--muted-2);
+}
+.mi-transcript b { color: var(--ink-soft); font-weight: 600; }
+.mi-content-actions,
+.mi-consent-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.mi-content-actions .timeline-btn,
+.mi-consent-actions .timeline-btn { flex: 0 0 auto; }
+.mi-check {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--mono);
+  font-size: 0.44rem;
+  letter-spacing: 0.5px;
+  color: var(--muted-2);
+}
+.mi-check input { accent-color: var(--go); }
+.mi-check[hidden] { display: none; }
+.mi-consent {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 6px;
+  border: 1px solid var(--line-soft);
+  background: var(--panel-2);
+}
+.mi-consent[hidden] { display: none; }
+.mi-note-edit { display: flex; flex-direction: column; gap: 4px; }
+.mi-note-edit textarea {
+  width: 100%;
+  resize: vertical;
+  min-height: 34px;
+  background: var(--panel-2);
+  border: 1px solid var(--line-soft);
+  color: var(--ink);
+  font-family: var(--mono);
+  font-size: 0.46rem;
+  padding: 4px 6px;
+}
+.mi-note-edit .timeline-btn { align-self: flex-start; }
 
 .stage-pane {
   grid-column: 3;
@@ -4432,7 +4557,32 @@ body.asset-dragging * { cursor: grabbing !important; user-select: none !importan
         <div class="mi-analysis" id="miAnalysis" hidden>
           <div class="mi-analysis-head"><span>TECHNICAL</span><span id="miAnalysisStatus">—</span></div>
           <div class="mi-analysis-grid" id="miAnalysisGrid"></div>
-          <p class="mi-note" id="miSemanticNote"></p>
+          <div class="mi-content-block" id="miContentBlock" hidden>
+            <div class="mi-analysis-head"><span>CONTENT</span><span id="miContentStatus">NOT ANALYZED</span></div>
+            <div class="mi-shots" id="miShots" hidden></div>
+            <div class="mi-shots-meta" id="miShotsMeta" hidden></div>
+            <div class="mi-tags" id="miTags" hidden></div>
+            <p class="mi-semantic-text" id="miSemanticText" hidden></p>
+            <div class="mi-transcript" id="miTranscript" hidden></div>
+            <p class="mi-note" id="miSemanticNote"></p>
+            <div class="mi-content-actions">
+              <button type="button" id="miAnalyzeToggle" class="timeline-btn">ANALYZE CONTENT</button>
+              <span class="mi-shots-meta" id="miAnalyzeHint"></span>
+            </div>
+            <div class="mi-consent" id="miConsentRow" hidden>
+              <p class="mi-note" id="miConsentText"></p>
+              <label class="mi-check"><input type="checkbox" id="miConsentCheck"> I AGREE TO THIS UPLOAD</label>
+              <label class="mi-check" id="miConsentAudioRow" hidden><input type="checkbox" id="miConsentAudioCheck" checked> INCLUDE AUDIO FOR TRANSCRIPTION</label>
+              <div class="mi-consent-actions">
+                <button type="button" id="miAnalyzeRun" class="timeline-btn media-btn" disabled>UPLOAD &amp; ANALYZE</button>
+                <button type="button" id="miAnalyzeCancel" class="timeline-btn">CANCEL</button>
+              </div>
+            </div>
+            <div class="mi-note-edit">
+              <label class="mi-field"><span>USER NOTE</span><textarea id="miUserNote" rows="2" maxlength="2000" placeholder="Human-confirmed description used by search and the agent…"></textarea></label>
+              <button type="button" id="miUserNoteSave" class="timeline-btn">SAVE NOTE</button>
+            </div>
+          </div>
         </div>
         <div class="mi-actions">
           <button type="button" id="miEmbedScene" class="timeline-btn media-btn" hidden>INSERT INTO SCENE</button>
@@ -7227,7 +7377,7 @@ const CHAT_SYSTEM_PROMPT = [
   '- get_app_state: read the selected scene code, the full timeline, export settings and latest render result.',
   '- insert_animation_code: put a finished animation into the SELECTED scene (the editor); the live preview refreshes immediately. If the selected clip is imported media, a new blank code scene is created instead; imported media is never converted or overwritten.',
   '- add_scene: create an additional scene as its own logic box on the timeline, with its own complete HTML animation. The app appends it, selects it and previews it.',
-  '- search_assets and get_asset_analysis: inspect the project bin before composing around imported media. They return cached technical metadata, AI descriptions and an explicit semantic status. When the status is "not_analyzed", do not claim to see what the footage shows.',
+  '- search_assets and get_asset_analysis: inspect the project bin before composing around imported media. They return cached technical metadata, a locally detected shot list with keyframe indices, AI descriptions (only when the user ran consented content analysis) and an explicit semantic status. When the status is "not_analyzed", do not claim to see what the footage shows or to have heard its audio.',
   '- update_asset_description: save a human-confirmed description or production note on an asset. Keep it separate from AI-generated analysis and never overwrite it with generated text.',
   '- create_overlay, update_overlay, delete_overlay, attach_overlay, detach_overlay: build HTML overlays on their own track above footage. Overlay pages must use a fully transparent background. parentClipId makes an overlay follow its parent clip\'s timing while staying independently editable. This is attachment, not motion tracking — never claim to track objects in the footage.',
   '- get_clip_context: read a clip\'s timing, track, parent/children relationships and asset analysis before changing it.',
@@ -8846,7 +8996,9 @@ async function executeChatTool(call) {
           asset.kind,
           asset.analysis?.user?.description || '',
           asset.analysis?.semantic?.description || '',
-          ...(asset.analysis?.semantic?.tags || [])
+          ...(asset.analysis?.semantic?.tags || []),
+          ...(asset.analysis?.semantic?.subjects || []),
+          ...((asset.analysis?.semantic?.transcript || []).map(segment => segment.text))
         ].join(' ').toLowerCase();
         return haystack.includes(query);
       })
@@ -10765,6 +10917,11 @@ function saveTimelineState(immediate = false) {
   else timelineSaveTimer = setTimeout(write, 250);
 }
 
+const ASSET_ANALYSIS_VERSION = 2;
+const SEMANTIC_MAX_FRAMES = 6;
+let semanticProviderState = { loaded: false, loading: false, provider: null, error: '' };
+let semanticBusy = false;
+
 function sanitizeAssetAnalysis(raw) {
   if (!raw || typeof raw !== 'object') return null;
   const num = (value) => {
@@ -10797,9 +10954,18 @@ function sanitizeAssetAnalysis(raw) {
       streams: num(technical.streams),
       bytes: num(technical.bytes)
     },
+    shots: Array.isArray(raw.shots)
+      ? raw.shots.slice(0, 24).map(shot => ({
+        start: num(shot?.start),
+        end: num(shot?.end),
+        keyframe: text(shot?.keyframe, 300),
+        description: text(shot?.description, 300)
+      })).filter(shot => shot.keyframe || shot.start !== null)
+      : [],
     semantic: {
       status: text(raw.semantic?.status, 24) || 'not_analyzed',
       provider: raw.semantic?.provider ? text(raw.semantic.provider, 40) : null,
+      model: raw.semantic?.model ? text(raw.semantic.model, 60) : null,
       description: text(raw.semantic?.description, 2000),
       subjects: list(raw.semantic?.subjects),
       tags: list(raw.semantic?.tags, 24),
@@ -10819,7 +10985,11 @@ function sanitizeAssetAnalysis(raw) {
         })).filter(segment => segment.text)
         : [],
       suggestedUses: list(raw.semantic?.suggestedUses, 12),
-      confidence: Math.max(0, Math.min(1, Number(raw.semantic?.confidence) || 0))
+      confidence: Math.max(0, Math.min(1, Number(raw.semantic?.confidence) || 0)),
+      framesSent: num(raw.semantic?.framesSent),
+      audioSent: Boolean(raw.semantic?.audioSent),
+      audioNote: text(raw.semantic?.audioNote, 200),
+      analyzedAt: text(raw.semantic?.analyzedAt, 40)
     },
     user: {
       description: text(raw.user?.description, 2000),
@@ -11378,6 +11548,218 @@ function inspectorArtHtml(asset) {
   return `<img src="${escapeHtml(asset.url)}" alt="">`;
 }
 
+function inspectedAssetForAnalysis() {
+  if (!mediaInspectorTarget) return null;
+  if (mediaInspectorTarget.mode === 'asset') return findAsset(mediaInspectorTarget.id) || null;
+  const clip = timelineState.clips.find(item => item.id === mediaInspectorTarget.id);
+  return clip ? clipAsset(clip) : null;
+}
+
+function semanticFrameCount(asset) {
+  if (!asset || asset.kind === 'audio') return 0;
+  if (asset.kind === 'image') return 1;
+  const frames = (asset.analysis?.shots || []).filter(shot => shot.keyframe).length;
+  return frames ? Math.min(frames, SEMANTIC_MAX_FRAMES) : SEMANTIC_MAX_FRAMES;
+}
+
+function semanticHasAudio(asset) {
+  if (asset?.kind === 'audio') return true;
+  return asset?.kind === 'video' && Boolean(asset.analysis?.technical?.audioCodec);
+}
+
+function renderAssetContentAnalysis(asset) {
+  const block = document.getElementById('miContentBlock');
+  if (!block) return;
+  block.hidden = !asset;
+  if (!asset) return;
+  const analysis = asset.analysis || null;
+  const semantic = analysis?.semantic || {};
+  const previews = Array.isArray(analysis?.shots) ? analysis.shots.filter(shot => shot.keyframe) : [];
+  const shotsBox = document.getElementById('miShots');
+  const shotsMeta = document.getElementById('miShotsMeta');
+  const tagsBox = document.getElementById('miTags');
+  const semanticText = document.getElementById('miSemanticText');
+  const transcriptBox = document.getElementById('miTranscript');
+  const status = document.getElementById('miContentStatus');
+  const hint = document.getElementById('miAnalyzeHint');
+  const toggle = document.getElementById('miAnalyzeToggle');
+  const userNote = document.getElementById('miUserNote');
+  const consentRow = document.getElementById('miConsentRow');
+  if (consentRow) consentRow.hidden = true;
+  if (shotsBox) {
+    shotsBox.hidden = !previews.length;
+    shotsBox.innerHTML = previews.map(shot => {
+      const startLabel = `${Number(shot.start || 0).toFixed(1)}s`;
+      const endLabel = shot.end === null || shot.end === undefined ? 'END' : `${Number(shot.end).toFixed(1)}s`;
+      return `<figure class="mi-shot" title="${startLabel} → ${endLabel}">` +
+        `<img src="${escapeHtml(shot.keyframe)}" alt="Shot at ${startLabel}" loading="lazy">` +
+        `<figcaption>${startLabel}</figcaption></figure>`;
+    }).join('');
+  }
+  if (shotsMeta) {
+    const total = Array.isArray(analysis?.shots) ? analysis.shots.length : 0;
+    shotsMeta.hidden = !total;
+    shotsMeta.textContent = total
+      ? `${total} SHOT${total === 1 ? '' : 'S'} · ${previews.length} PREVIEW${previews.length === 1 ? '' : 'S'} · LOCAL`
+      : '';
+  }
+  if (tagsBox) {
+    const tags = semantic.tags || [];
+    tagsBox.hidden = !tags.length;
+    tagsBox.innerHTML = tags.map(tag => `<span>${escapeHtml(tag)}</span>`).join('');
+  }
+  if (semanticText) {
+    semanticText.hidden = !semantic.description;
+    semanticText.textContent = semantic.description || '';
+  }
+  if (transcriptBox) {
+    const transcript = semantic.transcript || [];
+    transcriptBox.hidden = !transcript.length;
+    transcriptBox.innerHTML = transcript.map(segment => {
+      const stamp = segment.start === null || segment.start === undefined
+        ? ''
+        : `<b>${Number(segment.start).toFixed(1)}s</b> `;
+      return `<p>${stamp}${escapeHtml(segment.text)}</p>`;
+    }).join('');
+  }
+  if (status) {
+    if (!analysis?.technical) {
+      status.textContent = asset.analysisError ? 'UNAVAILABLE' : 'PENDING';
+    } else if (semantic.status === 'analyzed') {
+      status.textContent = [
+        'ANALYZED',
+        String(semantic.provider || '').toUpperCase(),
+        semantic.framesSent ? `${semantic.framesSent} FRAME${semantic.framesSent === 1 ? '' : 'S'}` : '',
+        semantic.audioSent ? 'AUDIO' : ''
+      ].filter(Boolean).join(' · ');
+    } else {
+      status.textContent = 'NOT ANALYZED';
+    }
+  }
+  if (toggle) toggle.disabled = !analysis?.technical || semanticBusy;
+  if (hint) {
+    if (semanticBusy) hint.textContent = 'ANALYZING…';
+    else if (semantic.status === 'analyzed') hint.textContent = semantic.model || 'SAVED';
+    else if (semanticProviderState.loaded && !semanticProviderState.provider?.available) {
+      hint.textContent = semanticProviderState.provider?.reason || semanticProviderState.error || 'NO PROVIDER';
+    } else hint.textContent = '';
+  }
+  if (userNote && document.activeElement !== userNote) {
+    userNote.value = analysis?.user?.description || '';
+  }
+  if (!semanticProviderState.loaded && !semanticProviderState.loading) loadSemanticProviders();
+}
+
+async function loadSemanticProviders() {
+  if (semanticProviderState.loading) return semanticProviderState.provider;
+  semanticProviderState.loading = true;
+  try {
+    const response = await fetch('/api/media/semantic/providers');
+    const payload = await response.json();
+    if (!payload.ok) throw new Error(payload.error || 'Provider check failed');
+    semanticProviderState.provider = (payload.providers || []).find(item => item.id === 'gemini') || null;
+    semanticProviderState.error = '';
+  } catch (error) {
+    semanticProviderState.provider = null;
+    semanticProviderState.error = String(error?.message || error).slice(0, 120);
+  } finally {
+    semanticProviderState.loaded = true;
+    semanticProviderState.loading = false;
+    renderAssetContentAnalysis(inspectedAssetForAnalysis());
+  }
+  return semanticProviderState.provider;
+}
+
+async function openSemanticConsent() {
+  const asset = inspectedAssetForAnalysis();
+  if (!asset || semanticBusy) return;
+  const hint = document.getElementById('miAnalyzeHint');
+  semanticProviderState.loaded = false;
+  const provider = await loadSemanticProviders();
+  if (!provider || !provider.available) {
+    if (hint) hint.textContent = provider?.reason || semanticProviderState.error || 'NO PROVIDER';
+    return;
+  }
+  const frameCount = semanticFrameCount(asset);
+  const framesText = asset.kind === 'audio'
+    ? 'This audio file'
+    : `${frameCount === 1 ? '1 still frame' : `up to ${frameCount} still frames`}`;
+  const audio = semanticHasAudio(asset);
+  const audioText = asset.kind === 'video' ? ' and its audio track (first 5 minutes)' : '';
+  const text = document.getElementById('miConsentText');
+  if (text) text.textContent = `${provider.terms} ${framesText}${audioText} will be sent to ${provider.label}.`;
+  const audioRow = document.getElementById('miConsentAudioRow');
+  if (audioRow) audioRow.hidden = !(audio && asset.kind === 'video');
+  const check = document.getElementById('miConsentCheck');
+  if (check) check.checked = false;
+  const run = document.getElementById('miAnalyzeRun');
+  if (run) {
+    run.disabled = true;
+    run.textContent = 'UPLOAD & ANALYZE';
+  }
+  const row = document.getElementById('miConsentRow');
+  if (row) row.hidden = false;
+  if (hint) hint.textContent = provider.models?.[0]?.id || '';
+}
+
+async function runSemanticAnalysis() {
+  const asset = inspectedAssetForAnalysis();
+  const check = document.getElementById('miConsentCheck');
+  const audioCheck = document.getElementById('miConsentAudioCheck');
+  const audioRow = document.getElementById('miConsentAudioRow');
+  const run = document.getElementById('miAnalyzeRun');
+  const hint = document.getElementById('miAnalyzeHint');
+  if (!asset || !check?.checked || semanticBusy) return;
+  const transcribe = asset.kind === 'audio' || Boolean(audioRow && !audioRow.hidden && audioCheck?.checked);
+  semanticBusy = true;
+  if (run) {
+    run.disabled = true;
+    run.textContent = 'ANALYZING…';
+  }
+  try {
+    const response = await fetch('/api/media/semantic', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url: asset.url, provider: 'gemini', consent: true, transcribe })
+    });
+    const payload = await response.json();
+    if (!payload.ok || !payload.manifest) throw new Error(payload.error || 'Content analysis failed');
+    const next = sanitizeAssetAnalysis(payload.manifest);
+    if (next) next.user = asset.analysis?.user || next.user;
+    asset.analysis = next;
+    asset.analysisError = '';
+    saveTimelineState(true);
+    refreshMediaInspector();
+    const savedHint = document.getElementById('miAnalyzeHint');
+    if (savedHint) savedHint.textContent = 'ANALYSIS SAVED';
+  } catch (error) {
+    if (hint) hint.textContent = String(error?.message || error).slice(0, 160);
+  } finally {
+    semanticBusy = false;
+    if (run) {
+      run.textContent = 'UPLOAD & ANALYZE';
+      run.disabled = !check?.checked;
+    }
+  }
+}
+
+function saveAssetUserNote() {
+  const asset = inspectedAssetForAnalysis();
+  if (!asset) return;
+  if (!asset.analysis) {
+    analyzeProjectAsset(asset);
+    return;
+  }
+  const input = document.getElementById('miUserNote');
+  asset.analysis.user = {
+    description: String(input?.value || '').trim().slice(0, 2000),
+    notes: asset.analysis.user?.notes || '',
+    updatedAt: Date.now()
+  };
+  saveTimelineState(true);
+  refreshMediaInspector();
+}
+
 function renderAssetAnalysis(asset) {
   const box = document.getElementById('miAnalysis');
   const grid = document.getElementById('miAnalysisGrid');
@@ -11385,6 +11767,7 @@ function renderAssetAnalysis(asset) {
   const note = document.getElementById('miSemanticNote');
   if (!box || !grid) return;
   const analysis = asset?.analysis;
+  renderAssetContentAnalysis(asset);
   if (!analysis?.technical) {
     box.hidden = false;
     if (status) status.textContent = asset?.analysisError ? 'UNAVAILABLE' : 'PENDING';
@@ -12200,7 +12583,10 @@ function addProjectAsset(info, duration) {
 // is not run automatically and stays explicitly "not_analyzed".
 async function analyzeProjectAsset(asset) {
   if (!asset?.url || !asset.url.startsWith('/media/')) return null;
-  if (asset.analysis?.technical) return asset.analysis;
+  if (asset.analysis?.technical
+      && Number(asset.analysis.analyzer?.version || 0) >= ASSET_ANALYSIS_VERSION) {
+    return asset.analysis;
+  }
   try {
     const response = await fetch('/api/media/analyze', {
       method: 'POST',
@@ -13642,6 +14028,17 @@ function initLogicTimeline() {
   document.getElementById('miEmbedScene')?.addEventListener('click', () => embedAssetInScene());
   document.getElementById('miRemoveScene')?.addEventListener('click', removeAssetFromScene);
   document.getElementById('miSelectInBin')?.addEventListener('click', showSelectedAssetInBin);
+  document.getElementById('miAnalyzeToggle')?.addEventListener('click', openSemanticConsent);
+  document.getElementById('miAnalyzeCancel')?.addEventListener('click', () => {
+    const row = document.getElementById('miConsentRow');
+    if (row) row.hidden = true;
+  });
+  document.getElementById('miConsentCheck')?.addEventListener('change', (event) => {
+    const run = document.getElementById('miAnalyzeRun');
+    if (run) run.disabled = !event.target.checked;
+  });
+  document.getElementById('miAnalyzeRun')?.addEventListener('click', runSemanticAnalysis);
+  document.getElementById('miUserNoteSave')?.addEventListener('click', saveAssetUserNote);
 
   const mediaButton = document.getElementById('mediaAdd');
   const mediaInput = document.getElementById('mediaInput');

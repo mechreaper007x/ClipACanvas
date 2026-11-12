@@ -164,7 +164,7 @@ LLM_TOOL_DECLARATIONS = [
     },
     {
         "name": "get_asset_analysis",
-        "description": "Read one asset's cached analysis manifest: technical metadata, semantic status, AI description and user notes. Semantic analysis may be 'not_analyzed'; never invent visual content that is not in the manifest.",
+        "description": "Read one asset's cached analysis manifest: technical metadata, the locally detected shot list (with keyframe URLs), semantic status, AI description and user notes. Semantic analysis only exists after the user ran it with explicit consent; when it is 'not_analyzed', never invent visual or audio content that is not in the manifest.",
         "parameters": {
             "type": "object",
             "properties": {
@@ -551,7 +551,36 @@ def _media_dir() -> Path:
     return directory
 
 
-ANALYSIS_VERSION = 1
+ANALYSIS_VERSION = 2
+SEMANTIC_DEFAULT_MODEL = "gemini-2.5-flash"
+SEMANTIC_MAX_FRAMES = 6
+SEMANTIC_MAX_INLINE_BYTES = 19 * 1024 * 1024
+SEMANTIC_MAX_TRANSCRIPT_SECONDS = 300
+SEMANTIC_SHOT_SCAN_SECONDS = 180
+SEMANTIC_SHOT_LIMIT = 24
+SEMANTIC_KEYFRAME_LIMIT = 12
+SEMANTIC_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "description": {"type": "string"},
+        "subjects": {"type": "array", "items": {"type": "string"}},
+        "tags": {"type": "array", "items": {"type": "string"}},
+        "suggestedUses": {"type": "array", "items": {"type": "string"}},
+        "confidence": {"type": "number"},
+        "transcript": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "start": {"type": "number"},
+                    "text": {"type": "string"},
+                },
+                "required": ["text"],
+            },
+        },
+    },
+    "required": ["description", "tags"],
+}
 _ANALYSIS_DURATION_RE = re.compile(r"Duration:\s*(\d+):(\d+):(\d+(?:\.\d+)?)")
 _ANALYSIS_VIDEO_RE = re.compile(r"Stream #\d+:\d+[^:]*: Video: ([A-Za-z0-9_\-]+)")
 _ANALYSIS_RESOLUTION_RE = re.compile(r"(?<![\d.])(\d{2,5})x(\d{2,5})(?![\d.])")
@@ -1009,6 +1038,91 @@ def synthesize_speech(payload: dict) -> dict:
     return {**record, "ok": True, "cached": False, "cacheKey": cache_key}
 
 
+def _media_kind_for(filename: str) -> str:
+    media_type = MEDIA_TYPES.get(Path(filename).suffix.lower())
+    return media_type[0] if media_type else "file"
+
+
+def _analysis_frame_dir(filename: str) -> Path:
+    directory = _analysis_dir() / f"frames-{Path(filename).stem}"
+    directory.mkdir(parents=True, exist_ok=True)
+    return directory
+
+
+def _detect_media_shots(path: Path, filename: str, technical: dict) -> list[dict]:
+    """Offline shot boundaries via FFmpeg's scene score, with keyframe stills."""
+    if _media_kind_for(filename) != "video":
+        return []
+    duration = technical.get("duration")
+    scan_end = min(float(duration), SEMANTIC_SHOT_SCAN_SECONDS) if duration else None
+    args = [FFMPEG_EXE, "-hide_banner", "-nostats"]
+    if scan_end:
+        args += ["-t", f"{scan_end:.3f}"]
+    args += [
+        "-i", str(path), "-an",
+        "-vf", "scale=320:-2,select='gt(scene,0.3)',showinfo",
+        "-f", "null", "-",
+    ]
+    try:
+        proc = subprocess.run(args, capture_output=True, text=True, errors="replace", timeout=120)
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        print(f"  [SERVER] shot detection failed: {exc}")
+        return []
+    starts: list[float] = []
+    for line in (proc.stderr or "").splitlines():
+        if "Parsed_showinfo" not in line:
+            continue
+        match = re.search(r"pts_time:\s*([0-9.]+)", line)
+        if not match:
+            continue
+        moment = float(match.group(1))
+        if moment <= 0.05 or (scan_end and moment >= scan_end - 0.1):
+            continue
+        if starts and moment - starts[-1] < 0.4:
+            continue
+        starts.append(moment)
+        if len(starts) >= SEMANTIC_SHOT_LIMIT - 1:
+            break
+    boundaries = [0.0] + starts
+    shots = []
+    for index, start in enumerate(boundaries):
+        end = boundaries[index + 1] if index + 1 < len(boundaries) else scan_end
+        shots.append({
+            "start": round(start, 3),
+            "end": round(end, 3) if end is not None else None,
+            "keyframe": None,
+        })
+    frame_dir = _analysis_frame_dir(filename)
+    for index, shot in enumerate(shots[:SEMANTIC_KEYFRAME_LIMIT]):
+        target = frame_dir / f"shot-{index:02d}.jpg"
+        moment = shot["start"] + 0.15
+        if shot["end"] is not None:
+            moment = min(moment, max(shot["start"], shot["end"] - 0.05))
+        if not target.exists():
+            try:
+                extract = subprocess.run(
+                    [FFMPEG_EXE, "-y", "-hide_banner", "-loglevel", "error",
+                     "-ss", f"{moment:.3f}", "-i", str(path), "-frames:v", "1",
+                     "-vf", "scale=640:-2", "-q:v", "4", str(target)],
+                    capture_output=True, text=True, errors="replace", timeout=30,
+                )
+            except (OSError, subprocess.TimeoutExpired):
+                extract = None
+            if (extract is None or extract.returncode != 0
+                    or not target.exists() or target.stat().st_size < 128):
+                target.unlink(missing_ok=True)
+                continue
+        shot["keyframe"] = f"/api/media/frames/{filename}/{index}.jpg"
+    return shots
+
+
+def _write_analysis_manifest(filename: str, manifest: dict) -> None:
+    cache_path = _analysis_dir() / f"{filename}.json"
+    temp_path = cache_path.with_suffix(".tmp")
+    temp_path.write_text(json.dumps(manifest, indent=2), encoding="utf-8")
+    os.replace(temp_path, cache_path)
+
+
 def analyze_media_file(filename: str) -> dict:
     """Return a cached technical analysis manifest for a stored media file."""
     if not MEDIA_NAME_RE.match(filename or ""):
@@ -1037,6 +1151,7 @@ def analyze_media_file(filename: str) -> dict:
             "bytes": technical["bytes"],
         },
         "technical": technical,
+        "shots": _detect_media_shots(path, filename, technical),
         "semantic": {
             "status": "not_analyzed",
             "provider": None,
@@ -1051,16 +1166,269 @@ def analyze_media_file(filename: str) -> dict:
         "user": {"description": "", "notes": "", "updatedAt": None},
         "analyzer": {
             "version": ANALYSIS_VERSION,
-            "engine": "ffmpeg-input-probe",
+            "engine": "ffmpeg-input-probe+scene-detect",
             "analyzedAt": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
         },
     }
     try:
-        temp_path = cache_path.with_suffix(".tmp")
-        temp_path.write_text(json.dumps(manifest, indent=2), encoding="utf-8")
-        os.replace(temp_path, cache_path)
+        _write_analysis_manifest(filename, manifest)
     except OSError as exc:
         print(f"  [SERVER] analysis cache write failed: {exc}")
+    return manifest
+
+
+def semantic_provider_registry() -> dict:
+    keys = _load_saved_keys()
+    return {"providers": [{
+        "id": "gemini",
+        "label": "Google Gemini",
+        "kind": "remote",
+        "available": bool(keys.get("gemini")),
+        "reason": "" if keys.get("gemini") else "Add a Gemini API key in Settings.",
+        "models": [{"id": SEMANTIC_DEFAULT_MODEL, "label": "Gemini 2.5 Flash"}],
+        "capabilities": {"vision": True, "transcript": True, "shotDetection": "local"},
+        "maxInlineBytes": SEMANTIC_MAX_INLINE_BYTES,
+        "terms": (
+            "Uploads still frames of this asset (and its audio when transcription is enabled) "
+            "to Google generativelanguage.googleapis.com. Keys stay in the backend; the original "
+            "file never leaves this machine."
+        ),
+    }]}
+
+
+def _semantic_frame_bytes(path: Path, filename: str, manifest: dict, kind: str) -> list[bytes]:
+    frame_dir = _analysis_frame_dir(filename)
+    frames: list[bytes] = []
+    if kind == "image":
+        target = frame_dir / "image.jpg"
+        if not target.exists():
+            subprocess.run(
+                [FFMPEG_EXE, "-y", "-hide_banner", "-loglevel", "error", "-i", str(path),
+                 "-frames:v", "1", "-vf", "scale=640:-2", "-q:v", "4", str(target)],
+                capture_output=True, text=True, errors="replace", timeout=30,
+            )
+        if target.exists() and target.stat().st_size > 128:
+            frames.append(target.read_bytes())
+        return frames
+    for shot in manifest.get("shots") or []:
+        match = re.search(r"/(\d+)\.jpg$", str(shot.get("keyframe") or ""))
+        if not match:
+            continue
+        target = frame_dir / f"shot-{int(match.group(1)):02d}.jpg"
+        if target.exists() and target.stat().st_size > 128:
+            frames.append(target.read_bytes())
+        if len(frames) >= SEMANTIC_MAX_FRAMES:
+            break
+    if not frames and kind == "video":
+        target = frame_dir / "shot-00.jpg"
+        if target.exists() and target.stat().st_size > 128:
+            frames.append(target.read_bytes())
+    return frames
+
+
+def _semantic_audio_bytes(path: Path, kind: str, technical: dict) -> tuple[dict | None, str]:
+    if kind == "audio":
+        mime = {".mp3": "audio/mp3", ".wav": "audio/wav", ".flac": "audio/flac"}.get(path.suffix.lower())
+        if not mime:
+            raise ValueError("Transcription supports mp3, wav and flac audio files.")
+        if path.stat().st_size > SEMANTIC_MAX_INLINE_BYTES:
+            raise ValueError("This audio file is larger than the 20 MB inline limit; trim it first.")
+        return {"bytes": path.read_bytes(), "mime": mime}, ""
+    if kind != "video":
+        return None, ""
+    if not technical.get("audioCodec"):
+        return None, "No audio track in this video."
+    with tempfile.TemporaryDirectory() as tmp_name:
+        output = Path(tmp_name) / "speech.mp3"
+        try:
+            proc = subprocess.run(
+                [FFMPEG_EXE, "-y", "-hide_banner", "-loglevel", "error", "-i", str(path),
+                 "-vn", "-t", str(SEMANTIC_MAX_TRANSCRIPT_SECONDS), "-ac", "1", "-ar", "24000",
+                 "-b:a", "48k", "-f", "mp3", str(output)],
+                capture_output=True, text=True, errors="replace", timeout=180,
+            )
+        except (OSError, subprocess.TimeoutExpired):
+            return None, "Audio could not be extracted from this video."
+        if proc.returncode != 0 or not output.exists() or output.stat().st_size < 256:
+            return None, "Audio could not be extracted from this video."
+        note = ""
+        if float(technical.get("duration") or 0) > SEMANTIC_MAX_TRANSCRIPT_SECONDS:
+            note = "Transcribed the first 5 minutes of audio."
+        return {"bytes": output.read_bytes(), "mime": "audio/mp3"}, note
+
+
+def _semantic_prompt(kind: str, frame_count: int, has_audio: bool, audio_note: str) -> str:
+    parts = ["Analyze this media for a video editor's asset library and return JSON matching the schema."]
+    if frame_count:
+        parts.append(f"{frame_count} still frame(s) are attached in chronological order.")
+    if has_audio:
+        parts.append(
+            "The audio track is attached; transcribe speech verbatim in the transcript array, "
+            "using start seconds when you can estimate them (otherwise omit the start)."
+        )
+    if audio_note:
+        parts.append(audio_note)
+    parts.append(
+        "Describe only what is visible or audible; do not invent brands, names or events. "
+        "Use lowercase 1-3 word tags. confidence is a number from 0 to 1."
+    )
+    return " ".join(parts)
+
+
+def _parse_semantic_result(data: dict) -> dict:
+    texts: list[str] = []
+    for step in data.get("steps") or []:
+        if not isinstance(step, dict) or step.get("type") not in (None, "model_output"):
+            continue
+        for item in step.get("content") or []:
+            if isinstance(item, dict) and item.get("type") == "text" and isinstance(item.get("text"), str):
+                texts.append(item["text"])
+    text = "\n".join(texts).strip()
+    if not text and isinstance(data.get("output_text"), str):
+        text = data["output_text"].strip()
+    if not text:
+        raise RuntimeError("Gemini returned no analysis text.")
+    text = re.sub(r"^```(?:json)?\s*|\s*```$", "", text.strip())
+    try:
+        raw = json.loads(text)
+    except ValueError as exc:
+        raise RuntimeError("Gemini returned content analysis that was not valid JSON.") from exc
+    if not isinstance(raw, dict):
+        raise RuntimeError("Gemini returned an unexpected content analysis shape.")
+
+    def clean_text(value, limit: int) -> str:
+        return str(value or "").strip()[:limit]
+
+    def clean_list(value, limit: int, item_limit: int = 120) -> list[str]:
+        return [
+            item.strip()[:item_limit]
+            for item in (value if isinstance(value, list) else [])
+            if isinstance(item, str) and item.strip()
+        ][:limit]
+
+    transcript = []
+    for segment in raw.get("transcript") or []:
+        if isinstance(segment, str) and segment.strip():
+            transcript.append({"start": None, "text": segment.strip()[:500]})
+            continue
+        if not isinstance(segment, dict):
+            continue
+        segment_text = clean_text(segment.get("text"), 500)
+        if not segment_text:
+            continue
+        start = segment.get("start")
+        try:
+            start = round(float(start), 2) if start is not None and float(start) >= 0 else None
+        except (TypeError, ValueError):
+            start = None
+        transcript.append({"start": start, "text": segment_text})
+        if len(transcript) >= 200:
+            break
+    confidence = raw.get("confidence")
+    try:
+        confidence = max(0.0, min(1.0, float(confidence)))
+    except (TypeError, ValueError):
+        confidence = 0.0
+    return {
+        "description": clean_text(raw.get("description"), 2000),
+        "subjects": clean_list(raw.get("subjects"), 12),
+        "tags": clean_list(raw.get("tags"), 24),
+        "suggestedUses": clean_list(raw.get("suggestedUses"), 12),
+        "transcript": transcript,
+        "confidence": confidence,
+    }
+
+
+def semantic_media_file(filename: str, *, transcribe: bool) -> dict:
+    """Run consent-gated hosted content analysis and merge it into the manifest."""
+    if not MEDIA_NAME_RE.match(filename or ""):
+        raise ValueError("Unknown media file.")
+    path = _media_dir() / filename
+    if not path.exists():
+        raise FileNotFoundError("Media file not found.")
+    api_key = _load_saved_keys().get("gemini", "")
+    if not api_key:
+        raise PermissionError("Add a Gemini API key in Settings to run content analysis.")
+    manifest = analyze_media_file(filename)
+    kind = _media_kind_for(filename)
+    if kind == "audio" and not transcribe:
+        raise ValueError("Audio assets are analyzed through transcription; enable it for this request.")
+    frames = _semantic_frame_bytes(path, filename, manifest, kind)
+    if not frames and kind != "audio":
+        raise RuntimeError("No frames could be extracted from this asset.")
+    audio_payload = None
+    audio_note = ""
+    if transcribe:
+        audio_payload, audio_note = _semantic_audio_bytes(path, kind, manifest.get("technical") or {})
+    content: list[dict] = [{
+        "type": "text",
+        "text": _semantic_prompt(kind, len(frames), bool(audio_payload), audio_note),
+    }]
+    for frame in frames:
+        content.append({
+            "type": "image",
+            "data": base64.b64encode(frame).decode("ascii"),
+            "mime_type": "image/jpeg",
+        })
+    if audio_payload:
+        content.append({
+            "type": "audio",
+            "data": base64.b64encode(audio_payload["bytes"]).decode("ascii"),
+            "mime_type": audio_payload["mime"],
+        })
+    body = {
+        "model": SEMANTIC_DEFAULT_MODEL,
+        "input": [{"type": "user_input", "content": content}],
+        "response_format": {
+            "type": "text",
+            "mime_type": "application/json",
+            "schema": SEMANTIC_SCHEMA,
+        },
+    }
+    try:
+        data = ClipACanvasHandler._llm_http_post(
+            "https://generativelanguage.googleapis.com/v1beta/interactions",
+            body,
+            {"Content-Type": "application/json", "x-goog-api-key": api_key},
+            timeout=90,
+        )
+    except urllib.error.HTTPError as exc:
+        detail = ""
+        try:
+            detail = exc.read().decode("utf-8", errors="replace")[:400]
+        except Exception:
+            pass
+        raise RuntimeError(f"Gemini rejected the content analysis ({exc.code}): {detail or exc.reason}") from exc
+    except urllib.error.URLError as exc:
+        raise RuntimeError(f"Could not reach Gemini: {exc.reason}") from exc
+    result = _parse_semantic_result(data)
+    now = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+    manifest["semantic"] = {
+        "status": "analyzed",
+        "provider": "gemini",
+        "providerLabel": "Google Gemini",
+        "model": SEMANTIC_DEFAULT_MODEL,
+        "description": result["description"],
+        "subjects": result["subjects"],
+        "tags": result["tags"],
+        "shots": [],
+        "transcript": result["transcript"],
+        "suggestedUses": result["suggestedUses"],
+        "confidence": result["confidence"],
+        "framesSent": len(frames),
+        "audioSent": bool(audio_payload),
+        "audioNote": audio_note,
+        "consentAt": now,
+        "analyzedAt": now,
+        "terms": (
+            "Frames%s uploaded to Google Gemini with explicit user consent."
+            % (" and audio" if audio_payload else "")
+        ),
+    }
+    try:
+        _write_analysis_manifest(filename, manifest)
+    except OSError as exc:
+        raise RuntimeError(f"Analysis finished but could not be saved: {exc}") from exc
     return manifest
 
 
@@ -1555,11 +1923,15 @@ class ClipACanvasHandler(SimpleHTTPRequestHandler):
                 return self._handle_prefs_get()
             if self.path == '/api/tts/providers':
                 return self._handle_tts_providers()
+            if self.path == '/api/media/semantic/providers':
+                return self._handle_semantic_providers()
             if self.path == '/health':
                 return self._send_json({'ok': True})
             parsed = urllib.parse.urlparse(self.path)
             if parsed.path == '/render/frames':
                 return self._handle_render_frames(urllib.parse.parse_qs(parsed.query))
+            if parsed.path.startswith('/api/media/frames/'):
+                return self._handle_analysis_frame(parsed.path[len('/api/media/frames/'):])
             if parsed.path.startswith('/media/'):
                 return self._handle_media_get(parsed.path[len('/media/'):])
             return super().do_GET()
@@ -1589,6 +1961,8 @@ class ClipACanvasHandler(SimpleHTTPRequestHandler):
                 self._handle_media_upload()
             elif self.path == '/api/media/analyze':
                 self._handle_media_analyze()
+            elif self.path == '/api/media/semantic':
+                self._handle_media_semantic()
             elif self.path == '/api/tts/generate':
                 self._handle_tts_generate()
             elif self.path == '/api/llm/chat':
@@ -2507,6 +2881,76 @@ class ClipACanvasHandler(SimpleHTTPRequestHandler):
             print(f"  [SERVER] analysis error: {exc}")
             return self._send_json({'ok': False, 'error': 'Media analysis failed.'}, 500)
         self._send_json({'ok': True, 'manifest': manifest})
+
+    def _handle_analysis_frame(self, raw_name):
+        name = urllib.parse.unquote(raw_name)
+        match = re.match(r"^([^/]+)/(\d{1,2})\.jpg$", name)
+        if not match or not MEDIA_NAME_RE.match(match.group(1)):
+            return self._safe_text_error('Frame not found.', 404)
+        frame_dir = _analysis_dir() / f"frames-{Path(match.group(1)).stem}"
+        frame_path = frame_dir / f"shot-{int(match.group(2)):02d}.jpg"
+        try:
+            data = frame_path.read_bytes()
+        except OSError:
+            return self._safe_text_error('Frame not found.', 404)
+        self.send_response(200)
+        self.send_header('Content-Type', 'image/jpeg')
+        self.send_header('Content-Length', str(len(data)))
+        self.send_header('Cache-Control', 'private, max-age=3600')
+        self.end_headers()
+        try:
+            self.wfile.write(data)
+        except (BrokenPipeError, ConnectionResetError):
+            return
+
+    def _handle_semantic_providers(self):
+        try:
+            self._send_json({'ok': True, **semantic_provider_registry()})
+        except Exception as exc:
+            print(f"  [SERVER] semantic provider error: {exc}")
+            self._send_json({'ok': False, 'error': 'Could not list content-analysis providers.'}, 500)
+
+    def _handle_media_semantic(self):
+        try:
+            length = int(self.headers.get('Content-Length') or 0)
+        except ValueError:
+            length = 0
+        if length <= 0 or length > 65536:
+            return self._send_json({'ok': False, 'error': 'Invalid analysis request.'}, 400)
+        try:
+            payload = json.loads(self.rfile.read(length).decode('utf-8'))
+        except (ValueError, UnicodeDecodeError):
+            return self._send_json({'ok': False, 'error': 'Invalid JSON.'}, 400)
+        if not isinstance(payload, dict) or payload.get('consent') is not True:
+            return self._send_json({
+                'ok': False,
+                'error': 'Explicit consent is required before uploading media to a hosted provider.'
+            }, 403)
+        provider = str(payload.get('provider') or 'gemini').strip().lower()
+        if provider != 'gemini':
+            return self._send_json({
+                'ok': False,
+                'error': 'Only the Gemini content-analysis provider is available.'
+            }, 400)
+        url = str(payload.get('url') or '')
+        if not url.startswith('/media/'):
+            return self._send_json({'ok': False, 'error': 'Only project media can be analyzed.'}, 400)
+        filename = Path(urllib.parse.unquote(url[len('/media/'):])).name
+        transcribe = payload.get('transcribe') is True
+        try:
+            manifest = semantic_media_file(filename, transcribe=transcribe)
+        except PermissionError as exc:
+            return self._send_json({'ok': False, 'error': str(exc)}, 403)
+        except FileNotFoundError:
+            return self._send_json({'ok': False, 'error': 'Media file not found.'}, 404)
+        except ValueError as exc:
+            return self._send_json({'ok': False, 'error': str(exc)}, 400)
+        except RuntimeError as exc:
+            return self._send_json({'ok': False, 'error': str(exc)[:500]}, 502)
+        except Exception as exc:
+            print(f"  [SERVER] content analysis error: {exc}")
+            return self._send_json({'ok': False, 'error': 'Content analysis failed.'}, 500)
+        self._send_json({'ok': True, 'provider': provider, 'manifest': manifest})
 
     def _handle_tts_providers(self):
         try:
