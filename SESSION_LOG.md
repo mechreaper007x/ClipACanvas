@@ -4563,4 +4563,4 @@
 
 - Zero-shot tags are hints, not detections (scores cluster 0.55–0.68); the label set and margins may need tuning on real footage.
 - The stored frame vectors are not used by a search UI yet; they exist for a future "find similar / find by description" surface.
-- No git commit/push for this entry (not requested).
+- Pushed to GitHub as `49d0cba` on request; the commit also carries the earlier uncommitted Zonos, StyleTTS2-voices and NLE work.
