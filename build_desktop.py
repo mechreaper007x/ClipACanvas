@@ -47,7 +47,18 @@ def build_windows():
         ("serve.py", "."),
         ("playwright_render.py", "."),
         ("playwright_render.mjs", "."),
+        ("styletts2_worker.py", "."),
+        ("kokoro_worker.py", "."),
+        ("piper_worker.py", "."),
+        ("zonos_worker.py", "."),
+        ("embedding_worker.py", "."),
     ]
+
+    sts_voices_src = Path("styletts2-voices")
+    if sts_voices_src.exists():
+        add_data.append((str(sts_voices_src), "styletts2-voices"))
+    else:
+        print("WARNING: styletts2-voices/ folder not found. StyleTTS2 will only offer the default LJSpeech voice.")
 
     monaco_src = Path("node_modules") / "monaco-editor" / "min" / "vs"
     if monaco_src.exists():

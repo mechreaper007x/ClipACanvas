@@ -63,8 +63,8 @@ Verified in the working tree on 2026-11-12.
 
 ### What is implemented
 
-- **Provider registry:** `GET /api/tts/providers` reports three providers with live availability. `sapi` is the local Windows `System.Speech` engine (offline, no download, voices enumerated from the OS and cached five minutes). `gemini` uses the Gemini TTS Interactions API; `mistral` uses the Voxtral `/v1/audio/speech` endpoint. Each entry carries supported formats, capability flags (`speed`, `style`, `emotion`, `voiceCloning`, `streaming`) and a plain-language terms string shown in the UI. Hosted providers are marked unavailable with a reason until their key exists in the backend key store.
-- **Synthesis endpoint:** `POST /api/tts/generate` validates text (1–4000 chars), provider availability, model, voice, format, speed (0.5–2 where supported) and style. SAPI runs a PowerShell `System.Speech` script offline with the requested rate. Gemini sends the script plus optional `speech_metadata` style and reads base64 `output_audio`. Mistral sends `model`/`input`/`voice_id`/`response_format`/`stream` and reads `audio_data`. Keys stay in the existing backend key store; the frontend never receives them.
+- **Provider registry:** `GET /api/tts/providers` reports six providers with live availability and lists the local neural engines first, so the app defaults to one of them whenever it is installed. `styletts2` (LibriTTS), `kokoro` (82M, five voices including Hindi) and `piper` (CPU voices including Hindi) each run through a separate runtime interpreter and a persistent worker process; they report available only when their runtime imports cleanly and their assets exist, and the import probes run in parallel. Probe answers are persisted for 10 minutes (`tts-probes.json`) so a relaunch lists engines instantly, and the Voice panel hydrates from a cached registry with an explicit `CHECKING ENGINES…` state instead of an empty form. `sapi` is the local Windows `System.Speech` fallback. `gemini` uses the Gemini TTS Interactions API; `mistral` uses the Voxtral `/v1/audio/speech` endpoint. Each entry carries supported formats, capability flags (`speed`, `style`, `emotion`, `voiceCloning`, `streaming`) and a plain-language terms string shown in the UI. Hosted providers are marked unavailable with a reason until their key exists in the backend key store.
+- **Synthesis endpoint:** `POST /api/tts/generate` validates text (1–4000 chars), provider availability, model, voice, format, speed (0.5–2 where supported) and style. SAPI runs a PowerShell `System.Speech` script offline with the requested rate. StyleTTS2, Kokoro and Piper send the script to their local worker over JSON lines and read the returned WAV; audio never leaves the machine. Gemini sends the script plus optional `speech_metadata` style and reads base64 `output_audio`. Mistral sends `model`/`input`/`voice_id`/`response_format`/`stream` and reads `audio_data`. Keys stay in the existing backend key store; the frontend never receives them.
 - **Caching:** SHA-256 over the canonical request (version, provider, model, voice, format, speed, style, text) keyed under `%APPDATA%/ClipACanvas/tts`. A repeat request returns the existing media file without calling the provider. Audio is stored as a normal content-hashed `/media` asset, probed with the bundled FFmpeg for duration/sample rate/channels, and recorded with provider, voice and terms provenance.
 - **Voiceover Studio:** right-pane `VOICE` tab with script (selection pre-fills), character count, provider/model/voice/format/speed/style/target controls, an explicit hosted-provider consent line, generate action, status, audio preview, and insertion at the playhead on the chosen lane (`A1` default, `A2`/`A3` optional) or into the bin.
 - **Audio mix:** `A1 VOICEOVER` / `A2 MUSIC` / `A3 SFX` are persisted in `timelineState.audioTracks` with `mute`, `solo` and `volume` (0–2). Audio clips carry `audioTrack`. The inspector exposes lane assignment and per-lane mix rows; the timeline shows lane tags on audio clips. Export and hosted renders carry `audioTrack` plus gain, the renderer applies FFmpeg `volume=` and honors mute/solo (any solo lane suppresses non-solo lanes; muted or zero-gain clips are skipped).
@@ -74,9 +74,11 @@ Verified in the working tree on 2026-11-12.
 
 - Hosted providers were implemented against the official documentation (Gemini Interactions API; Mistral `audio/speech` reference) but no live hosted call was made during verification because no hosted key was configured. Failures surface explicit provider errors (502) instead of silently falling back to another provider.
 - Mistral Voxtral is exposed with preset voices only; cloning needs a reference-audio upload and is not exposed. Speed/style controls hide for providers that do not support them.
+- StyleTTS2 uses the default LJSpeech reference voice; the runtime supports voice cloning through a reference WAV, but the app does not expose a reference-voice picker yet. Its first generation loads the model (about 30 s on the test machine), then lines synthesize in about a second. The packaged build does not bundle torch; it needs the separate StyleTTS2 runtime folder.
+- Kokoro and Piper ship five voices (Kokoro) and two voices (Piper, English and Hindi) on this machine; adding more voices means adding models to their runtime folders. Kokoro's first line loads the pipeline (about 15 s cold on the test machine), then warm lines take a fraction of a second; Piper is CPU-only and warm lines are around 0.15 s.
 - SAPI voice quality depends on installed Windows voices; UI speed maps onto the engine's rate scale.
 - Audio lanes are logical (`clip.audioTrack` + mix); clips still sit visually on the V1–V4 rows with `A1`–`A3` tags, and there are no typed audio lanes or lane heights yet.
-- Voiceover Studio generates whole scripts or the selected text; there is no per-paragraph regeneration, scrubbing preview, or TTS agent tool yet.
+- Voiceover Studio generates whole scripts or the selected text; there is no per-paragraph regeneration or scrubbing preview.
 
 ## Addendum — Phase 2 (transition engine)
 
@@ -142,7 +144,7 @@ Verified against the working tree on 2026-11-12, after `bb4772c`.
 | 1 | TTS provider abstraction | Deferred (no provider verified yet) |
 | 1 | Improved zoom configuration | Done (presets, slider, numeric entry, anchoring) |
 | 2 | Transition library + generated transitions + overlay UI | Done (13 presets, custom code, inspector attach/detach) |
-| 2 | Voiceover Studio + local/hosted TTS | Done (SAPI, Gemini, Mistral; A1–A3 mix) |
+| 2 | Voiceover Studio + local/hosted TTS | Done (StyleTTS2, Kokoro, Piper, ZONOS3-Mini, SAPI, Gemini, Mistral; A1–A3 mix) |
 | 3 | Semantic/visual/audio asset analysis | Done (local shots + keyframes; consent-gated Gemini vision/transcript) |
 | 4 | Full workflow validation + project persistence of all new objects | Done in localStorage + `.ccproj.json`; hosted-provider live checks pending |
 
@@ -191,6 +193,7 @@ No new runtime dependencies were added. Asset probing reuses the bundled FFmpeg;
 
 ### AI and integrations
 - Chat with provider/model selection, tool calls (`get_app_state`, `set_export_settings`, `insert_animation_code`, `add_scene`, `render_video`), settings gating, code verification turn, chat SQLite with migration (`clipacanvas.html:6780-6850`, `:8288-8450`; `serve.py:642-829`).
+- Chat sessions are scoped per project: the SQLite `sessions` table carries `project_id`, legacy chats are bound to the last open project on migration, opening a project loads only its sessions (and a new project starts with a new chat), and every save replaces just that project's rows. The CHATS popover is project-labelled.
 - MCP STDIO/SSE servers expose `render_video` / `render_video_to_file` through an in-process renderer; TUI exists under `tui/`.
 - Desktop shell uses pywebview with a loopback random-port server, native save/open dialogs, bundled browser/FFmpeg resolution (`desktop_app.py:170-243`).
 
@@ -303,3 +306,64 @@ Verified on 2026-11-12 against the real stored keys (keys were loaded by the bac
 
 - The Mistral 3.0 rate limit is account-side; the app surfaces the provider error instead of hiding or retrying indefinitely.
 - Hosted calls still require the user's keys in the backend store; no key material is exposed to the frontend or logs.
+
+## Addendum — Premiere-style keyboard shortcuts (2026-11-14)
+
+- Ctrl/Cmd+A outside text fields selects every timeline clip and never highlights page text; Ctrl+Shift+A clears the selection. Ctrl+A in inputs, textareas and Monaco keeps native select-all.
+- Multi-clip selection: Shift+click adds, Ctrl+click toggles; selected clips render with a go-colored ring. The active clip still drives the editor and inspector.
+- Premiere-style keys: Space play/pause; J/K/L shuttle with rate doubling; Left/Right frame step; Shift+Left/Right five frames; Up/Down previous/next edit point; Home/End; Ctrl+K add edit (split at playhead); Delete/Backspace lift (gap stays); Shift+Delete ripple delete; S snapping toggle; = / - zoom; \ fit; Ctrl+Z / Ctrl+Shift+Z / Ctrl+Y undo/redo.
+- Ctrl+Shift+K now focuses Clipppa chat (Ctrl+K was freed for Add Edit).
+- A `?` button in the timeline header and Ctrl+Alt+K open the shortcut sheet; `?` no longer opens while typing in an input.
+- Batch ripple delete processes removals right-to-left so multi-clip gaps close exactly once; a multi delete is one undo step.
+- Project files now persist `timeline.activeId`, so restoring an autosave reopens the clip that was being edited.
+- Tests: `tests/_check_shortcuts_selection.py` (selection, text-selection guard, lift/ripple, batch delete, split, snapping, edit points, frame steps, zoom, JKL, shortcut sheet, header fit at 1664/1440/1280).
+
+## Addendum — Voice catalog and automatic transitions (2026-11-14)
+
+- The speech registry now labels every voice with a gender. Kokoro exposes 19 curated English and Hindi voices (10 male, including Michael, Adam, Eric, Fenrir, Liam, Onyx, Puck, Daniel, George, Omega), Gemini's 30 prebuilt voices carry the documented Google Cloud genders, Mistral voices are labelled male/female, and Windows SAPI labels include the installer's gender.
+- The chat assistant now receives a live "Available speech voices" system message with ids and genders. `generate_voiceover` accepts `gender` in addition to `voice`; the resolver matches ids, display names and labels, and moves to a provider that has the requested gender (StyleTTS2 is female-only, so a male request lands on Kokoro, Piper, SAPI or a hosted male voice). The frontend provider cache key was bumped to v2.
+- AI scene creation is auto-scored: `add_scene` installs a 0.4s dissolve on the new touching cut unless a `transition` object (preset or custom `renderTransition` code) is supplied; `transition:false` keeps a hard cut. `add_transition` accepts `all:true` to apply or update one effect at every touching cut without stacking duplicates. The system prompt now makes transitions the default finish for every cut and gives the model both paths to write custom code itself.
+- Fixed a selection regression where pressing a transition badge re-rendered the timeline during pointerdown and swallowed the badge click; badges now bypass the empty-lane scrub.
+- Tests: `tests/_check_voice_genders_transitions.py` (gender routing by gender/name/id, provider fallback, 19-voice panel, auto dissolve, custom scene transition, hard cut, all-cuts dedupe, verify); `_check_tts.py`, `_check_agent_voice.py`, `_check_voice_provider_cache.py`, `_check_transitions.py`, `desktop_smoke.py`, `_check_packaged_agent_plan.py` and `_check_packaged_shortcuts.py` pass.
+
+## Addendum — Microsoft Edge neural voices (2026-11-14)
+
+- A seventh provider, `edge` ("Microsoft Edge Neural (online)"), adds the free Microsoft read-aloud catalog: 322 neural voices across 142 locales with male and female options for most languages and no account or key. English, Hindi and the other priority locales are sorted first; each voice carries its locale and gender.
+- The catalog is fetched once from Microsoft's voice-list endpoint, cached in `tts-probes`-style disk JSON (`edge-voices.json`, 24h TTL) and kept in memory. A curated 49-voice fallback keeps the provider usable on a first start without internet; the registry never blocks on a refresh it cannot serve.
+- Synthesis uses `edge_tts` 7.3.1 (7.2.x receives a 403 from the DRM-protected endpoint) with an explicit aiohttp `ThreadedResolver`, because aiodns cannot reach DNS servers on this machine. Output is 24 kHz mp3 and flows through the same media probe, cache and A1–A3 lanes as every other provider.
+- `generate_voiceover` accepts `provider: "edge"`; the chat voice catalog lists 80 Edge ids (all priority locales) plus a note that ids follow `locale-NameNeural`. The resolver matches Edge ids or names (e.g. "Ryan", "Madhur") and keeps local engines ahead of online voices for plain gender requests.
+- Defensive fix: an unavailable provider with no key now fails with its reason instead of falling through to the Mistral branch; the frontend provider cache key moved to v3.
+- Packaging: `edge_tts` and `aiohttp` are collected by `build_desktop.py`, `ClipACanvas.spec` and `ClipACanvasDebug.spec`; requirements list `edge-tts>=7.3.1`.
+- Tests: `_check_tts.py` generates a live Edge mp3 through `/api/tts/generate`; `_check_voice_genders_transitions.py` checks 322 voices, gender counts, Hindi coverage, name/id/gender routing and 322 panel options; `_check_voice_provider_cache.py` expects 7 providers.
+
+## Addendum — StyleTTS2 narrator voices; Edge provider removed (2026-11-14)
+
+- StyleTTS2 now exposes eight narrators: the original LJSpeech target (`default`) plus seven LibriTTS reference voices (three female, four male). The 3 s, 16 kHz references are bundled in `styletts2-voices/` (LibriTTS, CC BY 4.0, from the official StyleTTS2 demo page).
+- The worker computes each voice's style embedding lazily from its reference and caches it in memory for the session; later lines stay at roughly the previous speed. The registry lists a voice only when its reference file exists.
+- Male requests now route to a StyleTTS2 LibriTTS male voice first because StyleTTS2 heads the local provider order; Kokoro/SAPI still cover names or engines that StyleTTS2 lacks. Measured on identical text: LJSpeech ~205 Hz, LibriTTS 4077 ~112 Hz.
+- The Microsoft Edge provider added earlier today was removed on request: catalog, synthesis, registry entry, tool enum, frontend prompt/catalog, packaging flags, requirements and tests are gone. The frontend provider cache key moved to v4.
+- Packaging bundles `styletts2-voices/` in `build_desktop.py`, `ClipACanvas.spec` and `ClipACanvasDebug.spec`.
+- Tests: `tests/_check_styletts2_voices.py` (new; catalog, synthesis, pitch separation), `_check_voice_genders_transitions.py` (8 voices, male routing by gender/name/id, panel), `_check_tts.py`, `_check_voice_provider_cache.py` (6 providers, v4) and `_check_packaged_agent_plan.py` updated.
+
+
+
+## Addendum — ZONOS3-Mini local narrator engine (2026-11-14)
+
+- An eighth provider, `zonos` ("ZONOS3-Mini (local neural)"), adds Zyphra's 2026 Apache-2.0 TTS model: 27 named narrators (10 English plus French, German, Hindi, Italian, Korean, Mandarin, Portuguese, Spanish and Telugu) across 43 languages at 44.1 kHz. It runs through `transformers` remote code (`trust_remote_code=True`) in a persistent worker, so script text never leaves the machine.
+- Runtime: `runtimes/zonos/assets` holds the HF checkpoint (`config.json`, `model.safetensors`, `voices.safetensors`, `modeling_zonos3.py` and tokenizer files); `runtimes/zonos/runtime.json` names the interpreter and assets folder. On this machine the engine-interpreter search resolves to Python 3.11 with torch 2.11 and transformers 5.9. `CLIPACANVAS_ZONOS_PYTHON`, `CLIPACANVAS_ZONOS_ASSETS` and `CLIPACANVAS_ZONOS_DEVICE` override the same values.
+- Device: CPU `float32` is the default (cold load about 27 s, about 8 s per short line, roughly 4x real time). `CLIPACANVAS_ZONOS_DEVICE=cuda` switches the worker to `float16` on this 4 GB GTX 1650 (cold load about 17 s, about 5 s per line); GPU is opt-in so renders keep the card.
+- Text normalization: `zyphra-textnorm` is optional and not installed here, so numbers, dates and units pass through unnormalized (the worker prints a one-time notice to stderr). English, Hindi and the other release voices synthesize correctly without it.
+- Voice routing: the catalog gives every narrator a gender; the resolver matches Zonos names (`Savannah`, `Arjun`) or ids, and the chat prompt points non-English scripts at the matching Zonos narrator. The local provider order is StyleTTS2 → Kokoro → Piper → Zonos, and the frontend provider cache key moved to v5.
+- Synthesis uses a 900 s request timeout for this engine (other local workers keep 180 s) because long CPU lines are slower than real time; `generate_voiceover` accepts `provider: "zonos"`.
+- Packaging: `zonos_worker.py` is bundled by `build_desktop.py`, `ClipACanvas.spec` and `ClipACanvasDebug.spec`. Model assets stay outside the exe in the runtime folder.
+- Tests: `tests/_check_zonos.py` (new; 27-voice catalog, Savannah English and Arjun Hindi synthesis, 44.1 kHz probe, pitch separation Savannah 200.6 Hz vs Wyatt 94.9 Hz), `_check_voice_genders_transitions.py` (27 panel options, Zonos name/Hindi routing), `_check_voice_provider_cache.py` (v5, 7+ providers) and `_check_packaged_agent_plan.py` (Zonos take in the packaged exe) updated.
+
+## Addendum — Local visual index and media-aware overlays (2026-11-14)
+
+- A local EmbeddingGemma 2 tier (`google/embeddinggemma-2`, Apache 2.0, text+image encoders only) now indexes imported media. `analyze_media_file` embeds up to three shot keyframes, runs zero-shot object/scene tagging against a 96-label vocabulary (top 4 tags per keyframe with a score floor and top-relative margin), stores 768-d frame vectors in `analysis/embeddings-<asset>.json`, and records a frame-difference motion score/peak/label for videos. Everything runs on this machine; unlike the Gemini vision tier there is no upload and no consent step.
+- Runtime: `runtimes/embedgemma2/assets` holds the 1.49 GB checkpoint and `runtime.json` names the interpreter (Python 3.11, sentence-transformers 6.3, transformers 5.23). `CLIPACANVAS_EMBEDDING_PYTHON`, `CLIPACANVAS_EMBEDDING_ASSETS` and `CLIPACANVAS_EMBEDDING_DEVICE` override them. The device default is `auto`: CUDA only on cards with at least 8 GB, so this 4 GB GTX 1650 stays on CPU and leaves VRAM for renders (CPU ≈ 6 s per keyframe; CUDA measured ≈ 5× faster).
+- Analysis version is 3. `analysis.visual` (status, provider, tags, per-frame tags, motion) is sanitized into project files; the media inspector shows the local tags, motion label and a `LOCAL VISUAL INDEX · EMBEDDINGGEMMA2` status; `search_assets` matches visual tags; and the agent's asset summary now carries `visualTags`, `motion` and shot count. The system prompt tells the agent to read asset analysis before creating overlays on media and to cite tags honestly.
+- Zero-shot labels are hints, not detections: scores sit in a narrow 0.55–0.68 band, so each frame keeps only the top four within 0.045 of its best label; expect common near-neighbours (football/sport/field) and treat tags as evidence, not ground truth.
+- Live verification with the real Gemini key: the agent created a lower-third overlay with `create_overlay` and `parentClipId` on an imported football still, with its visual tags (`football, sport, sun, field`) in the chat context; asked for a custom transition, it wrote its own `renderTransition(ctx)` wipe and saved it via `add_transition` (0.5 s). At the cut the Program Monitor composite showed both layers at opacity 0.5 with `clip-path: inset(0 50% 0 0)`, and removing the transition returned the preview to single-clip mode.
+- Packaging: `embedding_worker.py` is bundled by `build_desktop.py`, `ClipACanvas.spec` and `ClipACanvasDebug.spec`; model assets stay in the runtime folder.
+- Tests: `tests/_check_embeddings.py` (image tags, video keyframes, motion vs a still video, 768-d sidecar), `tests/_check_visual_ui.py` (inspector tags/status), `tests/_check_agent_live_media.py` (live model overlay + model-written transition), `_check_voice_genders_transitions.py` regression, and `_check_packaged_agent_plan.py` now indexes a still through `/api/media/analyze` inside the exe.

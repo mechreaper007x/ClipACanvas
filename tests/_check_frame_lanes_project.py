@@ -148,10 +148,11 @@ with tempfile.TemporaryDirectory() as tmp_name:
             assert abs(page.evaluate("timelineState.playhead") - 1.0) < 1e-5
             assert page.locator("#monitorTime").inner_text() == "00:00:01:00"
             page.keyboard.press("Shift+ArrowRight")
-            assert abs(page.evaluate("timelineState.playhead") - 2.0) < 1e-5
+            assert abs(page.evaluate("timelineState.playhead") - (1 + 5 / 60)) < 1e-5
             page.evaluate("document.getElementById('frameRate').value = '30'")
+            page.evaluate("setPlayhead(1)")
             page.keyboard.press("ArrowRight")
-            assert abs(page.evaluate("timelineState.playhead") - (2 + 1 / 30)) < 1e-4
+            assert abs(page.evaluate("timelineState.playhead") - (1 + 1 / 30)) < 1e-4
             assert page.locator("#monitorTime").inner_text().endswith(":01")
             page.evaluate("document.getElementById('frameRate').value = '60'")
 

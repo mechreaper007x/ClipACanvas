@@ -2745,6 +2745,11 @@ main.control-room #splitRight {
   cursor: pointer;
   white-space: nowrap;
 }
+.timeline-btn.is-on {
+  color: var(--go);
+  border-color: rgba(var(--go-rgb), 0.5);
+  background: rgba(var(--go-rgb), 0.08);
+}
 .timeline-btn:hover {
   color: var(--go);
   border-color: rgba(var(--go-rgb), 0.45);
@@ -2757,6 +2762,83 @@ main.control-room #splitRight {
   color: var(--go);
   border-color: rgba(var(--go-rgb), 0.34);
   background: rgba(var(--go-rgb), 0.04);
+}
+
+#shortcutHelpModal {
+  position: fixed;
+  inset: 0;
+  z-index: 99999;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(0, 0, 0, 0.9);
+}
+.shortcut-dialog {
+  width: min(780px, 100%);
+  max-height: 88vh;
+  overflow: auto;
+  padding: 20px 22px;
+  background: var(--panel-3);
+  border: 1px solid var(--line-soft);
+  font-family: var(--mono);
+}
+.shortcut-head {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+.shortcut-head .eyebrow { color: var(--go); }
+.shortcut-head em {
+  font-style: normal;
+  font-size: 0.46rem;
+  letter-spacing: 1px;
+  color: var(--muted-3);
+}
+.shortcut-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px 26px;
+}
+.shortcut-group h3 {
+  margin: 0 0 5px;
+  font-size: 0.46rem;
+  font-weight: 500;
+  letter-spacing: 1.5px;
+  color: var(--muted-2);
+}
+.shortcut-row {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 3px 0;
+  border-bottom: 1px dashed rgba(127, 127, 127, 0.12);
+  font-size: 0.55rem;
+  line-height: 1.45;
+}
+.shortcut-row kbd {
+  flex: 0 0 auto;
+  min-width: 96px;
+  color: var(--go);
+  font-family: var(--mono);
+  font-size: 0.53rem;
+  letter-spacing: 0.4px;
+}
+.shortcut-row span { color: var(--muted); }
+.shortcut-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 16px;
+}
+.shortcut-actions .shortcut-foot {
+  font-size: 0.46rem;
+  letter-spacing: 0.6px;
+  color: var(--muted-3);
+}
+@media (max-width: 760px) {
+  .shortcut-grid { grid-template-columns: 1fr; }
 }
 
 .dock-left {
@@ -2811,10 +2893,9 @@ main.control-room #splitRight {
   overflow-y: auto;
 }
 .et-row {
-  flex: 1 1 0;
-  min-height: 38px;
-  max-height: 112px;
+  flex: 0 0 auto;
   display: flex;
+  position: relative;
   border-bottom: 1px solid var(--line-soft);
 }
 .et-row:last-child { border-bottom: 0; }
@@ -2864,6 +2945,14 @@ main.control-room #splitRight {
   border-left-color: var(--go);
   box-shadow: inset 0 0 0 1px rgba(var(--go-rgb), 0.35);
 }
+.logic-box.selected {
+  border-color: var(--go);
+  box-shadow: inset 0 0 0 1px rgba(var(--go-rgb), 0.8);
+}
+.logic-box.active.selected {
+  box-shadow: inset 0 0 0 2px rgba(var(--go-rgb), 0.55);
+}
+.logic-box.selected .logic-dur { color: var(--go); }
 .logic-box.dragging { opacity: 0.45; pointer-events: none; cursor: grabbing; }
 .logic-audio-lane {
   flex: 0 0 auto;
@@ -3344,6 +3433,12 @@ main.control-room #splitRight {
   font-size: 0.55rem;
   letter-spacing: 2px;
   color: var(--go);
+}
+.chat-scope-label {
+  font-style: normal;
+  letter-spacing: 1px;
+  color: var(--muted-2);
+  margin-left: 4px;
 }
 #chatHistoryList {
   flex: 1;
@@ -4238,18 +4333,35 @@ body.asset-dragging * { cursor: grabbing !important; user-select: none !importan
   background-image: linear-gradient(90deg, var(--line-soft) 1px, transparent 1px);
   background-size: calc((100% - 54px) / 4) 100%;
   background-position: 54px 0;
+  scrollbar-width: thin;
+  scrollbar-color: var(--line) transparent;
 }
+.et-tracks::-webkit-scrollbar { width: 8px; }
+.et-tracks::-webkit-scrollbar-thumb { background: var(--line); border-radius: 4px; }
+.et-tracks::-webkit-scrollbar-track { background: transparent; }
 .et-lane { overflow: hidden; }
 .et-row {
-  flex: 1 1 0;
-  min-height: 30px;
-  max-height: 74px;
+  flex: 0 0 auto;
   overflow: hidden;
+  position: relative;
 }
-.et-row.audio-row {
-  flex: 0 0 32px;
-  min-height: 32px;
-  max-height: 32px;
+.et-row.is-empty .et-label em { display: none; }
+.et-row.is-empty .et-lane {
+  background-image: none;
+  background-color: transparent;
+}
+.lane-resize {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 4px;
+  z-index: 4;
+  cursor: ns-resize;
+}
+.lane-resize:hover {
+  background: rgba(var(--go-rgb), 0.4);
+  box-shadow: 0 -1px 0 rgba(var(--go-rgb), 0.65);
 }
 .et-row.audio-row .logic-box { padding-top: 2px; }
 .et-row.audio-row .logic-snippet { display: none; }
@@ -4900,7 +5012,7 @@ body.asset-dragging * { cursor: grabbing !important; user-select: none !importan
 
     <div id="chatHistoryPop" class="chat-history-pop" hidden>
       <div class="chat-history-pop-head">
-        <span>CHATS</span>
+        <span>CHATS <em id="chatScopeLabel" class="chat-scope-label"></em></span>
         <button type="button" id="chatNew" class="chat-new" title="Start a new chat">+ NEW CHAT</button>
       </div>
       <div id="chatHistoryList"></div>
@@ -5328,11 +5440,13 @@ body.asset-dragging * { cursor: grabbing !important; user-select: none !importan
               <button type="button" id="boxUndo" class="timeline-btn icon" title="Undo (Ctrl+Z)" disabled>↶</button>
               <button type="button" id="boxRedo" class="timeline-btn icon" title="Redo (Ctrl+Shift+Z / Ctrl+Y)" disabled>↷</button>
               <button type="button" id="boxAdd" class="timeline-btn" title="Add a blank scene after the selected clip">+ SCENE</button>
-              <button type="button" id="boxSplit" class="timeline-btn" title="Split clips at the playhead (S)">SPLIT</button>
+              <button type="button" id="boxSplit" class="timeline-btn" title="Add edit — split clips at the playhead (Ctrl+K)">SPLIT</button>
               <button type="button" id="transitionAdd" class="timeline-btn" title="Add or edit a transition on the cut touching the selected clip">TRANSITION</button>
               <button type="button" id="boxDup" class="timeline-btn" title="Duplicate the selected clip">DUP</button>
-              <button type="button" id="boxDel" class="timeline-btn danger" title="Ripple delete the selected clip — the gap closes">DEL</button>
+              <button type="button" id="boxDel" class="timeline-btn danger" title="Ripple delete the selected clips — the gap closes (Shift+Delete)">DEL</button>
               <button type="button" id="layerAdd" class="timeline-btn" title="Add a video track above the top track">+ LAYER</button>
+              <button type="button" id="snapToggle" class="timeline-btn is-on" title="Toggle snapping (S)" aria-pressed="true">SNAP</button>
+              <button type="button" id="shortcutHelpBtn" class="timeline-btn icon" title="Keyboard shortcuts (?)" aria-label="Keyboard shortcuts">?</button>
             </div>
             <div class="timeline-zoom" role="group" aria-label="Timeline zoom">
               <button type="button" id="zoomOut" class="timeline-btn icon" title="Zoom out">−</button>
@@ -5423,22 +5537,58 @@ body.asset-dragging * { cursor: grabbing !important; user-select: none !importan
     </div>
   </div>
 
-  <div id="shortcutHelpModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.96);z-index:99999;align-items:center;justify-content:center;flex-direction:column;padding:24px">
-    <div style="max-width:680px;width:100%;background:var(--panel-3);border:1px solid var(--line-soft);padding:24px;font-family:'IBM Plex Mono',monospace">
-      <h2 style="margin:0 0 16px;font-size:0.9rem;letter-spacing:2px;color:var(--go)">KEYBOARD SHORTCUTS</h2>
-      <div style="font-size:0.72rem;line-height:2;color:var(--muted)">
-        <strong>Ctrl/Cmd + Enter</strong> → Convert to Video<br>
-        <strong>Ctrl/Cmd + Shift + P</strong> → Preview<br>
-        <strong>Ctrl/Cmd + Shift + D</strong> → Copy Deep Link<br>
-        <strong>Ctrl/Cmd + Shift + C</strong> → Check Code<br>
-        <strong>Ctrl/Cmd + K</strong> → Focus Clipppa<br>
-        <strong>S</strong> → Split clips at the playhead<br>
-        <strong>Del</strong> → Ripple delete the selected clip<br>
-        <strong>← / →</strong> → Step the playhead (Shift = 1s)<br>
-        <strong>?</strong> → Open Shortcut Help<br>
-        <strong>Esc</strong> → Close Dialog
+  <div id="shortcutHelpModal">
+    <div class="shortcut-dialog" role="dialog" aria-modal="true" aria-label="Keyboard shortcuts">
+      <div class="shortcut-head">
+        <span class="eyebrow">KEYBOARD SHORTCUTS</span>
+        <em>PREMIERE-STYLE NLE KEYS</em>
       </div>
-      <button type="button" style="margin-top:18px;padding:10px 18px;background:transparent;border:1px solid var(--line-strong);color:var(--muted);cursor:pointer;letter-spacing:2px" onclick="hideShortcutHelp()">CLOSE</button>
+      <div class="shortcut-grid">
+        <section class="shortcut-group">
+          <h3>PLAYBACK</h3>
+          <div class="shortcut-row"><kbd>Space</kbd><span>Play / pause</span></div>
+          <div class="shortcut-row"><kbd>J / K / L</kbd><span>Reverse · pause · forward — press again to double speed</span></div>
+          <div class="shortcut-row"><kbd>← / →</kbd><span>Step one frame</span></div>
+          <div class="shortcut-row"><kbd>Shift + ← / →</kbd><span>Step five frames</span></div>
+          <div class="shortcut-row"><kbd>↑ / ↓</kbd><span>Previous / next edit point</span></div>
+          <div class="shortcut-row"><kbd>Home / End</kbd><span>Sequence start / end</span></div>
+        </section>
+        <section class="shortcut-group">
+          <h3>EDITING</h3>
+          <div class="shortcut-row"><kbd>Ctrl + K</kbd><span>Add edit — split at the playhead</span></div>
+          <div class="shortcut-row"><kbd>Delete</kbd><span>Lift selected clips — gap stays</span></div>
+          <div class="shortcut-row"><kbd>Shift + Delete</kbd><span>Ripple delete — gap closes</span></div>
+          <div class="shortcut-row"><kbd>Ctrl + Z</kbd><span>Undo</span></div>
+          <div class="shortcut-row"><kbd>Ctrl + Shift + Z</kbd><span>Redo (Ctrl + Y also works)</span></div>
+        </section>
+        <section class="shortcut-group">
+          <h3>SELECTION</h3>
+          <div class="shortcut-row"><kbd>Ctrl + A</kbd><span>Select all timeline clips</span></div>
+          <div class="shortcut-row"><kbd>Ctrl + Shift + A</kbd><span>Deselect all clips</span></div>
+          <div class="shortcut-row"><kbd>Shift + click</kbd><span>Add a clip to the selection</span></div>
+          <div class="shortcut-row"><kbd>Ctrl + click</kbd><span>Toggle a clip in the selection</span></div>
+        </section>
+        <section class="shortcut-group">
+          <h3>TIMELINE</h3>
+          <div class="shortcut-row"><kbd>S</kbd><span>Toggle snapping</span></div>
+          <div class="shortcut-row"><kbd>= / -</kbd><span>Zoom in / out</span></div>
+          <div class="shortcut-row"><kbd>\</kbd><span>Fit the sequence to the view</span></div>
+          <div class="shortcut-row"><kbd>Ctrl + Alt + K</kbd><span>Open this shortcut sheet</span></div>
+          <div class="shortcut-row"><kbd>?</kbd><span>Open this shortcut sheet</span></div>
+        </section>
+        <section class="shortcut-group">
+          <h3>APP</h3>
+          <div class="shortcut-row"><kbd>Ctrl + Enter</kbd><span>Convert to video</span></div>
+          <div class="shortcut-row"><kbd>Ctrl + Shift + P</kbd><span>Preview render</span></div>
+          <div class="shortcut-row"><kbd>Ctrl + Shift + K</kbd><span>Focus Clipppa chat</span></div>
+          <div class="shortcut-row"><kbd>Esc</kbd><span>Close dialogs and fullscreen</span></div>
+        </section>
+      </div>
+      <div class="shortcut-actions">
+        <span class="shortcut-foot">Ctrl + A never selects page text outside an input.</span>
+        <span class="dock-spacer"></span>
+        <button type="button" class="timeline-btn" onclick="hideShortcutHelp()">CLOSE</button>
+      </div>
     </div>
   </div>
   <div id="fullscreenPreview" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.96);z-index:99998;align-items:center;justify-content:center;flex-direction:column;padding:24px">
@@ -6433,6 +6583,12 @@ window.addEventListener('message', (event) => {
     }
   } else if (data.kind === 'snapshot' && data.snapshot && typeof data.snapshot === 'object') {
     previewRuntime.snapshot = data.snapshot;
+  } else if (data.kind === 'clock-ready') {
+    const frame = document.getElementById('liveFrame');
+    if (frame && !previewCompositeState.active && event.source === frame.contentWindow) {
+      frame.dataset.clockReady = '1';
+      postLiveSceneSeek(previewSceneState.time, previewSceneState.live);
+    }
   } else if (data.kind === 'key' && (data.code === 'Space' || data.key === ' ')) {
     // The preview iframe owns focus after a click, so relay Space to the
     // monitor transport instead of losing the shortcut inside the sandbox.
@@ -6476,7 +6632,8 @@ const PREVIEW_REPORTER = '<script ' + PREVIEW_REPORTER_MARK + '>(function(){'
   + 'addEventListener("error",function(e){send("error",{message:(e.message||"Script error")+" @ "+(e.lineno||0)+":"+(e.colno||0)})},true);'
   + 'addEventListener("unhandledrejection",function(e){send("rejection",{message:String((e.reason&&e.reason.message)||e.reason||"unhandled rejection")})});'
   + 'addEventListener("keydown",function(e){if(e.code==="Space"||e.key===" "){send("key",{key:e.key,code:e.code})}},true);'
-  + 'setTimeout(function(){var s={canvases:0,svg:0,videos:0,animations:0,textChars:0};try{s.canvases=document.querySelectorAll("canvas").length;'
+  + 'var realTimeout=window.__clipacanvasRealSetTimeout||setTimeout;'
+  + 'realTimeout(function(){var s={canvases:0,svg:0,videos:0,animations:0,textChars:0};try{s.canvases=document.querySelectorAll("canvas").length;'
   + 's.svg=document.querySelectorAll("svg").length;s.videos=document.querySelectorAll("video").length;'
   + 's.animations=(document.getAnimations?document.getAnimations().length:0);'
   + 's.textChars=((document.body&&document.body.innerText)||"").length}catch(e){}send("snapshot",{snapshot:s})},700)})();<\/script>';
@@ -6547,6 +6704,144 @@ function injectSceneMediaTools(code) {
   return tag + html;
 }
 
+// Program-monitor clock: the same virtual time model the renderer uses, installed
+// inside preview pages so a scrub or a playback tick draws the exact frame the
+// export would. Animations are paused and seeked; timers and rAF run on virtual
+// time; videos seek with the scene. The host talks to it over postMessage
+// because preview frames are sandboxed (opaque origin).
+const PREVIEW_CLOCK_MARK = 'data-clipacanvas-clock';
+const PREVIEW_CLOCK = `<script data-clipacanvas-clock>(function(){
+  if (window.__clipacanvasSetTime) return;
+  var state = { timeMs: 0, nextId: 1, timers: new Map(), rafQueue: [] };
+  var RealDate = Date;
+  function MockDate(){ var args = Array.prototype.slice.call(arguments); return args.length ? new (Function.prototype.bind.apply(RealDate, [null].concat(args)))() : new RealDate(state.timeMs); }
+  MockDate.UTC = RealDate.UTC;
+  MockDate.parse = RealDate.parse;
+  MockDate.now = function(){ return state.timeMs; };
+  MockDate.prototype = RealDate.prototype;
+  window.Date = MockDate;
+  window.__clipacanvasRealSetTimeout = window.setTimeout.bind(window);
+  try { Object.defineProperty(window.performance, 'now', { configurable: true, value: function(){ return state.timeMs; } }); } catch (e) {}
+  function schedule(cb, delay, repeat, args){
+    var id = state.nextId++;
+    var wait = Math.max(0, Number(delay) || 0);
+    state.timers.set(id, { id: id, cb: cb, args: args, repeat: repeat, delay: repeat ? Math.max(1, wait) : wait, nextTime: state.timeMs + wait });
+    return id;
+  }
+  function runCallback(cb, args){
+    try { if (typeof cb === 'function') cb.apply(null, args); else new Function(String(cb))(); } catch (e) { console.error(e); }
+  }
+  function runDueTimers(target){
+    while (true) {
+      var next = null;
+      state.timers.forEach(function(timer){ if (timer.nextTime <= target && (!next || timer.nextTime < next.nextTime)) next = timer; });
+      if (!next) break;
+      state.timeMs = next.nextTime;
+      runCallback(next.cb, next.args);
+      if (next.repeat) next.nextTime += next.delay; else state.timers.delete(next.id);
+    }
+  }
+  function flushRaf(now){
+    var queue = state.rafQueue.slice();
+    state.rafQueue.length = 0;
+    queue.forEach(function(entry){ try { entry.cb(now); } catch (e) { console.error(e); } });
+  }
+  function syncAnimations(target){
+    if (!document.getAnimations) return;
+    document.getAnimations({ subtree: true }).forEach(function(anim){
+      try { anim.pause(); anim.currentTime = target; } catch (e) {}
+    });
+  }
+  window.requestAnimationFrame = function(cb){ var id = state.nextId++; state.rafQueue.push({ id: id, cb: cb }); return id; };
+  window.cancelAnimationFrame = function(id){ state.rafQueue = state.rafQueue.filter(function(entry){ return entry.id !== id; }); };
+  window.setTimeout = function(cb, delay){ return schedule(cb, delay, false, Array.prototype.slice.call(arguments, 2)); };
+  window.setInterval = function(cb, delay){ return schedule(cb, delay, true, Array.prototype.slice.call(arguments, 2)); };
+  window.clearTimeout = function(id){ state.timers.delete(id); };
+  window.clearInterval = window.clearTimeout;
+  window.__clipacanvasMediaSeek = function(seconds, seekMedia){
+    if (seekMedia === false) return Promise.resolve();
+    var target = Math.max(0, Number(seconds) || 0);
+    var videos = Array.prototype.slice.call(document.querySelectorAll('video'));
+    if (!videos.length) return Promise.resolve();
+    return Promise.all(videos.map(function(video){
+      return new Promise(function(resolve){
+        var settled = false;
+        var finish = function(){ if (settled) return; settled = true; video.removeEventListener('seeked', finish); video.removeEventListener('error', finish); resolve(); };
+        try { video.pause(); } catch (e) {}
+        if (video.error || video.readyState < 1) { finish(); return; }
+        var duration = Number(video.duration);
+        var sourceIn = Math.max(0, Number(video.dataset.sourceIn) || 0);
+        var absolute = sourceIn + target;
+        var seekTo = absolute;
+        if (isFinite(duration) && duration > 0) {
+          seekTo = video.hasAttribute('data-source-in')
+            ? Math.min(absolute, Math.max(0, duration - 0.001))
+            : Math.min(Math.max(0, target % duration), Math.max(0, duration - 0.001));
+        }
+        if (Math.abs(video.currentTime - seekTo) < 0.02 && video.readyState >= 2) { finish(); return; }
+        video.addEventListener('seeked', finish, { once: true });
+        video.addEventListener('error', finish, { once: true });
+        try { video.currentTime = seekTo; } catch (e) { finish(); }
+      });
+    }));
+  };
+  window.__clipacanvasAwaitMedia = function(){ return window.__clipacanvasMediaReady || Promise.resolve(); };
+  window.__clipacanvasSetTime = function(seconds, options){
+    options = options || {};
+    var target = Math.max(0, (Number(seconds) || 0) * 1000);
+    runDueTimers(target);
+    state.timeMs = target;
+    syncAnimations(target);
+    try { document.documentElement.style.setProperty('--cc-time', (target / 1000) + 's'); } catch (e) {}
+    try { window.dispatchEvent(new CustomEvent('cc-seek', { detail: { time: target / 1000 } })); } catch (e) {}
+    flushRaf(target);
+    window.__clipacanvasMediaReady = window.__clipacanvasMediaSeek(target / 1000, options.seekMedia);
+    return window.__clipacanvasMediaReady;
+  };
+  window.__clipacanvasCaptureMeta = function(){
+    var animations = document.getAnimations ? document.getAnimations({ subtree: true }) : [];
+    var active = 0, infinite = false, suggested = 0;
+    animations.forEach(function(anim){
+      try {
+        var timing = anim.effect && anim.effect.getComputedTiming ? anim.effect.getComputedTiming() : null;
+        var raw = anim.effect && anim.effect.getTiming ? anim.effect.getTiming() : null;
+        if (!timing) return;
+        var delay = Math.max(0, Number(raw && raw.delay) || 0);
+        var endDelay = Math.max(0, Number(raw && raw.endDelay) || 0);
+        var duration = Math.max(0, Number(raw && raw.duration) || 0);
+        var loop = Math.max(250, delay + duration + endDelay);
+        if (isFinite(timing.endTime)) { suggested = Math.max(suggested, timing.endTime); if (state.timeMs < timing.endTime) active++; }
+        else { active++; infinite = true; suggested = Math.max(suggested, loop); }
+      } catch (e) {}
+    });
+    return { activeAnimations: active, hasInfiniteAnimation: infinite, suggestedDurationMs: suggested };
+  };
+  addEventListener('message', function(event){
+    var data = event.data;
+    if (!data || data.source !== 'clipacanvas-preview-host' || data.type !== 'seek') return;
+    window.__clipacanvasSetTime(Number(data.seconds) || 0, { seekMedia: data.seekMedia !== false });
+  });
+  try { parent.postMessage({ source: 'clipacanvas-preview', kind: 'clock-ready' }, '*'); } catch (e) {}
+})();<\/script>`;
+
+function injectPreviewClock(code) {
+  const html = String(code || '');
+  if (html.includes(PREVIEW_CLOCK_MARK)) return html;
+  const headIndex = html.search(/<head\b/i);
+  if (headIndex !== -1) {
+    const close = html.indexOf('>', headIndex);
+    if (close !== -1) return html.slice(0, close + 1) + PREVIEW_CLOCK + html.slice(close + 1);
+  }
+  const htmlIndex = html.search(/<html\b/i);
+  if (htmlIndex !== -1) {
+    const close = html.indexOf('>', htmlIndex);
+    if (close !== -1) return html.slice(0, close + 1) + '<head>' + PREVIEW_CLOCK + '</head>' + html.slice(close + 1);
+  }
+  const doctype = html.match(/^\s*<!doctype[^>]*>/i);
+  if (doctype) return doctype[0] + PREVIEW_CLOCK + html.slice(doctype[0].length);
+  return PREVIEW_CLOCK + html;
+}
+
 function collectPreviewDiagnostics() {  let lastRender = null;
   try { lastRender = latestRenderNote(); } catch (error) { lastRender = null; }
   return {
@@ -6602,17 +6897,21 @@ async function runPreview() {
     const at = clipPreviewTime(active);
     const composite = buildCompositePreview(at, { activeCode: code });
     if (composite) {
-      renderCompositePreview(composite);
+      renderCompositePreview(composite, compositePreviewKey(at));
       setStatus(`PREVIEW RUNNING · ${countPreviewLayers(at)} LAYERS`, 'ok');
       return;
     }
+    previewSceneState = { clipId: active.id, time: previewSceneLocalTime(active, at), live: playbackState.playing };
   }
   const iframe = document.getElementById('liveFrame');
   iframe.onload = () => {
     queuePreviewScale();
+    postLiveSceneSeek(previewSceneState.time, previewSceneState.live);
   };
-  previewCompositeState = { active: false, count: 0 };
-  iframe.srcdoc = injectPreviewReporter(injectSceneMediaTools(code));
+  previewCompositeState = { active: false, count: 0, key: '' };
+  iframe.dataset.previewClip = active && !clipIsMedia(active) ? active.id : '';
+  iframe.dataset.clockReady = '';
+  iframe.srcdoc = injectPreviewClock(injectPreviewReporter(injectSceneMediaTools(code)));
   const overlay = document.getElementById('previewOverlay');
   if (overlay) overlay.style.display = 'none';
   queuePreviewScale();
@@ -7254,11 +7553,24 @@ function hideShortcutHelp() {
 
 // extend keydown listener: replace existing? We'll add separately
 window.addEventListener('keydown', (event) => {
+  if (projectHomeVisible) return;
+  const target = event.target;
+  if (target && (target.closest('input, textarea, select, [contenteditable="true"]') || target.closest('.monaco-editor'))) return;
   if (!event.metaKey && !event.ctrlKey && event.key === '?') {
     event.preventDefault();
     showShortcutHelp();
   }
 });
+
+// The NLE owns Ctrl+A whenever focus is outside a text field: it selects
+// timeline clips instead of highlighting the whole page.
+window.addEventListener('keydown', (event) => {
+  if (!(event.ctrlKey || event.metaKey) || event.altKey) return;
+  if (String(event.key || '').toLowerCase() !== 'a') return;
+  const target = event.target;
+  if (target && (target.closest('input, textarea, select, [contenteditable="true"]') || target.closest('.monaco-editor'))) return;
+  event.preventDefault();
+}, true);
 
 async function copySelectedSnippet() {
   const select = document.getElementById('recentCodeSelect');
@@ -7846,11 +8158,15 @@ const CHAT_SYSTEM_PROMPT = [
   '- get_app_state: read the selected scene code, the full timeline, export settings and latest render result.',
   '- insert_animation_code: put a finished animation into the SELECTED scene (the editor); the live preview refreshes immediately. If the selected clip is imported media, a new blank code scene is created instead; imported media is never converted or overwritten.',
   '- add_scene: create an additional scene as its own logic box on the timeline, with its own complete HTML animation. The app appends it, selects it and previews it.',
-  '- search_assets and get_asset_analysis: inspect the project bin before composing around imported media. They return cached technical metadata, a locally detected shot list with keyframe indices, AI descriptions (only when the user ran consented content analysis) and an explicit semantic status. When the status is "not_analyzed", do not claim to see what the footage shows or to have heard its audio.',
+  '- search_assets and get_asset_analysis: inspect the project bin before composing around imported media. They return cached technical metadata, a locally detected shot list with keyframe indices, a local visual index (EmbeddingGemma 2 tags with scores per asset and per keyframe, plus a motion score and label for videos), AI descriptions (only when the user ran consented content analysis) and an explicit semantic status. The visual index is computed on this machine without consent, so its tags are evidence about what the footage shows — cite them plainly and never claim more than they say. When both the visual index and the semantic status are empty, do not claim to see what the footage shows or to have heard its audio. For an overlay, title or caption on a media clip, call get_asset_analysis first and let its tags, shot times and motion steer the text, the timing and what the overlay must not cover.',
   '- update_asset_description: save a human-confirmed description or production note on an asset. Keep it separate from AI-generated analysis and never overwrite it with generated text.',
   '- create_overlay, update_overlay, delete_overlay, attach_overlay, detach_overlay: build HTML overlays on their own track above footage. Overlay pages must use a fully transparent background. parentClipId makes an overlay follow its parent clip\'s timing while staying independently editable. This is attachment, not motion tracking — never claim to track objects in the footage.',
   '- get_clip_context: read a clip\'s timing, track, parent/children relationships and asset analysis before changing it.',
-  '- add_transition, update_transition, remove_transition: put a saved transition on a cut where two clips touch on one track. Presets: dissolve, fade-black, fade-white, dip-color, wipe, push, slide, zoom-in, zoom-out, zoom-blur, glitch, rgb-split, blur-dissolve. For a requested custom effect generate type "custom" with code declaring function renderTransition(ctx) that returns { outgoing, incoming, overlay } style objects using ctx.progress (0→1) and CSS properties opacity, transform, filter, clipPath, backgroundColor, mixBlendMode — no timers, randomness, network or DOM access. Transitions are deterministic in both the Program Monitor and the export; never claim a transition exists unless the tool returned ok.',
+  '- generate_voiceover: narrate a script and place the audio on A1 (voiceover), A2 (music) or A3 (sound effects). It uses the best installed local neural voice by default (StyleTTS2, Kokoro, Piper or ZONOS3-Mini — provider ids "styletts2", "kokoro", "piper", "zonos"); Windows Speech stays the offline fallback and hosted voices need a configured key. Pick the narrator deliberately: when the script or the user calls for a male or female voice, pass gender "male"/"female" (never settle for the default female voice for a male narration), or pass voice with an id or name from the Available speech voices system message. StyleTTS2 ships LJSpeech plus three female and four male LibriTTS voices, ZONOS3-Mini adds 27 named male/female narrators across 43 languages (for example Savannah, Arjun, Ananya, Gaspard, Meilin), Kokoro and Windows Speech also have male voices, and the app switches providers when the preferred engine has no match. For languages outside the installed voices, prefer the ZONOS3-Mini voice for that language. Set captions true when the brief asks for subtitles, or call add_captions for existing narration. Never claim audio was generated unless the tool returned ok with a duration.',
+  '- add_captions: add timed subtitle clips above the scenes from a text, an audio clip or explicit start and duration. Captions are real timeline clips and appear in both the Program Monitor and the export.',
+  '- place_media: put a bin asset (image, video or audio) on a track or audio lane at a time. Imported media stays the user\'s file; this only places a clip. Use search_assets first when you do not know the asset id.',
+  '- verify_timeline: check empty scenes, overlaps, audio lanes, missing media and orphan transitions before a final render. Fix reported errors, then verify again.',
+  '- add_transition, update_transition, remove_transition: put a saved transition on a cut where two clips touch on one track. Presets: dissolve, fade-black, fade-white, dip-color, wipe, push, slide, zoom-in, zoom-out, zoom-blur, glitch, rgb-split, blur-dissolve. Transitions are the default finish for a cut: whenever two or more scenes touch on a track, add a transition on your own without waiting to be asked — choose a preset that fits the energy, and for a signature look (light leak, glitch, comic snap, custom wipe) write the renderTransition code yourself and pass type "custom". One add_transition call with all:true applies the same effect to every touching cut; add_scene also accepts a transition object for the cut it creates and otherwise installs a 0.4s dissolve placeholder, which you should replace with the right effect before finishing. Never leave a produced sequence as raw hard cuts unless the user explicitly asks for hard cuts. For a requested custom effect generate type "custom" with code declaring function renderTransition(ctx) that returns { outgoing, incoming, overlay } style objects using ctx.progress (0→1) and CSS properties opacity, transform, filter, clipPath, backgroundColor, mixBlendMode — no timers, randomness, network or DOM access. Transitions are deterministic in both the Program Monitor and the export; never claim a transition exists unless the tool returned ok.',
   '- set_export_settings: change export settings, only for settings the user explicitly requested in their latest message.',
   '- render_video: render the whole timeline (every scene, in order and by layer) to one video file with the current settings.',
   'Before each tool call, write one short action line in plain text (max 8 words, present tense), such as "Writing the canvas animation…" or "Rendering the final video…". The app shows that line live in the chat while the tool runs; do not repeat it in your final answer.',
@@ -7867,7 +8183,7 @@ const CHAT_SYSTEM_PROMPT = [
   '- The timeline is the deliverable: it is an NLE-style sequence with V1-V4 video tracks, a playhead and a project bin of imported assets. Each logic box is one code scene with its own complete HTML document. Scenes play at their start times and export as a single video. The editor always shows only the selected clip.',
   '- Imported images and videos live in the project bin; the user inserts them at the playhead or drags them onto a track, then trims and splits the resulting clips. They are the user\'s media: never replace, convert or delete them unless the user explicitly asks. Use add_scene only for new code scenes.',
   '- For a sequence, a story, an ad with several beats, an intro/outro, or any request for "another scene", "scene two", "add a scene" or multiple scenes: write the first scene with insert_animation_code (when it belongs in the selected scene) and call add_scene once for every additional scene. One tool call and one HTML document per scene. Never merge several scenes into one HTML file and never simulate extra scenes inside a single document.',
-  '- A multi-scene brief is a production, not a single reply. Count the scenes the user asked for and keep calling tools across rounds until every one of them exists on the timeline, then add the requested transitions, overlays and audio, and only then write a short closing summary. Never stop after the first scene, never wait for the user to say "continue", and never replace an existing scene to make room for a new one. The app keeps executing your tool calls until you stop calling tools.',
+  '- A multi-scene brief is a production, not a single reply. Count the scenes the user asked for and keep calling tools across rounds until every one of them exists on the timeline, then add transitions at every cut (automatically — use custom code when the look is signature), overlays and audio, and only then write a short closing summary. Never stop after the first scene, never wait for the user to say "continue", and never replace an existing scene to make room for a new one. The app keeps executing your tool calls until you stop calling tools.',
   '- When the user asks to add a scene to an existing edit, call add_scene. Do not rewrite or replace the existing scene unless the user asked to change it.',
   '- Use add_scene with layer:"same" for normal cuts that follow the previous scene, and layer:"above" for titles, captions, logos or overlays that must sit on top of another scene. Overlay scenes must use a fully transparent page background (html, body { background: transparent; margin: 0; }).',
   '- Give every scene a duration that matches its animation length; that duration is used on the timeline and in the export. Pass duration to add_scene for a new scene, and to insert_animation_code when you fill a scene or change its animation length.',
@@ -8026,6 +8342,24 @@ let chatBusy = false;
 let modelsRefreshTimer = null;
 let keysSaveTimer = null;
 let chatLogSaveTimer = null;
+let chatProjectScope = '';
+let chatScopeLoading = false;
+
+function chatActiveSessionKey(scope = chatProjectScope) {
+  return `clipacanvas.chatActive.${scope || 'global'}`;
+}
+
+function setChatProjectScope(projectId) {
+  const scope = String(projectId || '');
+  if (scope === chatProjectScope) return;
+  flushChatLogSave();
+  chatProjectScope = scope;
+  chatState.sessions = [];
+  chatState.activeSessionId = localStorage.getItem(chatActiveSessionKey(scope)) || null;
+  renderChat();
+  renderChatHistory();
+  loadSavedChatLog();
+}
 
 function loadChatState() {
   try {
@@ -8106,6 +8440,7 @@ function saveChatState() {
       knownGood: chatState.knownGood,
       activeSessionId: chatState.activeSessionId
     }));
+    localStorage.setItem(chatActiveSessionKey(), chatState.activeSessionId || '');
   } catch (error) { console.error(error); }
 }
 
@@ -8139,6 +8474,11 @@ function relativeTime(timestamp) {
 function renderChatHistory() {
   const list = document.getElementById('chatHistoryList');
   if (!list) return;
+  const scopeLabel = document.getElementById('chatScopeLabel');
+  if (scopeLabel) {
+    const name = (localStorage.getItem('clipacanvas.projectName') || '').trim();
+    scopeLabel.textContent = chatProjectScope ? (name ? `· ${name}` : '· THIS PROJECT') : '· GLOBAL';
+  }
   list.innerHTML = '';
   const sessions = chatState.sessions
     .filter(s => s.messages.length > 0)
@@ -8365,31 +8705,48 @@ function queueKeysSave() {
 
 let chatLogReady = false;
 
+function postChatLog(scope) {
+  fetchWithTimeout(buildApiUrl('/api/llm/chatlog'), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      projectId: scope,
+      sessions: chatState.sessions.map(s => ({
+        id: s.id,
+        title: s.title,
+        createdAt: s.createdAt,
+        updatedAt: s.updatedAt,
+        messages: s.messages
+      }))
+    })
+  }, 10000).catch(error => console.error('chatlog save failed:', error));
+}
+
 function queueChatLogSave() {
   // Before the initial GET finishes, chatState.sessions is empty and a save
   // would replace the stored chats with nothing.
-  if (!chatLogReady) return;
+  if (!chatLogReady || chatScopeLoading) return;
   clearTimeout(chatLogSaveTimer);
   chatLogSaveTimer = setTimeout(() => {
-    fetchWithTimeout(buildApiUrl('/api/llm/chatlog'), {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        sessions: chatState.sessions.map(s => ({
-          id: s.id,
-          title: s.title,
-          createdAt: s.createdAt,
-          updatedAt: s.updatedAt,
-          messages: s.messages
-        }))
-      })
-    }, 10000).catch(error => console.error('chatlog save failed:', error));
+    chatLogSaveTimer = null;
+    postChatLog(chatProjectScope);
   }, CHATLOG_SAVE_DEBOUNCE_MS);
 }
 
+function flushChatLogSave() {
+  if (!chatLogReady || chatScopeLoading || !chatLogSaveTimer) return;
+  clearTimeout(chatLogSaveTimer);
+  chatLogSaveTimer = null;
+  postChatLog(chatProjectScope);
+}
+
 function loadSavedChatLog() {
-  return fetchWithTimeout(buildApiUrl('/api/llm/chatlog'), { method: 'GET' }, 10000)
+  const scope = chatProjectScope;
+  chatLogReady = false;
+  chatScopeLoading = true;
+  return fetchWithTimeout(buildApiUrl(`/api/llm/chatlog?projectId=${encodeURIComponent(scope)}`), { method: 'GET' }, 10000)
     .then(async (response) => {
+      if (scope !== chatProjectScope) return;
       const payload = await response.json().catch(() => null);
       const raw = response.ok && payload && payload.ok ? (Array.isArray(payload.sessions) ? payload.sessions : (Array.isArray(payload.messages) ? [{ id: newChatSessionId(), title: 'Previous chat', messages: payload.messages }] : [])) : [];
       const restored = raw
@@ -8418,18 +8775,24 @@ function loadSavedChatLog() {
           return s;
         })
         .filter(s => s.messages.length > 0);
-      if (restored.length) {
-        chatState.sessions = restored;
-        const stillActive = restored.some(s => s.id === chatState.activeSessionId);
-        if (!stillActive) chatState.activeSessionId = restored[restored.length - 1].id;
-        saveChatState();
-        renderChat();
-        renderChatHistory();
-        restoreCodeFromActiveSession(true);
-      }
+      if (scope !== chatProjectScope) return;
+      chatState.sessions = restored;
+      const storedActive = localStorage.getItem(chatActiveSessionKey(scope)) || '';
+      chatState.activeSessionId = restored.some(s => s.id === storedActive)
+        ? storedActive
+        : (restored.length ? restored[restored.length - 1].id : null);
+      saveChatState();
+      renderChat();
+      renderChatHistory();
+      if (restored.length) restoreCodeFromActiveSession(true);
     })
     .catch(error => console.error('chatlog load failed:', error))
-    .finally(() => { chatLogReady = true; });
+    .finally(() => {
+      if (scope === chatProjectScope) {
+        chatLogReady = true;
+        chatScopeLoading = false;
+      }
+    });
 }
 
 function classifyQuestion(question, hasCode) {
@@ -8926,6 +9289,8 @@ function buildChatApiMessages(userText) {
     role: 'system',
     content: `Current export settings: aspect=${settings.aspect}, resolution=${settings.resolution}, fps=${settings.fps}, duration=${settings.duration}, format=${settings.format}, bitrate=${settings.bitrate}. These are the user's choices; do not change them unless the user explicitly asks.`
   });
+  const speechCatalog = speechVoiceCatalogForChat();
+  if (speechCatalog) messages.push({ role: 'system', content: speechCatalog });
   if (isDelegatedChoice(userText)) {
     messages.push({
       role: 'system',
@@ -9335,11 +9700,24 @@ function summarizeChatToolResult(name, result) {
   if (name === 'insert_animation_code') return `${result.insertedCharacters || 0} chars inserted · preview refreshed`;
   if (name === 'add_scene') {
     const scene = result.scene || {};
-    return `${scene.name || 'scene'} · ${scene.layer || 'V1'} · ${formatTimelineTime(scene.duration || 0)}`;
+    const transition = result.transition?.ok ? ` · ${transitionTypeLabel(result.transition.type)}` : '';
+    return `${scene.name || 'scene'} · ${scene.layer || 'V1'} · ${formatTimelineTime(scene.duration || 0)}${transition}`;
   }
   if (name === 'search_assets') return `${result.count || 0} asset${result.count === 1 ? '' : 's'}`;
   if (name === 'get_asset_analysis') return result.asset?.name || 'asset analysis';
   if (name === 'update_asset_description') return 'asset note saved';
+  if (name === 'generate_voiceover') {
+    const captions = result.captions ? ` · ${result.captions} captions` : '';
+    return `${result.voiceLabel || result.voice || 'voice'} · ${formatTimelineTime(result.duration || 0)} · ${result.lane || 'A1'}${captions}`;
+  }
+  if (name === 'add_captions') return `${result.count || 0} caption${result.count === 1 ? '' : 's'}`;
+  if (name === 'place_media') {
+    const place = result.kind === 'audio' ? result.lane || 'A2' : `V${(Number(result.track) || 0) + 1}`;
+    return `${result.asset?.name || result.kind || 'asset'} · ${place}`;
+  }
+  if (name === 'verify_timeline') {
+    return result.passed ? 'timeline clean' : `${result.problems?.length || 0} problem(s)`;
+  }
   if (name === 'create_overlay') {
     const clip = result.context?.clip || {};
     return `${clip.name || 'overlay'} · V${(Number(clip.track) || 0) + 1}`;
@@ -9350,6 +9728,9 @@ function summarizeChatToolResult(name, result) {
   if (name === 'delete_overlay') return 'overlay deleted';
   if (name === 'get_clip_context') return result.clip?.name || 'clip context';
   if (name === 'add_transition') {
+    if (result.all) {
+      return `${result.count} cut${result.count === 1 ? '' : 's'} · ${transitionTypeLabel(result.type || 'dissolve')} · ${Number(result.duration || 0).toFixed(1)}s`;
+    }
     const transition = result.transition || {};
     return `${transitionTypeLabel(transition.type || 'dissolve')} · ${Number(transition.duration || 0).toFixed(1)}s`;
   }
@@ -9448,6 +9829,29 @@ async function executeChatTool(call) {
     if (!created.ok) return { ok: false, error: created.error };
     chatTurnWroteCode = true;
     const clip = created.clip;
+    // AI scenes get a transition on their new cut automatically: a supplied
+    // transition object (custom code included) wins, otherwise a short
+    // dissolve placeholder is installed; transition:false keeps a hard cut.
+    const pair = transitionPairForClip(clip);
+    let transition = null;
+    if (pair && args.transition !== false) {
+      const spec = transitionSpecFromArgs(
+        args.transition && typeof args.transition === 'object'
+          ? args.transition
+          : { type: 'dissolve', duration: 0.4, alignment: 'center' }
+      );
+      const applied = applyTransitionToPair(pair, spec);
+      transition = applied.ok
+        ? {
+          ok: true,
+          id: applied.transition.id,
+          type: applied.transition.type,
+          duration: applied.transition.duration,
+          from: pair.from.name,
+          to: pair.to.name
+        }
+        : { ok: false, error: applied.error };
+    }
     return {
       ok: true,
       scene: {
@@ -9458,6 +9862,7 @@ async function executeChatTool(call) {
         duration: clip.duration,
         selected: true
       },
+      transition,
       timeline: timelineSummaryForChat()
     };
   }
@@ -9474,7 +9879,9 @@ async function executeChatTool(call) {
           asset.analysis?.semantic?.description || '',
           ...(asset.analysis?.semantic?.tags || []),
           ...(asset.analysis?.semantic?.subjects || []),
-          ...((asset.analysis?.semantic?.transcript || []).map(segment => segment.text))
+          ...((asset.analysis?.semantic?.transcript || []).map(segment => segment.text)),
+          ...((asset.analysis?.visual?.tags || []).map(tag => tag.label)),
+          ...((asset.analysis?.visual?.frames || []).flatMap(frame => (frame.tags || []).map(tag => tag.label)))
         ].join(' ').toLowerCase();
         return haystack.includes(query);
       })
@@ -9492,7 +9899,8 @@ async function executeChatTool(call) {
       asset: assetTechnicalSummary(asset),
       manifest: asset.analysis || null,
       analysisError: asset.analysisError || '',
-      semanticAvailable: Boolean(asset.analysis?.semantic?.status && asset.analysis.semantic.status !== 'not_analyzed')
+      semanticAvailable: Boolean(asset.analysis?.semantic?.status && asset.analysis.semantic.status !== 'not_analyzed'),
+      visualAvailable: asset.analysis?.visual?.status === 'indexed'
     };
   }
 
@@ -9511,6 +9919,148 @@ async function executeChatTool(call) {
     saveTimelineState(true);
     refreshMediaInspector();
     return { ok: true, asset: assetTechnicalSummary(asset) };
+  }
+
+  if (name === 'generate_voiceover') {
+    const text = String(args.text || '').trim();
+    if (!text) return { ok: false, error: 'text is required' };
+    if (text.length > 4000) return { ok: false, error: 'Narration is limited to 4000 characters.' };
+    let resolvedVoice;
+    try {
+      resolvedVoice = await resolveSpeechProvider(args);
+    } catch (error) {
+      return { ok: false, error: String(error?.message || error) };
+    }
+    const voicePayload = {
+      provider: resolvedVoice.provider.id,
+      model: resolvedVoice.model,
+      voice: resolvedVoice.voice,
+      text,
+      speed: resolvedVoice.provider.supports.speed ? Math.max(0.5, Math.min(2, Number(args.speed) || 1)) : 1,
+      style: resolvedVoice.provider.supports.style ? String(args.style || '').trim().slice(0, 200) : '',
+      format: resolvedVoice.format
+    };
+    let data;
+    try {
+      const response = await fetchWithTimeout(buildApiUrl('/api/tts/generate'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(voicePayload)
+      }, 180000);
+      data = await response.json();
+      if (!response.ok || !data.ok) throw new Error(data.error || 'Speech generation failed.');
+    } catch (error) {
+      return { ok: false, error: String(error?.message || error).slice(0, 240) };
+    }
+    const assetId = ensureGeneratedAsset(data);
+    const lane = ['A1', 'A2', 'A3'].includes(String(args.lane || '').toUpperCase())
+      ? String(args.lane).toUpperCase()
+      : 'A1';
+    let at = Number.isFinite(Number(args.start)) ? Math.max(0, Number(args.start)) : timelineState.playhead;
+    const occupant = timelineState.clips
+      .filter(clip => clip.type === 'audio' && audioTrackForClip(clip) === lane)
+      .find(clip => at > Number(clip.start) + 1e-6 && at < clipEnd(clip) - 1e-6);
+    if (occupant) at = Math.ceil((clipEnd(occupant) - 1e-6) * 10) / 10;
+    const placed = projectOps.insertAsset(assetId, { track: 0, at, audioTrack: lane });
+    if (!placed.ok) return { ok: false, error: placed.error };
+    const clip = projectOps.getClipContext(placed.clipId).clip;
+    const audioClip = findClipById(placed.clipId);
+    if (audioClip) {
+      audioClip.name = String(args.name || 'VOICEOVER').trim().slice(0, 24) || 'VOICEOVER';
+      audioClip.audioTrack = lane;
+      saveTimelineState(true);
+      renderLogicBoxes();
+      updateStageTimeline();
+    }
+    projectOps.selectClip(placed.clipId);
+    let captionResult = { count: 0, clipIds: [] };
+    if (args.captions === true) {
+      captionResult = addCaptionCues({
+        text,
+        start: Number(clip.start) || 0,
+        duration: Number(clip.duration) || Number(data.duration) || 1,
+        name: 'CAPTION'
+      });
+    }
+    return {
+      ok: true,
+      assetId,
+      clipId: placed.clipId,
+      lane,
+      start: clip.start,
+      duration: clip.duration,
+      provider: data.provider,
+      providerLabel: data.providerLabel,
+      voice: data.voice,
+      voiceLabel: data.voiceLabel,
+      cached: Boolean(data.cached),
+      captions: captionResult.count,
+      captionClipIds: captionResult.clipIds,
+      timeline: timelineSummaryForChat()
+    };
+  }
+
+  if (name === 'add_captions') {
+    const text = String(args.text || '').trim();
+    if (!text) return { ok: false, error: 'text is required' };
+    let start = Number(args.start);
+    let duration = Number(args.duration);
+    if (args.clipId) {
+      const source = findClipById(String(args.clipId));
+      if (!source) return { ok: false, error: 'Clip not found.' };
+      if (!Number.isFinite(start)) start = Number(source.start) || 0;
+      if (!Number.isFinite(duration) || duration <= 0) duration = Number(source.duration) || 0;
+    }
+    if (!Number.isFinite(start)) start = timelineState.playhead;
+    if (!(duration > 0)) {
+      const cues = splitCaptionCues(text);
+      duration = Math.max(1, cues.length * 2);
+    }
+    const result = addCaptionCues({
+      text,
+      start,
+      duration,
+      name: String(args.name || 'CAPTION').slice(0, 20),
+      maxChars: Math.max(40, Math.min(160, Number(args.maxChars) || 90))
+    });
+    if (!result.count) return { ok: false, error: 'No free overlay track for captions.' };
+    return { ok: true, count: result.count, clipIds: result.clipIds, start, duration, timeline: timelineSummaryForChat() };
+  }
+
+  if (name === 'place_media') {
+    let asset = args.assetId ? findAsset(String(args.assetId)) : null;
+    if (!asset && args.query) {
+      const query = String(args.query).toLowerCase().trim();
+      const matches = timelineState.assets.filter(item => [
+        item.name,
+        item.kind,
+        item.analysis?.user?.description || '',
+        item.analysis?.semantic?.description || '',
+        ...(item.analysis?.semantic?.tags || [])
+      ].join(' ').toLowerCase().includes(query));
+      if (matches.length === 1) asset = matches[0];
+      else if (!matches.length) return { ok: false, error: 'No asset matches that query.' };
+      else return { ok: false, error: `Several assets match (${matches.slice(0, 6).map(item => item.name).join(', ')}). Pass assetId.` };
+    }
+    if (!asset) return { ok: false, error: 'assetId or query is required.' };
+    const lane = ['A1', 'A2', 'A3'].includes(String(args.lane || '').toUpperCase())
+      ? String(args.lane).toUpperCase()
+      : (asset.kind === 'audio' ? 'A2' : '');
+    const track = Math.max(0, Math.min(3, Number.isFinite(Number(args.track)) ? Number(args.track) : 0));
+    const at = Number.isFinite(Number(args.at)) ? Math.max(0, Number(args.at)) : timelineState.playhead;
+    const placed = projectOps.insertAsset(asset.id, {
+      track: asset.kind === 'audio' ? 0 : track,
+      at,
+      audioTrack: asset.kind === 'audio' ? lane : undefined
+    });
+    if (!placed.ok) return { ok: false, error: placed.error };
+    const clip = projectOps.getClipContext(placed.clipId).clip;
+    projectOps.selectClip(placed.clipId);
+    return { ok: true, asset: assetTechnicalSummary(asset), clipId: placed.clipId, kind: asset.kind, track: clip.track, lane: asset.kind === 'audio' ? lane : '', start: clip.start, duration: clip.duration, timeline: timelineSummaryForChat() };
+  }
+
+  if (name === 'verify_timeline') {
+    return verifyTimelineState();
   }
 
   if (name === 'create_overlay') {
@@ -9593,18 +10143,56 @@ async function executeChatTool(call) {
   }
 
   if (name === 'add_transition') {
+    const spec = transitionSpecFromArgs(args);
+    if (spec.type !== 'custom' && !transitionTypeList().some(item => item.id === spec.type)) {
+      return { ok: false, error: `Unknown transition type "${spec.type}".` };
+    }
+    if (spec.type === 'custom') {
+      const codeError = customTransitionCodeError(spec.code);
+      if (codeError) return { ok: false, error: codeError };
+    }
+    if (args.all === true) {
+      const pairs = [];
+      for (let track = 0; track < 4; track += 1) {
+        const ordered = clipsOnTrack(track)
+          .filter(clip => clip.type !== 'audio')
+          .sort((a, b) => (Number(a.start) || 0) - (Number(b.start) || 0));
+        for (let index = 1; index < ordered.length; index += 1) {
+          if (clipsTouchOnTrack(ordered[index - 1], ordered[index])) {
+            pairs.push({ from: ordered[index - 1], to: ordered[index], cut: Number(ordered[index].start) || 0 });
+          }
+        }
+      }
+      if (!pairs.length) return { ok: false, error: 'No touching cuts found. Scenes must sit back-to-back on the same track.' };
+      const applied = [];
+      const failed = [];
+      for (const pair of pairs) {
+        const result = applyTransitionToPair(pair, spec);
+        if (result.ok) applied.push({ id: result.transition.id, from: pair.from.name, to: pair.to.name });
+        else failed.push({ from: pair.from.name, to: pair.to.name, error: result.error });
+      }
+      if (!applied.length) return { ok: false, error: failed[0]?.error || 'No transitions were applied.' };
+      return {
+        ok: true,
+        all: true,
+        count: applied.length,
+        type: spec.type,
+        duration: timelineState.transitions.find(item => item.id === applied[0].id)?.duration || spec.duration,
+        transitions: applied,
+        failed,
+        summary: transitionSummaryForChat()
+      };
+    }
+    const existing = args.fromClipId && args.toClipId
+      ? timelineState.transitions.find(item => item.fromClipId === String(args.fromClipId) && item.toClipId === String(args.toClipId))
+      : null;
+    if (existing) {
+      return projectOps.updateTransition(existing.id, spec);
+    }
     return projectOps.addTransition({
-      type: String(args.type || 'dissolve'),
+      ...spec,
       fromClipId: args.fromClipId,
-      toClipId: args.toClipId,
-      duration: args.duration,
-      alignment: args.alignment,
-      params: {
-        direction: args.direction,
-        color: args.color,
-        intensity: args.intensity
-      },
-      code: args.code
+      toClipId: args.toClipId
     });
   }
 
@@ -9919,7 +10507,7 @@ const PLAN_SYSTEM_PROMPT = [
   'Rules:',
   '- One step per scene. Never merge several scenes into one step and never split one scene across steps.',
   '- If the brief specifies export settings, the first step applies them with set_export_settings.',
-  '- Include one step for transitions, one for overlays or titles, one for voiceover/audio when requested, and a final render/verify step.',
+  '- Include one step for transitions, one for overlays or titles, one for voiceover/audio when requested (generate_voiceover, add_captions), a verify_timeline step, and a final render step.',
   '- Each instruction must be self-contained, name the exact tool to use (set_export_settings, insert_animation_code, add_scene, create_overlay, add_transition, render_video), and carry the exact durations, timings and on-screen text from the brief.',
   '- Do not include HTML code in the plan.',
   `- Maximum ${PLAN_MAX_STEPS} steps.`
@@ -10390,7 +10978,7 @@ function switchRightTab(name) {
   closeComposerModelMenu();
   if (name === 'recipe') updateTimingSummary();
   if (name === 'inspector') renderInspector();
-  if (name === 'voice') ensureVoiceStudio();
+  if (name === 'voice') ensureVoiceStudio(true);
 }
 
 function switchLeftTab(name) {
@@ -10450,7 +11038,7 @@ function syncAssistantModelLabels() {
 function initChatShortcut() {
   document.addEventListener('keydown', (event) => {
     if (projectHomeVisible) return;
-    if (!(event.metaKey || event.ctrlKey) || event.key.toLowerCase() !== 'k') return;
+    if (!(event.metaKey || event.ctrlKey) || !event.shiftKey || event.key.toLowerCase() !== 'k') return;
     event.preventDefault();
     switchRightTab('assistant');
     const chatInput = document.getElementById('chatInput');
@@ -10520,7 +11108,10 @@ const timelineState = {
   transitions: [],
   audioTracks: defaultAudioTracks(),
   activeId: null,
+  selectedIds: [],
+  snapEnabled: true,
   layers: 1,
+  laneHeights: {},
   draggingId: null,
   assets: [],
   playhead: 0,
@@ -10580,6 +11171,7 @@ function applyTimelineHistorySnapshot(snapshot) {
     timelineState.audioTracks = sanitizeAudioTracks(parsed.audioTracks);
     timelineState.layers = Math.max(1, Math.min(4, Number(parsed.layers) || 1));
     timelineState.activeId = timelineState.clips[0] ? timelineState.clips[0].id : null;
+    timelineState.selectedIds = [];
     timelineState.selectedAssetId = null;
     timelineState.playhead = Math.max(0, Math.min(timelineTotalSeconds(), timelineState.playhead));
     saveTimelineState(true);
@@ -11206,8 +11798,50 @@ function defaultTransitionPair() {
   return best;
 }
 
-function resolveTransitionId(rawId) {
-  const explicit = String(rawId || '').trim();
+function transitionSpecFromArgs(raw = {}) {
+  const spec = raw && typeof raw === 'object' ? raw : {};
+  const hasParams = ['direction', 'color', 'intensity'].some(key => spec[key] !== undefined);
+  return {
+    type: String(spec.type || 'dissolve'),
+    duration: spec.duration,
+    alignment: spec.alignment,
+    params: hasParams
+      ? { direction: spec.direction, color: spec.color, intensity: spec.intensity }
+      : undefined,
+    code: spec.code
+  };
+}
+
+// Adds the spec to a cut, or updates the transition already on that cut so
+// automatic passes replace a placeholder instead of stacking duplicates.
+function applyTransitionToPair(pair, spec) {
+  if (!pair || !pair.from || !pair.to) return { ok: false, error: 'No touching cut found.' };
+  const existing = timelineState.transitions.find(item =>
+    item.fromClipId === pair.from.id && item.toClipId === pair.to.id
+  );
+  if (existing) {
+    const result = updateTransitionRecord(existing.id, {
+      type: spec.type,
+      duration: spec.duration,
+      alignment: spec.alignment,
+      params: spec.params,
+      code: spec.code
+    });
+    return result.ok ? { ok: true, transition: result.transition, updated: true } : result;
+  }
+  const result = addTransitionRecord({
+    type: spec.type,
+    duration: spec.duration,
+    alignment: spec.alignment,
+    params: spec.params,
+    code: spec.code,
+    fromClipId: pair.from.id,
+    toClipId: pair.to.id
+  });
+  return result.ok ? { ok: true, transition: result.transition, updated: false } : result;
+}
+
+function resolveTransitionId(rawId) {  const explicit = String(rawId || '').trim();
   if (explicit) return explicit;
   const pair = defaultTransitionPair();
   if (!pair) return '';
@@ -11625,7 +12259,10 @@ function assetTechnicalSummary(asset) {
     audioCodec: technical.audioCodec || null,
     analyzed: Boolean(asset.analysis?.technical),
     semanticStatus: asset.analysis?.semantic?.status || 'not_analyzed',
-    description: asset.analysis?.user?.description || asset.analysis?.semantic?.description || ''
+    description: asset.analysis?.user?.description || asset.analysis?.semantic?.description || '',
+    visualTags: (asset.analysis?.visual?.tags || []).slice(0, 6).map(tag => tag.label),
+    motion: asset.analysis?.visual?.motion?.label || null,
+    shots: Array.isArray(asset.analysis?.shots) ? asset.analysis.shots.length : 0
   };
 }
 
@@ -11701,6 +12338,7 @@ function saveTimelineState(immediate = false) {
           solo: Boolean(track.solo),
           volume: track.volume
         })),
+        laneHeights: { ...timelineState.laneHeights },
         clips: timelineState.clips.map(clip => ({
           id: clip.id,
           name: clip.name,
@@ -11729,7 +12367,7 @@ function saveTimelineState(immediate = false) {
   else timelineSaveTimer = setTimeout(write, 250);
 }
 
-const ASSET_ANALYSIS_VERSION = 2;
+const ASSET_ANALYSIS_VERSION = 3;
 const SEMANTIC_MAX_FRAMES = 6;
 let semanticProviderState = { loaded: false, loading: false, provider: null, error: '' };
 let semanticBusy = false;
@@ -11803,6 +12441,42 @@ function sanitizeAssetAnalysis(raw) {
       audioNote: text(raw.semantic?.audioNote, 200),
       analyzedAt: text(raw.semantic?.analyzedAt, 40)
     },
+    visual: raw.visual && typeof raw.visual === 'object' ? {
+      status: text(raw.visual.status, 24) || 'unavailable',
+      provider: text(raw.visual.provider, 40),
+      model: text(raw.visual.model, 60),
+      device: text(raw.visual.device, 12),
+      reason: text(raw.visual.reason, 300),
+      tags: Array.isArray(raw.visual.tags)
+        ? raw.visual.tags.slice(0, 16).map(tag => ({
+          label: text(tag?.label, 60),
+          score: Math.max(0, Math.min(1, Number(tag?.score) || 0))
+        })).filter(tag => tag.label)
+        : [],
+      frames: Array.isArray(raw.visual.frames)
+        ? raw.visual.frames.slice(0, 16).map(frame => ({
+          time: num(frame?.time),
+          tags: Array.isArray(frame?.tags)
+            ? frame.tags.slice(0, 8).map(tag => ({
+              label: text(tag?.label, 60),
+              score: Math.max(0, Math.min(1, Number(tag?.score) || 0))
+            })).filter(tag => tag.label)
+            : []
+        }))
+        : [],
+      motion: raw.visual.motion ? {
+        score: Math.max(0, Math.min(1, Number(raw.visual.motion.score) || 0)),
+        peak: Math.max(0, Math.min(1, Number(raw.visual.motion.peak) || 0)),
+        label: text(raw.visual.motion.label, 20),
+        profile: Array.isArray(raw.visual.motion.profile)
+          ? raw.visual.motion.profile.slice(0, 90).map(entry => [
+            num(Array.isArray(entry) ? entry[0] : null),
+            Math.max(0, Math.min(1, Number(Array.isArray(entry) ? entry[1] : 0) || 0))
+          ])
+          : []
+      } : null,
+      indexedAt: text(raw.visual.indexedAt, 40)
+    } : null,
     user: {
       description: text(raw.user?.description, 2000),
       notes: text(raw.user?.notes, 2000),
@@ -11816,11 +12490,33 @@ function sanitizeAssetAnalysis(raw) {
   };
 }
 
+const LANE_MIN_HEIGHT = 20;
+const LANE_MAX_HEIGHT = 120;
+const LANE_VIDEO_HEIGHT = 46;
+const LANE_AUDIO_HEIGHTS = { A1: 52, A2: 32, A3: 32 };
+const LANE_KEYS = ['V1', 'V2', 'V3', 'V4', 'A1', 'A2', 'A3'];
+
+function sanitizeLaneHeights(raw) {
+  const heights = {};
+  if (!raw || typeof raw !== 'object') return heights;
+  for (const key of LANE_KEYS) {
+    const height = Number(raw[key]);
+    if (!Number.isFinite(height)) continue;
+    heights[key] = Math.round(Math.max(LANE_MIN_HEIGHT, Math.min(LANE_MAX_HEIGHT, height)));
+  }
+  return heights;
+}
+
+function laneHeightFor(key, fallback) {
+  return timelineState.laneHeights[key] || fallback;
+}
+
 function loadTimelineState(persist = true, options = {}) {
   let stored = null;
   try { stored = JSON.parse(localStorage.getItem(TIMELINE_KEY) || 'null'); }
   catch (error) { stored = null; }
   timelineState.audioTracks = sanitizeAudioTracks(stored?.audioTracks);
+  timelineState.laneHeights = sanitizeLaneHeights(stored?.laneHeights);
   const storedAssets = stored && Array.isArray(stored.assets) ? stored.assets : [];
   const assetIds = new Set();
   timelineState.assets = storedAssets
@@ -11941,6 +12637,7 @@ function loadTimelineState(persist = true, options = {}) {
   timelineState.layers = Math.max(1, Math.min(4, maxTrack + 1));
   const active = timelineState.clips.find(clip => clip.id === stored?.activeId) || timelineState.clips[0] || null;
   timelineState.activeId = active?.id || null;
+  timelineState.selectedIds = [];
   timelineState.selectedAssetId = null;
   timelineState.playhead = timelineState.clips.length
     ? Math.max(0, Math.min(timelineTotalSeconds(), Number(stored?.playhead) || 0))
@@ -11979,8 +12676,25 @@ function clipPreviewTime(clip) {
 // Stage preview that stacks every track at the playhead, like the export.
 // During a transition window both participating clips are kept in the page so
 // playback can drive the same deterministic engine used by the export.
-let previewCompositeState = { active: false, count: 0 };
+let previewCompositeState = { active: false, count: 0, key: '' };
 let pendingCompositeCount = 0;
+let previewSceneState = { clipId: '', time: 0, live: false };
+
+function postLiveSceneSeek(seconds, live) {
+  if (previewCompositeState.active) return;
+  const iframe = document.getElementById('liveFrame');
+  if (!iframe) return;
+  try {
+    iframe.contentWindow?.postMessage(
+      { source: 'clipacanvas-preview-host', type: 'seek', seconds: Math.max(0, Number(seconds) || 0), seekMedia: !live },
+      '*'
+    );
+  } catch (error) { console.error(error); }
+}
+
+function previewSceneLocalTime(clip, at) {
+  return Math.max(0, Math.min(Number(clip.duration) || 0, (Number(at) || 0) - (Number(clip.start) || 0)));
+}
 
 function compositeLayerPlan(at) {
   const participants = new Set();
@@ -12021,12 +12735,13 @@ function buildCompositePreview(at, options = {}) {
         ? activeCode
         : String(clip.code || '');
       if (!code.trim()) continue;
-      html = injectPreviewReporter(injectSceneMediaTools(code));
+      html = injectPreviewClock(injectPreviewReporter(injectSceneMediaTools(code)));
     }
     layers.push({ clip, track, html });
   }
   pendingCompositeCount = layers.length;
-  if (layers.length < 2) return '';
+  if (!layers.length) return '';
+  if (layers.length < 2 && !options.allowSingleLayer) return '';
   const pageIds = new Set(layers.map(layer => layer.clip.id));
   const transitions = resolvedTransitions().filter(transition =>
     pageIds.has(transition.fromClipId) && pageIds.has(transition.toClipId)
@@ -12049,11 +12764,31 @@ function buildCompositePreview(at, options = {}) {
     '  return { el: el, clipId: el.getAttribute("data-clip-id"), start: Number(el.getAttribute("data-start")), duration: Number(el.getAttribute("data-duration")), track: Number(el.getAttribute("data-track")) };',
     '});',
     'var transitions = ' + (transitionsJson || '[]') + ';',
-    'var apply = window.CCTransitions.mount(document.body, ' + (Number(at) || 0).toFixed(4) + ', layers, transitions);',
+    'var current = ' + (Number(at) || 0).toFixed(4) + ';',
+    'function seekLayer(layer, seconds, live){',
+    '  if (!layer || !layer.el.contentWindow) return;',
+    '  var local = Math.max(0, Math.min(layer.duration || 0, seconds - layer.start));',
+    '  try { layer.el.contentWindow.postMessage({ source: "clipacanvas-preview-host", type: "seek", seconds: local, seekMedia: !live }, "*"); } catch (error) {}',
+    '}',
+    'function seekLayers(seconds, live){',
+    '  current = seconds;',
+    '  layers.forEach(function(layer){ seekLayer(layer, seconds, live); });',
+    '}',
+    'var apply = window.CCTransitions.mount(document.body, current, layers, transitions);',
+    'seekLayers(current, false);',
     'addEventListener("message", function(event){',
     '  var data = event.data;',
-    '  if (!data || data.source !== "clipacanvas-composite" || data.type !== "time") return;',
-    '  apply(Number(data.seconds) || 0);',
+    '  if (!data) return;',
+    '  if (data.source === "clipacanvas-preview" && data.kind === "clock-ready") {',
+    '    layers.forEach(function(layer){',
+    '      if (layer.el.contentWindow === event.source) seekLayer(layer, current, false);',
+    '    });',
+    '    return;',
+    '  }',
+    '  if (data.source !== "clipacanvas-composite" || data.type !== "time") return;',
+    '  var seconds = Number(data.seconds) || 0;',
+    '  apply(seconds);',
+    '  seekLayers(seconds, Boolean(data.live));',
     '});',
     '})();',
     '<\/script>',
@@ -12061,27 +12796,110 @@ function buildCompositePreview(at, options = {}) {
   ].join('\n');
 }
 
-function renderCompositePreview(html) {
+function compositePreviewKey(at) {
+  const plan = compositeLayerPlan(at);
+  const layerKey = plan.layers
+    .map(layer => `${layer.id}:${layer.type || 'code'}:${String(layer.code || '').length}:${layer.track}`)
+    .join('|');
+  const pageIds = new Set(plan.layers.map(layer => layer.id));
+  const transitionKey = resolvedTransitions()
+    .filter(transition => pageIds.has(transition.fromClipId) && pageIds.has(transition.toClipId))
+    .map(transition => [
+      transition.id,
+      transition.type,
+      transition.duration,
+      transition.alignment,
+      transition.cut,
+      JSON.stringify(transition.params || {}),
+      String(transition.code || '').length
+    ].join(':'))
+    .join('|');
+  return `${layerKey}#${plan.participants.size}#${transitionKey}`;
+}
+
+function renderCompositePreview(html, key = '') {
   hideStageFilm(0);
   setEmptySceneHint(false);
   const iframe = document.getElementById('liveFrame');
   if (iframe) {
     iframe.onload = () => queuePreviewScale();
     iframe.srcdoc = html;
+    iframe.dataset.previewClip = '';
+    iframe.dataset.clockReady = '';
   }
-  previewCompositeState = { active: true, count: pendingCompositeCount };
+  previewCompositeState = { active: true, count: pendingCompositeCount, key };
   queuePreviewScale();
 }
 
-function postCompositeTime(seconds) {
+function postCompositeTime(seconds, options = {}) {
   if (!previewCompositeState.active) return;
   const iframe = document.getElementById('liveFrame');
   try {
     iframe?.contentWindow?.postMessage(
-      { source: 'clipacanvas-composite', type: 'time', seconds: Number(seconds) || 0 },
+      { source: 'clipacanvas-composite', type: 'time', seconds: Number(seconds) || 0, live: Boolean(options.live) },
       '*'
     );
   } catch (error) { console.error(error); }
+}
+
+function seekPreviewTransport(at, live) {
+  if (previewCompositeState.active) {
+    postCompositeTime(at, { live });
+    return;
+  }
+  const clip = previewSceneState.clipId ? findClipById(previewSceneState.clipId) : null;
+  if (clip && !clipIsMedia(clip)) {
+    const local = previewSceneLocalTime(clip, at);
+    previewSceneState.time = local;
+    previewSceneState.live = live;
+    postLiveSceneSeek(local, live);
+  }
+}
+
+// Timeline audio during preview: one element per audible clip, following the
+// playhead. Export still mixes from the same clip list; this is the monitor's mix.
+const previewAudioTransport = { elements: new Map() };
+
+function previewAudioStop() {
+  previewAudioTransport.elements.forEach(entry => {
+    try { entry.el.pause(); } catch (error) {}
+  });
+  previewAudioTransport.elements.clear();
+}
+
+function previewAudioSync(at) {
+  const activeIds = new Set();
+  for (const clip of timelineState.clips) {
+    if (clip.type !== 'audio') continue;
+    const start = Number(clip.start) || 0;
+    const duration = Number(clip.duration) || 0;
+    if (!(duration > 0) || at < start - 1e-4 || at >= start + duration - 1e-4) continue;
+    const gain = audioTrackGain(clip);
+    if (!(gain > 0)) continue;
+    const url = clipMediaUrl(clip);
+    if (!url) continue;
+    activeIds.add(clip.id);
+    let entry = previewAudioTransport.elements.get(clip.id);
+    if (!entry) {
+      const el = new Audio(url);
+      el.preload = 'auto';
+      entry = { el, url };
+      previewAudioTransport.elements.set(clip.id, entry);
+    }
+    const expected = clipSourceIn(clip) + Math.max(0, at - start);
+    const volume = Math.max(0, Math.min(1, gain));
+    if (Math.abs((entry.el.volume || 0) - volume) > 1e-3) entry.el.volume = volume;
+    const drift = Math.abs((Number(entry.el.currentTime) || 0) - expected);
+    if (entry.el.paused || drift > 0.2) {
+      try { entry.el.currentTime = expected; } catch (error) {}
+      entry.el.play().catch(() => {});
+    }
+  }
+  for (const [id, entry] of previewAudioTransport.elements) {
+    if (activeIds.has(id)) continue;
+    try { entry.el.pause(); } catch (error) {}
+    previewAudioTransport.elements.delete(id);
+  }
 }
 
 function countPreviewLayers(at) {
@@ -12093,11 +12911,21 @@ function previewClipCode(clip) {
   const at = clipPreviewTime(clip);
   const composite = buildCompositePreview(at);
   if (composite) {
-    renderCompositePreview(composite);
-    setStatus(`PREVIEW · ${countPreviewLayers(at)} LAYERS · ${formatTimelineTime(at)}`, '');
+    renderCompositePreview(composite, compositePreviewKey(at));
+    setStatus(`PREVIEW · ${countPreviewLayers(at)} ${countPreviewLayers(at) === 1 ? 'LAYER' : 'LAYERS'} · ${formatTimelineTime(at)}`, '');
     return;
   }
   if (clipIsMedia(clip)) {
+    // An audio clip has no picture of its own. When the playhead sits over a
+    // scene, keep showing that program frame instead of an audio placeholder.
+    if (clip.type === 'audio' && countPreviewLayers(at) > 0) {
+      const single = buildCompositePreview(at, { allowSingleLayer: true });
+      if (single) {
+        renderCompositePreview(single, compositePreviewKey(at));
+        setStatus(`PREVIEW · ${countPreviewLayers(at)} ${countPreviewLayers(at) === 1 ? 'LAYER' : 'LAYERS'} · ${formatTimelineTime(at)}`, '');
+        return;
+      }
+    }
     previewMediaSource({
       url: clipMediaUrl(clip),
       kind: clip.type,
@@ -12506,14 +13334,23 @@ function renderAssetContentAnalysis(asset) {
   }
   if (shotsMeta) {
     const total = Array.isArray(analysis?.shots) ? analysis.shots.length : 0;
+    const motionLabel = analysis?.visual?.motion?.label;
     shotsMeta.hidden = !total;
     shotsMeta.textContent = total
-      ? `${total} SHOT${total === 1 ? '' : 'S'} · ${previews.length} PREVIEW${previews.length === 1 ? '' : 'S'} · LOCAL`
+      ? [
+        `${total} SHOT${total === 1 ? '' : 'S'}`,
+        `${previews.length} PREVIEW${previews.length === 1 ? '' : 'S'}`,
+        'LOCAL',
+        motionLabel ? `MOTION ${String(motionLabel).toUpperCase()}` : ''
+      ].filter(Boolean).join(' · ')
       : '';
   }
   if (tagsBox) {
-    const tags = semantic.tags || [];
+    const tags = (semantic.tags || []).length
+      ? semantic.tags
+      : (analysis?.visual?.tags || []).map(tag => tag.label);
     tagsBox.hidden = !tags.length;
+    tagsBox.title = semantic.tags?.length ? '' : 'Local visual tags from EmbeddingGemma 2';
     tagsBox.innerHTML = tags.map(tag => `<span>${escapeHtml(tag)}</span>`).join('');
   }
   if (semanticText) {
@@ -12540,6 +13377,10 @@ function renderAssetContentAnalysis(asset) {
         semantic.framesSent ? `${semantic.framesSent} FRAME${semantic.framesSent === 1 ? '' : 'S'}` : '',
         semantic.audioSent ? 'AUDIO' : ''
       ].filter(Boolean).join(' · ');
+    } else if (analysis?.visual?.status === 'indexed') {
+      const tagCount = (analysis.visual.tags || []).length;
+      const frameCount = (analysis.visual.frames || []).length;
+      status.textContent = `LOCAL VISUAL INDEX · EMBEDDINGGEMMA2 · ${tagCount} TAG${tagCount === 1 ? '' : 'S'} · ${frameCount} FRAME${frameCount === 1 ? '' : 'S'}`;
     } else {
       status.textContent = 'NOT ANALYZED';
     }
@@ -13164,6 +14005,7 @@ function timelineClipBoxHtml(clip) {
     + (isMedia && clip.type === 'audio' ? ' audio' : '')
     + (isMedia && clip.type === 'image' && mediaUrl ? ' has-thumb' : '')
     + (clip.id === timelineState.activeId ? ' active' : '')
+    + (Array.isArray(timelineState.selectedIds) && timelineState.selectedIds.includes(clip.id) ? ' selected' : '')
     + (clip.id === timelineState.draggingId ? ' dragging' : '');
   const sourceRange = isMedia && clip.type !== 'image' && clipSourceIn(clip) > 0
     ? `IN ${clipSourceIn(clip).toFixed(1)}s · `
@@ -13206,9 +14048,12 @@ function renderLogicBoxes() {
         const title = `${transitionTypeLabel(transition.type)} · ${formatTimelineTime(transition.duration)} · ${transition.alignment.toUpperCase()} · ${formatTimelineTime(win.start)} → ${formatTimelineTime(win.end)}`;
         return `<button type="button" class="logic-transition" data-transition-id="${escapeAttr(transition.id)}" title="${escapeAttr(title)}" style="left:${cutPct}%">${escapeHtml(transition.type === 'custom' ? 'CODE' : 'TR')}</button>`;
       }).join('');
-    rows.push(`<div class="et-row" data-track="${track}">` +
+    const laneKey = `V${track + 1}`;
+    const laneHeight = laneHeightFor(laneKey, trackClips.length ? LANE_VIDEO_HEIGHT : LANE_MIN_HEIGHT);
+    rows.push(`<div class="et-row${trackClips.length ? '' : ' is-empty'}" data-track="${track}" style="height:${laneHeight}px;flex:0 0 ${laneHeight}px">` +
       `<div class="et-label"><b>V${track + 1}</b><em>${trackClips.length} CLIP${trackClips.length === 1 ? '' : 'S'}</em></div>` +
       `<div class="et-lane" data-track="${track}">${boxes}${badges}</div>` +
+      `<div class="lane-resize" data-lane="${laneKey}" title="Drag to resize V${track + 1} — double-click to reset"></div>` +
       `</div>`);
   }
   for (const audioTrack of timelineState.audioTracks) {
@@ -13217,9 +14062,14 @@ function renderLogicBoxes() {
       .sort((a, b) => a.start - b.start);
     const boxes = laneClips.map(clip => timelineClipBoxHtml(clip)).join('');
     const flags = `${audioTrack.mute ? ' · M' : ''}${audioTrack.solo ? ' · S' : ''}`;
-    rows.push(`<div class="et-row audio-row" data-audio-row="${audioTrack.id}">` +
+    const laneKey = audioTrack.id;
+    const laneHeight = laneHeightFor(laneKey, laneClips.length
+      ? (LANE_AUDIO_HEIGHTS[laneKey] || 32)
+      : LANE_MIN_HEIGHT);
+    rows.push(`<div class="et-row audio-row${laneClips.length ? '' : ' is-empty'}" data-audio-row="${audioTrack.id}" style="height:${laneHeight}px;flex:0 0 ${laneHeight}px">` +
       `<div class="et-label"><b>${audioTrack.id}</b><em>${escapeHtml(audioTrack.name)} · ${laneClips.length} CLIP${laneClips.length === 1 ? '' : 'S'}${flags}</em></div>` +
       `<div class="et-lane" data-audio-track="${audioTrack.id}">${boxes}</div>` +
+      `<div class="lane-resize" data-lane="${laneKey}" title="Drag to resize ${laneKey} — double-click to reset"></div>` +
       `</div>`);
   }
   host.innerHTML = rows.join('');
@@ -13235,17 +14085,102 @@ function renderLogicBoxes() {
   if (layerBtn) layerBtn.disabled = timelineState.layers >= 4;
 }
 
+// Timeline selection is separate from the active clip: the active clip drives
+// the editor, while selectedIds is what multi-clip edit commands operate on.
+function timelineSelectedClips() {
+  const existing = new Set(timelineState.clips.map(clip => clip.id));
+  timelineState.selectedIds = (Array.isArray(timelineState.selectedIds) ? timelineState.selectedIds : [])
+    .filter(id => existing.has(id));
+  const ids = new Set(timelineState.selectedIds);
+  return timelineState.clips.filter(clip => ids.has(clip.id));
+}
+
+// Delete commands still work on the active clip when nothing is explicitly
+// selected, so the toolbar never feels dead after a project load.
+function timelineSelectionOrActive() {
+  const selected = timelineSelectedClips();
+  if (selected.length) return selected;
+  const active = activeClip();
+  return active ? [active] : [];
+}
+
+function selectAllTimelineClips() {
+  if (!timelineState.clips.length) {
+    setStatus('Timeline is empty.', 'err');
+    return;
+  }
+  timelineState.selectedIds = timelineState.clips.map(clip => clip.id);
+  if (!timelineState.activeId) timelineState.activeId = timelineState.clips[0].id;
+  renderLogicBoxes();
+  setStatus(`Selected ${timelineState.selectedIds.length} clip${timelineState.selectedIds.length === 1 ? '' : 's'} — Shift+click adds · Ctrl+click toggles`, 'ok');
+}
+
+function clearTimelineSelection() {
+  timelineState.selectedIds = [];
+  renderLogicBoxes();
+  setStatus('Selection cleared', '');
+}
+
+function toggleTimelineSnapping() {
+  timelineState.snapEnabled = !timelineState.snapEnabled;
+  const on = timelineState.snapEnabled;
+  const button = document.getElementById('snapToggle');
+  if (button) {
+    button.classList.toggle('is-on', on);
+    button.setAttribute('aria-pressed', String(on));
+  }
+  updateStageTimeline();
+  setStatus(`SNAPPING ${on ? 'ON' : 'OFF'}`, on ? '' : 'err');
+}
+
+function timelineEditPoints() {
+  const points = new Set();
+  for (const clip of timelineState.clips) {
+    points.add(Math.max(0, Number(clip.start) || 0));
+    points.add(clipEnd(clip));
+  }
+  return [...points].sort((a, b) => a - b);
+}
+
+function jumpToEditPoint(direction) {
+  const at = Number(timelineState.playhead) || 0;
+  const points = timelineEditPoints();
+  const target = direction > 0
+    ? points.find(point => point > at + 1e-4)
+    : points.slice().reverse().find(point => point < at - 1e-4);
+  if (target === undefined) {
+    setStatus(direction > 0 ? 'No edit point ahead.' : 'No edit point behind.', '');
+    return false;
+  }
+  setPlayhead(target, { preview: true });
+  return true;
+}
+
 function selectLogicClip(id, options = {}) {
   const clip = timelineState.clips.find(item => item.id === id);
   if (!clip) return;
   const hadAsset = Boolean(timelineState.selectedAssetId);
   timelineState.selectedAssetId = null;
+  const selectionBefore = (timelineState.selectedIds || []).join('|');
+  if (options.additive) {
+    const ids = new Set(
+      (timelineState.selectedIds.length ? timelineState.selectedIds : (timelineState.activeId ? [timelineState.activeId] : []))
+        .filter(item => timelineState.clips.some(clipItem => clipItem.id === item))
+    );
+    if (options.toggle && ids.has(clip.id)) ids.delete(clip.id);
+    else ids.add(clip.id);
+    timelineState.selectedIds = [...ids];
+  } else if (!(timelineState.selectedIds.length === 1 && timelineState.selectedIds[0] === clip.id)) {
+    timelineState.selectedIds = [clip.id];
+  }
+  const selectionChanged = (timelineState.selectedIds || []).join('|') !== selectionBefore;
   const changed = timelineState.activeId !== clip.id;
   if (!changed) {
     if (clipIsMedia(clip)) showMediaInspectorForClip(clip);
     else hideMediaInspector();
     scheduleSceneListRender();
     if (hadAsset) renderProjectBin();
+    if (selectionChanged) renderLogicBoxes();
     if (options.preview !== false) {
       syncActiveClipFromEditor(true);
       previewClipCode(clip);
@@ -13347,8 +14282,12 @@ function snapTimelineEdge(value, ignoreId, thresholdSeconds) {
   let best = target;
   // Snapping is a pixel affordance: the threshold is derived from the current
   // zoom, so a 6px pull never snaps at wide zoom levels but still grabs edges
-  // when the user zooms in.
-  let bestDistance = Math.max(0.002, Number(thresholdSeconds) || TIMELINE_SNAP_SECONDS);
+  // when the user zooms in. A zero threshold disables snapping entirely.
+  const limit = thresholdSeconds === undefined || thresholdSeconds === null || thresholdSeconds === ''
+    ? TIMELINE_SNAP_SECONDS
+    : Number(thresholdSeconds);
+  if (!(limit > 0)) return Math.round(target * 10) / 10;
+  let bestDistance = Math.max(0.002, limit);
   for (const candidate of candidates) {
     const distance = Math.abs(target - candidate);
     if (distance < bestDistance) {
@@ -13665,6 +14604,8 @@ function clearTrackRange(track, start, end) {
   const activeStillExists = survivors.some(clip => clip.id === timelineState.activeId);
   timelineState.clips = survivors;
   if (!activeStillExists) timelineState.activeId = survivors[0]?.id || null;
+  const survivorIds = new Set(survivors.map(clip => clip.id));
+  timelineState.selectedIds = timelineState.selectedIds.filter(id => survivorIds.has(id));
 }
 
 function insertGapAllowance(at) {
@@ -13816,47 +14757,91 @@ function placeAssetClipAt(asset, track, at, options = {}) {
   });
 }
 
-function deleteClipById(clipId) {
-  const clip = timelineState.clips.find(item => item.id === clipId);
-  if (!clip) return { error: 'Clip not found.' };
-  const index = timelineState.clips.findIndex(item => item.id === clip.id);
-  if (index < 0) return { error: 'Clip not found.' };
-  const removedEnd = clipEnd(clip);
-  const removedDuration = Math.max(0.5, Number(clip.duration) || 0.5);
+// Removes one or many clips. `ripple` closes the freed gap on the same track;
+// lift leaves it open, matching Premiere's Delete vs Shift+Delete.
+function removeTimelineClips(ids, options = {}) {
+  const ripple = Boolean(options.ripple);
+  const wanted = new Set(ids);
+  const removed = timelineState.clips.filter(clip => wanted.has(clip.id));
+  if (!removed.length) return { error: 'Clip not found.' };
+  const removedSet = new Set(removed.map(clip => clip.id));
+  const activeIndex = timelineState.clips.findIndex(clip => clip.id === timelineState.activeId);
+  const activeRemoved = removedSet.has(timelineState.activeId);
   for (const item of timelineState.clips) {
-    if (item.parentClipId === clip.id) item.parentClipId = '';
+    if (removedSet.has(item.parentClipId)) item.parentClipId = '';
   }
-  timelineState.clips.splice(index, 1);
-  for (const item of timelineState.clips) {
-    if (clip.type === 'audio' || item.type === 'audio') continue;
-    if (item.track !== clip.track) continue;
-    if ((Number(item.start) || 0) >= removedEnd - 1e-6) {
-      item.start = roundClipTime(Math.max(0, Number(item.start) - removedDuration));
+  timelineState.clips = timelineState.clips.filter(clip => !removedSet.has(clip.id));
+  if (ripple) {
+    // Right-to-left so each earlier removal still shifts clips that a later
+    // removal has already closed up, without double-counting.
+    for (const clip of removed.slice().sort((a, b) => b.start - a.start)) {
+      if (clip.type === 'audio') continue;
+      const removedEnd = clipEnd(clip);
+      const removedDuration = Math.max(0.5, Number(clip.duration) || 0.5);
+      for (const item of timelineState.clips) {
+        if (item.type === 'audio' || item.track !== clip.track) continue;
+        if ((Number(item.start) || 0) >= removedEnd - 1e-6) {
+          item.start = roundClipTime(Math.max(0, Number(item.start) - removedDuration));
+        }
+      }
     }
   }
-  const next = timelineState.clips[index] || timelineState.clips[index - 1] || null;
-  timelineState.activeId = next?.id || null;
+  if (activeRemoved || !timelineState.clips.some(clip => clip.id === timelineState.activeId)) {
+    const neighbor = timelineState.clips[activeIndex]
+      || timelineState.clips[Math.max(0, activeIndex - 1)]
+      || timelineState.clips[0]
+      || null;
+    timelineState.activeId = neighbor?.id || null;
+  }
+  timelineState.selectedIds = timelineState.selectedIds.filter(id => !removedSet.has(id));
   timelineState.selectedAssetId = null;
   saveTimelineState(true);
   applyActiveClipToEditor({ preview: true });
   renderLogicBoxes();
   renderProjectBin();
   updateStageTimeline();
+  return { clips: removed, count: removed.length };
+}
+
+function deleteClipById(clipId) {
+  const clip = timelineState.clips.find(item => item.id === clipId);
+  if (!clip) return { error: 'Clip not found.' };
+  const result = removeTimelineClips([clipId], { ripple: true });
+  if (result.error) return result;
+  const next = timelineState.clips.find(item => item.id === timelineState.activeId) || null;
   return { clip, next };
 }
 
 function deleteLogicClip() {
-  const clip = activeClip();
-  if (!clip) {
+  const clips = timelineSelectionOrActive();
+  if (!clips.length) {
     setStatus('Select a clip to delete.', 'err');
     return;
   }
-  const result = deleteClipById(clip.id);
+  const result = removeTimelineClips(clips.map(clip => clip.id), { ripple: true });
   if (result.error) {
     setStatus(result.error, 'err');
     return;
   }
-  setStatus(`Ripple deleted ${result.clip.name} — gap closed`, 'ok');
+  setStatus(result.count === 1
+    ? `Ripple deleted ${result.clips[0].name} — gap closed`
+    : `Ripple deleted ${result.count} clips — gaps closed`, 'ok');
+}
+
+function liftLogicClips() {
+  const clips = timelineSelectionOrActive();
+  if (!clips.length) {
+    setStatus('Select a clip to delete.', 'err');
+    return;
+  }
+  const result = removeTimelineClips(clips.map(clip => clip.id), { ripple: false });
+  if (result.error) {
+    setStatus(result.error, 'err');
+    return;
+  }
+  setStatus(result.count === 1
+    ? `Lifted ${result.clips[0].name} — gap left`
+    : `Lifted ${result.count} clips — gaps left`, 'ok');
 }
 
 function splitAtPlayhead() {
@@ -13870,15 +14855,20 @@ function splitAtPlayhead() {
     return;
   }
   const activeBefore = timelineState.activeId;
+  const selectedBefore = new Set(timelineState.selectedIds.length
+    ? timelineState.selectedIds
+    : (timelineState.activeId ? [timelineState.activeId] : []));
   const created = [];
   for (const clip of targets) {
     const right = splitClipRecord(clip, at);
     if (!right) continue;
     created.push(right);
     timelineState.clips.push(right);
+    if (selectedBefore.has(clip.id)) timelineState.selectedIds.push(right.id);
     if (clip.id === activeBefore) timelineState.activeId = right.id;
   }
   if (!created.length) return;
+  timelineState.selectedIds = [...new Set(timelineState.selectedIds)];
   timelineState.selectedAssetId = null;
   saveTimelineState(true);
   applyActiveClipToEditor({ preview: true });
@@ -14431,7 +15421,7 @@ function ensurePlayheadVisible() {
 }
 
 // ── PROGRAM MONITOR PLAYBACK ─────────────────────────────
-const playbackState = { playing: false, raf: 0, last: 0, clipKey: '' };
+const playbackState = { playing: false, raf: 0, last: 0, clipKey: '', direction: 1, rate: 1 };
 let previewFitMode = 'fit';
 const PLAY_ICON = '<svg viewBox="0 0 12 12" aria-hidden="true"><path d="M3 2l7 4-7 4z" fill="currentColor"/></svg>';
 const PAUSE_ICON = '<svg viewBox="0 0 12 12" aria-hidden="true"><rect x="3" y="2" width="2.2" height="8" fill="currentColor"/><rect x="6.8" y="2" width="2.2" height="8" fill="currentColor"/></svg>';
@@ -14474,17 +15464,37 @@ function playbackClipKey(at) {
 
 function togglePlayback() {
   if (playbackState.playing) { stopPlayback(); return; }
+  startShuttle(1);
+}
+
+// J / K / L shuttle. Repeating the same direction doubles the rate, like
+// Premiere; reverse playback runs the composite clock backwards without audio.
+function startShuttle(direction) {
   const total = timelineTotalSeconds();
   if (!(total > 0)) return;
-  if (timelineState.playhead >= total - 0.001) setPlayhead(0);
+  const dir = direction < 0 ? -1 : 1;
+  if (playbackState.playing && playbackState.direction === dir) {
+    playbackState.rate = Math.min(8, (Number(playbackState.rate) || 1) * 2);
+    setStatus(dir > 0 ? `PLAY ${playbackState.rate}×` : `REVERSE ${playbackState.rate}×`, '');
+    return;
+  }
+  if (dir < 0 && timelineState.playhead <= 0.001) {
+    setStatus('Already at the start.', '');
+    return;
+  }
+  if (playbackState.playing) stopPlayback(false);
+  if (dir > 0 && timelineState.playhead >= total - 0.001) setPlayhead(0);
   playbackState.playing = true;
+  playbackState.direction = dir;
+  playbackState.rate = 1;
   playbackState.last = 0;
   playbackState.clipKey = '';
+  if (dir > 0) previewAudioSync(timelineState.playhead);
   const button = document.getElementById('playToggle');
   if (button) {
     button.innerHTML = PAUSE_ICON;
     button.classList.add('active');
-    button.setAttribute('aria-label', 'Pause');
+    button.setAttribute('aria-label', dir > 0 ? 'Pause' : 'Stop reverse');
   }
   playbackState.raf = requestAnimationFrame(playbackTick);
 }
@@ -14495,10 +15505,13 @@ function playbackTick(ts) {
   const delta = Math.min(0.25, Math.max(0, (ts - playbackState.last) / 1000));
   playbackState.last = ts;
   const total = timelineTotalSeconds();
-  const at = timelineState.playhead + delta;
-  if (at >= total) {
-    timelineState.playhead = total;
-    positionPlayhead(total);
+  const direction = playbackState.direction || 1;
+  const rate = playbackState.rate || 1;
+  const at = timelineState.playhead + delta * rate * direction;
+  if ((direction > 0 && at >= total) || (direction < 0 && at <= 0)) {
+    const edge = direction > 0 ? total : 0;
+    timelineState.playhead = edge;
+    positionPlayhead(edge);
     updateMonitorTime();
     stopPlayback();
     return;
@@ -14512,15 +15525,19 @@ function playbackTick(ts) {
     playbackState.clipKey = key;
     previewAtPlayhead();
   }
-  postCompositeTime(at);
+  seekPreviewTransport(at, true);
+  if (direction > 0) previewAudioSync(at);
   playbackState.raf = requestAnimationFrame(playbackTick);
 }
 
 function stopPlayback(save = true) {
   if (!playbackState.playing) return;
   playbackState.playing = false;
+  playbackState.direction = 1;
+  playbackState.rate = 1;
   cancelAnimationFrame(playbackState.raf);
   playbackState.raf = 0;
+  previewAudioStop();
   const button = document.getElementById('playToggle');
   if (button) {
     button.innerHTML = PLAY_ICON;
@@ -14658,7 +15675,7 @@ function durableContentSignature() {
   const notes = timelineState.assets
     .map(asset => `${asset.id}:${asset.analysis?.user?.description || ''}`)
     .join(';');
-  return `${currentProjectName()}|${timelineHistorySnapshot()}|${notes}`;
+  return `${currentProjectName()}|${timelineHistorySnapshot()}|${JSON.stringify(timelineState.laneHeights)}|${notes}`;
 }
 
 function scheduleDurableProjectSave() {
@@ -14846,8 +15863,10 @@ function buildProjectFilePayload() {
       clips: timelineState.clips,
       transitions: timelineState.transitions,
       audioTracks: timelineState.audioTracks,
+      laneHeights: { ...timelineState.laneHeights },
       layers: timelineState.layers,
       playhead: timelineState.playhead,
+      activeId: timelineState.activeId,
       assets: timelineState.assets
     }
   };
@@ -14879,9 +15898,10 @@ function applyProjectPayload(payload) {
     clips: timeline.clips,
     transitions: timeline.transitions,
     audioTracks: timeline.audioTracks,
+    laneHeights: timeline.laneHeights,
     layers: timeline.layers,
     playhead: timeline.playhead,
-    activeId: timeline.clips[0]?.id || null,
+    activeId: timeline.activeId || timeline.clips[0]?.id || null,
     selectedAssetId: null,
     assets: Array.isArray(timeline.assets) ? timeline.assets : []
   };
@@ -15467,9 +16487,12 @@ function activateProjectEntry(entry, payload, options = {}) {
     applyProjectName(activeProject.name);
     try { localStorage.setItem('clipacanvas.projectName', activeProject.name); }
     catch (error) { console.error(error); }
+    setChatProjectScope(activeProject.id);
     hideProjectHome();
     refreshProjectLibrary();
-    setStatus(`PROJECT OPENED · ${activeProject.name}`, 'ok');
+    setStatus(options.recoveredFromAutosave
+      ? `PROJECT OPENED · ${activeProject.name} · AUTOSAVE RESTORED`
+      : `PROJECT OPENED · ${activeProject.name}`, 'ok');
   } finally {
     projectOpenInProgress = false;
   }
@@ -15525,7 +16548,9 @@ async function openProjectById(projectId, options = {}) {
       }
     }
     const entry = data.entry || await importProjectIntoLibrary(payload);
-    activateProjectEntry(entry, payload, { recoveredFromAutosave: Boolean(options.recover) && !data.legacy });
+    const recoveredFromAutosave = Boolean(data.recovered)
+      || (Boolean(options.recover) && !data.legacy);
+    activateProjectEntry(entry, payload, { recoveredFromAutosave });
     if (!projectHomeEnabled() && activeProject) {
       // Editor-first surfaces (plain browser/dev) keep the legacy single-slot
       // autosave; opening from the in-editor library must not switch stores.
@@ -15729,7 +16754,8 @@ function positionPlayhead(seconds) {
 }
 
 function previewClipFrame(clip, at) {
-  previewCompositeState = { active: false, count: 0 };
+  previewCompositeState = { active: false, count: 0, key: '' };
+  previewSceneState = { clipId: '', time: 0, live: false };
   if (clipIsMedia(clip)) {
     const offset = Math.max(0, at - (Number(clip.start) || 0));
     previewMediaSource({
@@ -15753,18 +16779,35 @@ function previewClipFrame(clip, at) {
   hideStageFilm(0);
   setEmptySceneHint(false);
   const iframe = document.getElementById('liveFrame');
+  const local = previewSceneLocalTime(clip, at);
+  previewSceneState = { clipId: clip.id, time: local, live: playbackState.playing };
   if (iframe) {
-    iframe.onload = () => queuePreviewScale();
-    iframe.srcdoc = injectPreviewReporter(injectSceneMediaTools(code));
+    if (iframe.dataset.previewClip === clip.id && iframe.dataset.clockReady === '1') {
+      postLiveSceneSeek(local, playbackState.playing);
+      queuePreviewScale();
+      return;
+    }
+    iframe.onload = () => {
+      queuePreviewScale();
+      postLiveSceneSeek(previewSceneState.time, previewSceneState.live);
+    };
+    iframe.dataset.previewClip = clip.id;
+    iframe.dataset.clockReady = '';
+    iframe.srcdoc = injectPreviewClock(injectPreviewReporter(injectSceneMediaTools(code)));
   }
   queuePreviewScale();
 }
 
 function previewAtPlayhead() {
   const at = timelineState.playhead;
-  const composite = buildCompositePreview(at);
-  if (composite) {
-    renderCompositePreview(composite);
+  const compositeHtml = buildCompositePreview(at);
+  if (compositeHtml) {
+    const key = compositePreviewKey(at);
+    if (previewCompositeState.active && previewCompositeState.key === key) {
+      postCompositeTime(at, { live: playbackState.playing });
+    } else {
+      renderCompositePreview(compositeHtml, key);
+    }
     const transitionNote = transitionsAtTime(at).length ? ' · TRANSITION' : '';
     setStatus(`PLAYHEAD ${formatTimelineTime(at)} · ${countPreviewLayers(at)} LAYERS${transitionNote}`, '');
     return;
@@ -15785,7 +16828,7 @@ function setPlayheadFromPointer(event) {
   if (!ruler) return;
   const rect = ruler.getBoundingClientRect();
   const ratio = Math.max(0, Math.min(1, (event.clientX - rect.left) / Math.max(1, rect.width)));
-  setPlayhead(timelinePctToTime(ratio * 100));
+  setPlayhead(timelinePctToTime(ratio * 100), { preview: true });
 }
 
 // ── VOICEOVER STUDIO ────────────────────────────────────
@@ -15793,13 +16836,64 @@ function setPlayheadFromPointer(event) {
 // appear available when their key is configured; the frontend never sees keys.
 const VOICE_DRAFT_KEY = 'clipacanvas.voiceDraft';
 const VOICE_PROVIDER_KEY = 'clipacanvas.voiceProvider';
-const voiceStudioState = { providers: [], loaded: false, loading: false, busy: false, result: null, assetId: '' };
+const VOICE_PROVIDERS_CACHE_KEY = 'clipacanvas.voiceProviders.v5';
+const voiceStudioState = { providers: [], loaded: false, fetched: false, loading: false, busy: false, result: null, assetId: '' };
+
+function hydrateVoiceProviderCache() {
+  if (voiceStudioState.providers.length) return;
+  try {
+    const parsed = JSON.parse(localStorage.getItem(VOICE_PROVIDERS_CACHE_KEY) || 'null');
+    const providers = parsed && Array.isArray(parsed.providers) ? parsed.providers : [];
+    if (!providers.length) return;
+    voiceStudioState.providers = providers;
+    voiceStudioState.loaded = true;
+  } catch (error) { /* ignore a corrupt cache */ }
+}
+
+function cacheVoiceProviders(providers) {
+  try {
+    localStorage.setItem(VOICE_PROVIDERS_CACHE_KEY, JSON.stringify({
+      savedAt: Date.now(),
+      providers
+    }));
+  } catch (error) { /* quota is not worth failing the panel */ }
+}
+
+function renderVoiceProvidersLoading() {
+  if (voiceStudioState.providers.length) return;
+  const select = voiceEl('voiceProvider');
+  if (select) select.innerHTML = '<option value="">CHECKING ENGINES…</option>';
+  for (const id of ['voiceModel', 'voiceVoice', 'voiceFormat']) {
+    const field = voiceEl(id);
+    if (field) field.innerHTML = '<option>—</option>';
+  }
+  const generate = voiceEl('voiceGenerate');
+  if (generate) generate.disabled = true;
+  const badge = voiceEl('voiceBadge');
+  if (badge) badge.textContent = 'CHECKING…';
+}
 
 function voiceEl(id) { return document.getElementById(id); }
 
 function voiceSelectedProvider() {
   const id = voiceEl('voiceProvider')?.value || '';
   return voiceStudioState.providers.find(provider => provider.id === id) || null;
+}
+
+// Local neural voices load a model on first use; warm the runtime as soon as
+// the provider is selected so the first generate does not pay the cold start.
+const voiceWarmRequests = new Set();
+function warmVoiceProvider(provider) {
+  if (!provider || !provider.available) return;
+  const warmable = ['styletts2', 'kokoro', 'piper'];
+  if (provider.kind !== 'local' || !warmable.includes(provider.id)) return;
+  if (voiceWarmRequests.has(provider.id)) return;
+  voiceWarmRequests.add(provider.id);
+  fetchWithTimeout(buildApiUrl('/api/tts/warm'), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ provider: provider.id })
+  }, 30000).catch(() => {});
 }
 
 function setVoiceStatus(text, tone = '') {
@@ -15819,12 +16913,20 @@ function updateVoiceCharCount() {
 function populateVoiceProviders() {
   const select = voiceEl('voiceProvider');
   if (!select) return;
+  if (!voiceStudioState.providers.length) {
+    renderVoiceProvidersLoading();
+    return;
+  }
   const stored = localStorage.getItem(VOICE_PROVIDER_KEY) || '';
   select.innerHTML = voiceStudioState.providers.map(provider =>
     `<option value="${escapeAttr(provider.id)}"${provider.available ? '' : ' disabled'}>${escapeHtml(provider.label)}${provider.available ? '' : ' — unavailable'}</option>`
   ).join('');
   const available = voiceStudioState.providers.filter(provider => provider.available);
-  const preferred = available.find(provider => provider.id === stored) || available[0];
+  const neuralOrder = ['styletts2', 'kokoro', 'piper', 'zonos'];
+  const storedProvider = available.find(provider => provider.id === stored);
+  const preferred = (storedProvider && storedProvider.id !== 'sapi' ? storedProvider : null)
+    || available.find(provider => neuralOrder.includes(provider.id))
+    || available[0];
   if (preferred) select.value = preferred.id;
   updateVoiceControls();
 }
@@ -15863,6 +16965,7 @@ function updateVoiceControls() {
     consent.classList.toggle('remote', provider.kind === 'remote');
   }
   if (generate) generate.disabled = !provider.available || voiceStudioState.busy;
+  warmVoiceProvider(provider);
   localStorage.setItem(VOICE_PROVIDER_KEY, provider.id);
 }
 
@@ -15871,20 +16974,34 @@ async function ensureVoiceStudio(force = false) {
   if (script && !script.value) script.value = localStorage.getItem(VOICE_DRAFT_KEY) || '';
   updateVoiceCharCount();
   if (voiceStudioState.loading) return;
-  if (voiceStudioState.loaded && !force) return;
+  if (voiceStudioState.fetched && !force) return;
+  hydrateVoiceProviderCache();
+  if (voiceStudioState.providers.length) {
+    populateVoiceProviders();
+    setVoiceStatus('CHECKING ENGINES…', 'busy');
+  } else {
+    renderVoiceProvidersLoading();
+    setVoiceStatus('CHECKING SPEECH ENGINES…', 'busy');
+  }
   voiceStudioState.loading = true;
-  setVoiceStatus('READING SPEECH PROVIDERS…', 'busy');
   try {
-    const response = await fetchWithTimeout(buildApiUrl('/api/tts/providers'), {}, 20000);
+    const response = await fetchWithTimeout(buildApiUrl('/api/tts/providers'), {}, 130000);
     const data = await response.json();
     if (!response.ok || !data.ok) throw new Error(data.error || 'Could not load speech providers.');
     voiceStudioState.providers = Array.isArray(data.providers) ? data.providers : [];
     voiceStudioState.loaded = true;
+    voiceStudioState.fetched = true;
+    cacheVoiceProviders(voiceStudioState.providers);
     populateVoiceProviders();
     setVoiceStatus('READY');
   } catch (error) {
     voiceStudioState.error = String(error?.message || error);
-    setVoiceStatus('PROVIDERS UNAVAILABLE', 'err');
+    if (voiceStudioState.providers.length) {
+      populateVoiceProviders();
+      setVoiceStatus('ENGINE CHECK FAILED · LAST KNOWN PROVIDERS', 'err');
+    } else {
+      setVoiceStatus('PROVIDERS UNAVAILABLE', 'err');
+    }
   } finally {
     voiceStudioState.loading = false;
   }
@@ -15909,6 +17026,240 @@ function ensureGeneratedAsset(result) {
   renderProjectBin();
   analyzeProjectAsset(asset);
   return asset.id;
+}
+
+// Speech for the agent: resolves an available provider/voice without touching
+// the Voice panel controls, so a chat turn and the panel share one pipeline.
+// A requested voice is matched by id or display name; a requested gender moves
+// across providers when the preferred engine has no match (StyleTTS2 is female
+// only, for example).
+async function resolveSpeechProvider(args = {}) {
+  let providers = voiceStudioState.providers;
+  if (!voiceStudioState.fetched) {
+    const response = await fetchWithTimeout(buildApiUrl('/api/tts/providers'), {}, 130000);
+    const data = await response.json();
+    if (!response.ok || !data.ok) throw new Error(data.error || 'Could not load speech providers.');
+    voiceStudioState.providers = Array.isArray(data.providers) ? data.providers : [];
+    voiceStudioState.loaded = true;
+    voiceStudioState.fetched = true;
+    cacheVoiceProviders(voiceStudioState.providers);
+    providers = voiceStudioState.providers;
+  }
+  const available = providers.filter(provider => provider.available);
+  if (!available.length) {
+    const reason = providers.map(provider => provider.reason).find(Boolean);
+    throw new Error(reason || 'No speech provider is available. Install a Windows voice or configure an API key.');
+  }
+  const neuralOrder = ['styletts2', 'kokoro', 'piper', 'zonos'];
+  const ordered = available.slice().sort((a, b) => {
+    const rank = provider => {
+      const neural = neuralOrder.indexOf(provider.id);
+      if (neural >= 0) return neural;
+      if (provider.id === 'sapi') return 10;
+      return provider.kind === 'remote' ? 20 : 30;
+    };
+    return rank(a) - rank(b);
+  });
+  const wantedProviderId = String(args.provider || '').toLowerCase().trim();
+  const wantedVoice = String(args.voice || '').trim().toLowerCase();
+  const wantedGender = String(args.gender || '').toLowerCase().trim();
+  let pool = ordered;
+  if (wantedProviderId) {
+    const explicit = available.find(provider => provider.id === wantedProviderId);
+    if (!explicit) {
+      throw new Error(`Speech provider "${wantedProviderId}" is unavailable. Available: ${available.map(provider => provider.id).join(', ')}.`);
+    }
+    pool = [explicit, ...ordered.filter(provider => provider.id !== explicit.id)];
+  }
+  const voiceMatches = (provider, wanted) => provider.voices.filter(voice => {
+    const id = String(voice.id || '').toLowerCase();
+    const label = String(voice.label || '').toLowerCase();
+    const name = label.split('·')[0].trim();
+    return id === wanted || name === wanted || label.startsWith(wanted) || id.endsWith(wanted);
+  });
+  let provider = null;
+  let voice = '';
+  if (wantedVoice) {
+    const hits = [];
+    for (const candidate of pool) {
+      for (const match of voiceMatches(candidate, wantedVoice)) hits.push({ provider: candidate, voice: match });
+    }
+    if (hits.length) {
+      const preferred = wantedProviderId ? hits.find(hit => hit.provider.id === wantedProviderId) : null;
+      provider = (preferred || hits[0]).provider;
+      voice = (preferred || hits[0]).voice.id;
+    }
+  }
+  if (!provider && wantedGender) {
+    for (const candidate of pool) {
+      const match = candidate.voices.find(item => String(item.gender || '').toLowerCase() === wantedGender);
+      if (match) { provider = candidate; voice = match.id; break; }
+    }
+  }
+  if (!provider) {
+    provider = pool[0];
+    voice = provider.voices[0].id;
+  }
+  const model = provider.models.some(item => item.id === args.model) ? String(args.model) : provider.models[0].id;
+  const format = provider.formats.includes('wav') ? 'wav' : provider.formats[0];
+  return { provider, voice, model, format };
+}
+
+function speechVoiceCatalogForChat() {
+  const providers = (voiceStudioState.providers || []).filter(provider => provider.available);
+  if (!providers.length) return '';
+  const order = ['styletts2', 'kokoro', 'piper', 'zonos', 'sapi', 'gemini', 'mistral'];
+  const sorted = providers.slice().sort((a, b) => {
+    const rank = provider => {
+      const index = order.indexOf(provider.id);
+      return index >= 0 ? index : 99;
+    };
+    return rank(a) - rank(b);
+  });
+  const parts = sorted.map(provider => {
+    const voices = provider.voices.slice(0, 40).map(voice => {
+      const gender = voice.gender ? `=${voice.gender}` : '';
+      return `${voice.id}${gender}`;
+    });
+    return `${provider.id}[${voices.join(', ')}]`;
+  });
+  return 'Available speech voices for generate_voiceover; "=" shows gender. Pass provider plus voice, or just gender (male/female) and the app picks the best installed match and switches providers if needed. Prefer local neural voices. ' + parts.join('; ') + '.';
+}
+
+function splitCaptionCues(text, maxChars = 90) {
+  const sentences = String(text || '').replace(/\s+/g, ' ').trim()
+    .split(/(?<=[.!?;:])\s+/)
+    .filter(Boolean);
+  const cues = [];
+  for (const sentence of sentences) {
+    if (sentence.length <= maxChars) {
+      if (sentence.trim()) cues.push(sentence.trim());
+      continue;
+    }
+    let current = '';
+    for (const word of sentence.split(' ')) {
+      if (current && `${current} ${word}`.length > maxChars) {
+        cues.push(current.trim());
+        current = word;
+      } else {
+        current = current ? `${current} ${word}` : word;
+      }
+    }
+    if (current.trim()) cues.push(current.trim());
+  }
+  return cues.slice(0, 24);
+}
+
+function captionClipCode(text) {
+  const safe = escapeHtml(String(text || '')).slice(0, 220);
+  return `<!doctype html><html><head><style>
+html,body{margin:0;padding:0;width:100%;height:100%;background:transparent;overflow:hidden}
+.cc-caption{position:absolute;left:7%;right:7%;bottom:7%;text-align:center;font-family:"Helvetica Neue",Arial,sans-serif;font-size:3.2vh;line-height:1.35;letter-spacing:0.01em;color:#f7f2e7;animation:ccCapIn .3s ease-out both}
+.cc-caption span{background:rgba(8,10,9,0.55);-webkit-box-decoration-break:clone;box-decoration-break:clone;padding:0.18em 0.45em;border-radius:2px;text-shadow:0 1px 2px rgba(0,0,0,0.65)}
+@keyframes ccCapIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+</style></head><body><div class="cc-caption"><span>${safe}</span></div></body></html>`;
+}
+
+function captionTrackFor(start, duration) {
+  for (let track = 3; track >= 1; track -= 1) {
+    const busy = timelineState.clips.some(clip =>
+      clip.type !== 'audio'
+      && (Number(clip.track) || 0) === track
+      && start < clipEnd(clip) - 1e-6
+      && start + duration > Number(clip.start) + 1e-6
+    );
+    if (!busy) return track;
+  }
+  return -1;
+}
+
+function addCaptionCues({ text, start, duration, name = 'CAPTION', maxChars = 90 }) {
+  const cues = splitCaptionCues(text, maxChars);
+  if (!cues.length) return { count: 0, clipIds: [] };
+  const windowStart = Math.max(0, Number(start) || 0);
+  const windowDuration = Math.max(0.5, Number(duration) || cues.length * 1.5);
+  const track = captionTrackFor(windowStart, windowDuration);
+  if (track < 0) return { count: 0, clipIds: [], error: 'No free overlay track for captions.' };
+  const totalChars = cues.reduce((sum, cue) => sum + cue.length, 0) || 1;
+  const clipIds = [];
+  let cursor = windowStart;
+  cues.forEach((cue, index) => {
+    const share = (cue.length / totalChars) * windowDuration;
+    const remaining = Math.max(0.5, windowStart + windowDuration - cursor);
+    const length = Math.max(0.5, Math.min(remaining, Math.round(share * 10) / 10));
+    const created = projectOps.createComposition({
+      code: captionClipCode(cue),
+      name: `${name} ${index + 1}`,
+      duration: length,
+      start: cursor,
+      track
+    });
+    if (created.ok) clipIds.push(created.clipId);
+    cursor = Math.round((cursor + length) * 10) / 10;
+  });
+  saveTimelineState(true);
+  renderLogicBoxes();
+  updateStageTimeline();
+  return { count: clipIds.length, clipIds, track };
+}
+
+function verifyTimelineState() {
+  const problems = [];
+  const clips = timelineState.clips;
+  const seen = new Set();
+  for (const clip of clips) {
+    const start = Number(clip.start) || 0;
+    const duration = Number(clip.duration) || 0;
+    if (!clip.id || seen.has(clip.id)) {
+      problems.push({ severity: 'error', code: 'duplicate-id', name: clip.name, message: 'Clip id is missing or duplicated.' });
+    }
+    seen.add(clip.id);
+    if (!(duration >= 0.5)) {
+      problems.push({ severity: 'error', code: 'bad-duration', name: clip.name, message: `${clip.name} is shorter than 0.5s.` });
+    }
+    if (start + duration > TIMELINE_MAX_SECONDS + 1e-6) {
+      problems.push({ severity: 'error', code: 'past-end', name: clip.name, message: `${clip.name} runs past the ${TIMELINE_MAX_SECONDS}s timeline limit.` });
+    }
+    if (clipIsMedia(clip)) {
+      if (!findAsset(clip.assetId) && !String(clip.mediaUrl || '').trim()) {
+        problems.push({ severity: 'error', code: 'missing-media', name: clip.name, message: `${clip.name} points at a media file that is not in the bin.` });
+      }
+    } else if (!String(clip.code || '').trim()) {
+      problems.push({ severity: 'error', code: 'empty-scene', name: clip.name, message: `${clip.name} has no composition code.` });
+    }
+    if (clip.type === 'audio' && !['A1', 'A2', 'A3'].includes(audioTrackForClip(clip))) {
+      problems.push({ severity: 'error', code: 'audio-lane', name: clip.name, message: `${clip.name} is not on A1, A2 or A3.` });
+    }
+  }
+  for (let track = 0; track < 4; track += 1) {
+    const onTrack = clips
+      .filter(clip => clip.type !== 'audio' && (Number(clip.track) || 0) === track)
+      .sort((a, b) => (Number(a.start) || 0) - (Number(b.start) || 0));
+    for (let index = 1; index < onTrack.length; index += 1) {
+      const previous = onTrack[index - 1];
+      const current = onTrack[index];
+      if (Number(current.start) < clipEnd(previous) - 1e-6) {
+        problems.push({ severity: 'error', code: 'overlap', name: current.name, message: `${current.name} overlaps ${previous.name} on V${track + 1}.` });
+      }
+    }
+  }
+  for (const transition of resolvedTransitions()) {
+    if (!findClipById(transition.fromClipId) || !findClipById(transition.toClipId)) {
+      problems.push({ severity: 'error', code: 'orphan-transition', message: 'A transition points at a clip that no longer exists.' });
+    }
+  }
+  const errors = problems.filter(problem => problem.severity === 'error').length;
+  return {
+    ok: true,
+    passed: errors === 0,
+    problems,
+    summary: {
+      clips: clips.length,
+      audioClips: clips.filter(clip => clip.type === 'audio').length,
+      totalSeconds: timelineTotalSeconds(),
+      tracks: timelineState.layers
+    }
+  };
 }
 
 function showVoiceResult(result) {
@@ -15993,7 +17344,11 @@ function insertGeneratedVoiceover() {
   const assetId = voiceStudioState.assetId || ensureGeneratedAsset(result);
   const asset = findAsset(assetId);
   const target = voiceEl('voiceTarget')?.value || 'A1';
-  const at = Math.round(Math.max(0, Number(timelineState.playhead) || 0) * 10) / 10;
+  let at = Math.round(Math.max(0, Number(timelineState.playhead) || 0) * 10) / 10;
+  const occupant = timelineState.clips
+    .filter(clip => clip.type === 'audio' && audioTrackForClip(clip) === target)
+    .find(clip => at > Number(clip.start) + 1e-6 && at < clipEnd(clip) - 1e-6);
+  if (occupant) at = Math.ceil((clipEnd(occupant) - 1e-6) * 10) / 10;
   const created = projectOps.insertAsset(assetId, { track: 0, at, audioTrack: target });
   if (!created.ok) {
     setVoiceStatus(String(created.error || 'COULD NOT INSERT').toUpperCase(), 'err');
@@ -16052,6 +17407,8 @@ function initLogicTimeline() {
   document.getElementById('boxDup')?.addEventListener('click', () => addLogicClip({ duplicate: true }));
   document.getElementById('boxDel')?.addEventListener('click', deleteLogicClip);
   document.getElementById('layerAdd')?.addEventListener('click', addTimelineLayer);
+  document.getElementById('snapToggle')?.addEventListener('click', toggleTimelineSnapping);
+  document.getElementById('shortcutHelpBtn')?.addEventListener('click', showShortcutHelp);
   document.getElementById('transitionAdd')?.addEventListener('click', () => openTransitionDialog());
   document.getElementById('logicTracks')?.addEventListener('click', (event) => {
     const badge = event.target.closest('.logic-transition');
@@ -16379,6 +17736,7 @@ function initLogicTimeline() {
 
   let gesture = null;
   let scrub = null;
+  let laneResize = null;
 
   const beginScrub = (event) => {
     const rulerRect = ruler?.getBoundingClientRect();
@@ -16399,6 +17757,15 @@ function initLogicTimeline() {
   });
 
   document.addEventListener('pointermove', (event) => {
+    if (laneResize) {
+      const height = Math.round(Math.max(LANE_MIN_HEIGHT, Math.min(LANE_MAX_HEIGHT,
+        laneResize.startHeight + event.clientY - laneResize.startY)));
+      laneResize.height = height;
+      timelineState.laneHeights[laneResize.key] = height;
+      laneResize.row.style.height = `${height}px`;
+      laneResize.row.style.flex = `0 0 ${height}px`;
+      return;
+    }
     if (scrub) {
       setPlayheadFromPointer(event);
       return;
@@ -16501,6 +17868,17 @@ function initLogicTimeline() {
   });
 
   document.addEventListener('pointerup', (event) => {
+    if (laneResize) {
+      const current = laneResize;
+      laneResize = null;
+      const changed = current.height && Math.abs(current.height - Math.round(current.startHeight)) >= 1;
+      if (changed) {
+        saveTimelineState(true);
+        renderLogicBoxes();
+        setStatus(`${current.key} lane · ${current.height} px`, 'ok');
+      }
+      return;
+    }
     if (scrub) {
       scrub = null;
       saveTimelineState(true);
@@ -16555,14 +17933,54 @@ function initLogicTimeline() {
       updateStageTimeline();
       return;
     }
-    if (event.target.closest('#logicTracks')) selectLogicClip(current.clip.id);
+    if (event.target.closest('#logicTracks')) {
+      selectLogicClip(current.clip.id, {
+        additive: event.shiftKey || event.ctrlKey || event.metaKey,
+        toggle: event.ctrlKey || event.metaKey
+      });
+    }
+  });
+
+  host.addEventListener('dblclick', (event) => {
+    const handle = event.target.closest('.lane-resize');
+    if (!handle) return;
+    event.preventDefault();
+    event.stopPropagation();
+    const key = handle.dataset.lane;
+    if (timelineState.laneHeights[key]) {
+      delete timelineState.laneHeights[key];
+      saveTimelineState(true);
+      renderLogicBoxes();
+      setStatus(`${key} lane height reset`, '');
+    }
   });
 
   host.addEventListener('pointerdown', (event) => {
     if (event.button !== 0) return;
+    const resizeHandle = event.target.closest('.lane-resize');
+    if (resizeHandle) {
+      const row = resizeHandle.closest('.et-row');
+      if (!row) return;
+      event.preventDefault();
+      laneResize = {
+        key: resizeHandle.dataset.lane,
+        row,
+        startY: event.clientY,
+        startHeight: row.getBoundingClientRect().height,
+        height: 0
+      };
+      return;
+    }
+    // Transition badges are buttons: let the delegated click open the editor
+    // instead of treating the press as an empty-lane scrub.
+    if (event.target.closest('.logic-transition')) return;
     const box = event.target.closest('.logic-box');
     if (!box) {
       // Clicking empty timeline space moves the playhead, like an NLE ruler.
+      if (timelineState.selectedIds.length && !event.shiftKey && !event.ctrlKey && !event.metaKey) {
+        timelineState.selectedIds = [];
+        renderLogicBoxes();
+      }
       beginScrub(event);
       return;
     }
@@ -16587,7 +18005,7 @@ function initLogicTimeline() {
         maxDuration,
         laneWidth,
         span: timelineViewSpan(),
-        snap: (6 / laneWidth) * timelineViewSpan(),
+        snap: timelineState.snapEnabled === false ? 0 : (6 / laneWidth) * timelineViewSpan(),
         moved: false
       };
       return;
@@ -16611,7 +18029,7 @@ function initLogicTimeline() {
         maxStart: clipEnd(clip) - 0.5,
         laneWidth,
         span: timelineViewSpan(),
-        snap: (6 / laneWidth) * timelineViewSpan(),
+        snap: timelineState.snapEnabled === false ? 0 : (6 / laneWidth) * timelineViewSpan(),
         moved: false
       };
       return;
@@ -16625,7 +18043,7 @@ function initLogicTimeline() {
       origTrack: clip.track,
       laneWidth,
       span: timelineViewSpan(),
-      snap: (6 / laneWidth) * timelineViewSpan(),
+      snap: timelineState.snapEnabled === false ? 0 : (6 / laneWidth) * timelineViewSpan(),
       neighbors,
       moved: false
     };
@@ -16695,28 +18113,70 @@ function initLogicTimeline() {
         redoTimeline();
         return;
       }
+      if (key === 'a') {
+        event.preventDefault();
+        if (event.shiftKey) clearTimelineSelection(); else selectAllTimelineClips();
+        return;
+      }
+      if (key === 'k' && event.altKey) {
+        event.preventDefault();
+        showShortcutHelp();
+        return;
+      }
+      if (key === 'k' && !event.shiftKey) {
+        event.preventDefault();
+        splitAtPlayhead();
+        return;
+      }
     }
     if (event.ctrlKey || event.metaKey || event.altKey) return;
     if (event.key === 's' || event.key === 'S') {
       event.preventDefault();
-      splitAtPlayhead();
+      toggleTimelineSnapping();
     } else if (event.key === ' ' || event.code === 'Space') {
       event.preventDefault();
       togglePlayback();
-    } else if (event.key === 'Delete' || event.key === 'Backspace') {
-      if (!activeClip()) return;
+    } else if (event.key === 'j' || event.key === 'J') {
       event.preventDefault();
-      deleteLogicClip();
+      startShuttle(-1);
+    } else if (event.key === 'k' || event.key === 'K') {
+      event.preventDefault();
+      if (playbackState.playing) {
+        stopPlayback();
+        setStatus('PAUSED', '');
+      }
+    } else if (event.key === 'l' || event.key === 'L') {
+      event.preventDefault();
+      startShuttle(1);
+    } else if (event.key === 'Delete' || event.key === 'Backspace') {
+      if (!timelineSelectionOrActive().length) return;
+      event.preventDefault();
+      if (event.shiftKey) deleteLogicClip(); else liftLogicClips();
     } else if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
       event.preventDefault();
-      const step = event.shiftKey ? 1 : 1 / timelineFrameRate();
+      const step = (event.shiftKey ? 5 : 1) / timelineFrameRate();
       setPlayhead(timelineState.playhead + (event.key === 'ArrowRight' ? step : -step), { preview: true });
+    } else if (event.key === 'ArrowUp') {
+      event.preventDefault();
+      jumpToEditPoint(-1);
+    } else if (event.key === 'ArrowDown') {
+      event.preventDefault();
+      jumpToEditPoint(1);
     } else if (event.key === 'Home') {
       event.preventDefault();
       setPlayhead(0, { preview: true });
     } else if (event.key === 'End') {
       event.preventDefault();
       setPlayhead(timelineTotalSeconds(), { preview: true });
+    } else if (event.key === '=' || event.key === '+') {
+      event.preventDefault();
+      setTimelineZoom(timelineView.zoom * 1.5);
+    } else if (event.key === '-' || event.key === '_') {
+      event.preventDefault();
+      setTimelineZoom(timelineView.zoom / 1.5);
+    } else if (event.key === '\\') {
+      event.preventDefault();
+      fitTimelineView();
     }
   });
 
@@ -16776,7 +18236,7 @@ function updateStageTimeline() {
   const count = timelineState.clips.length;
   if (meta) {
     const layers = timelineState.layers;
-    meta.textContent = `${count} CLIP${count === 1 ? '' : 'S'} · ${layers} LAYER${layers === 1 ? '' : 'S'} · ${formatTimelineTime(total)}`;
+    meta.textContent = `${count} CLIP${count === 1 ? '' : 'S'} · ${layers} LAYER${layers === 1 ? '' : 'S'} · ${formatTimelineTime(total)}${timelineState.snapEnabled === false ? ' · SNAP OFF' : ''}`;
   }
   const { width, height } = getDimensions();
   const fps = document.getElementById('frameRate')?.value || '60';
@@ -16984,6 +18444,9 @@ function initControlRoom() {
   }
   renderProjectBin();
   switchRightTab('inspector');
+  // Warm the speech registry right after launch (probes are disk-cached) so
+  // the Voice panel opens with real engines instead of an empty form.
+  setTimeout(() => ensureVoiceStudio(), 1200);
   const latestRun = readRunHistory()[0];
   if (latestRun) {
     const parts = [latestRun.name || 'RENDER'];

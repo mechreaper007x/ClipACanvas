@@ -21,9 +21,14 @@ import sys
 import tempfile
 import threading
 import platform
+import queue
+import uuid
+import asyncio
+import atexit
 import urllib.request
 import urllib.error
 import urllib.parse
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 from pathlib import Path
 from http.server import ThreadingHTTPServer, SimpleHTTPRequestHandler
@@ -149,6 +154,20 @@ LLM_TOOL_DECLARATIONS = [
                 "duration": {"type": "number", "description": "Scene length in seconds, 0.5 to 60. Match the animation length."},
                 "layer": {"type": "string", "enum": ["same", "above"], "description": "same appends after the last scene on the selected scene's track; above creates an upper track for overlays, titles or captions that need a transparent page background."},
                 "start": {"type": "number", "description": "Optional exact start time in seconds; omit to append automatically."},
+                "transition": {
+                    "type": "object",
+                    "description": "Optional transition on the cut this scene creates with the previous touching scene on the same track. Include it by default when the scene continues a sequence; the cut is resolved automatically.",
+                    "properties": {
+                        "type": {"type": "string", "description": "Preset id or \"custom\"."},
+                        "duration": {"type": "number", "description": "Length in seconds, 0.1 to 3."},
+                        "alignment": {"type": "string", "enum": ["center", "start", "end"]},
+                        "direction": {"type": "string", "enum": ["left", "right", "up", "down"]},
+                        "color": {"type": "string"},
+                        "intensity": {"type": "number"},
+                        "code": {"type": "string", "description": "Custom renderTransition(ctx) source when type is custom."},
+                    },
+                    "required": ["type"],
+                },
             },
             "required": ["code"],
         },
@@ -165,7 +184,7 @@ LLM_TOOL_DECLARATIONS = [
     },
     {
         "name": "get_asset_analysis",
-        "description": "Read one asset's cached analysis manifest: technical metadata, the locally detected shot list (with keyframe URLs), semantic status, AI description and user notes. Semantic analysis only exists after the user ran it with explicit consent; when it is 'not_analyzed', never invent visual or audio content that is not in the manifest.",
+        "description": "Read one asset's cached analysis manifest: technical metadata, the locally detected shot list (with keyframe URLs), the local visual index (EmbeddingGemma 2 zero-shot tags with scores, per-keyframe tags, motion score and label — images and videos), semantic status, AI description and user notes. The visual index is computed on this machine without consent; use its tags and motion to describe the footage honestly and to write overlays that fit it. Semantic analysis only exists after the user ran it with explicit consent; when it is 'not_analyzed', never invent visual or audio content that is not in the manifest.",
         "parameters": {
             "type": "object",
             "properties": {
@@ -264,11 +283,12 @@ LLM_TOOL_DECLARATIONS = [
     },
     {
         "name": "add_transition",
-        "description": "Add a saved visual transition on an existing cut where two clips touch on the same track. Presets: dissolve, fade-black, fade-white, dip-color, wipe, push, slide, zoom-in, zoom-out, zoom-blur, glitch, rgb-split, blur-dissolve. Defaults to the touching cut of the selected clip. For a custom transition use type \"custom\" and provide code declaring function renderTransition(ctx) that returns {outgoing, incoming, overlay} style objects for ctx.progress 0→1 (opacity, transform, filter, clipPath, backgroundColor, mixBlendMode). Custom code is validated and runs only inside the isolated preview/export page. Video clips must have enough footage handles for the requested alignment.",
+        "description": "Add or update a saved visual transition on an existing cut where two clips touch on the same track. Presets: dissolve, fade-black, fade-white, dip-color, wipe, push, slide, zoom-in, zoom-out, zoom-blur, glitch, rgb-split, blur-dissolve. Defaults to the touching cut of the selected clip. Set all:true to apply the same transition at every touching cut in one call. For a custom transition use type \"custom\" and provide code declaring function renderTransition(ctx) that returns {outgoing, incoming, overlay} style objects for ctx.progress 0→1 (opacity, transform, filter, clipPath, backgroundColor, mixBlendMode). Custom code is validated and runs only inside the isolated preview/export page. Video clips must have enough footage handles for the requested alignment.",
         "parameters": {
             "type": "object",
             "properties": {
                 "type": {"type": "string", "description": "Preset id or \"custom\"."},
+                "all": {"type": "boolean", "description": "Apply or update this transition at every touching cut across all video tracks. Use it once after building a multi-scene sequence."},
                 "fromClipId": {"type": "string", "description": "Optional outgoing clip id; defaults to the selected clip's touching cut."},
                 "toClipId": {"type": "string", "description": "Optional incoming clip id."},
                 "duration": {"type": "number", "description": "Length in seconds, 0.1 to 3."},
@@ -306,6 +326,65 @@ LLM_TOOL_DECLARATIONS = [
             "properties": {
                 "transitionId": {"type": "string", "description": "Transition id; optional."},
             },
+        },
+    },
+    {
+        "name": "generate_voiceover",
+        "description": "Generate narration with the speech provider and place the audio on a timeline lane: A1 voiceover (default), A2 music, A3 sound effects. Installed local neural voices (StyleTTS2, Kokoro, Piper, ZONOS3-Mini) need no key and are preferred; ZONOS3-Mini adds 27 narrators and 43 languages; Windows Speech is the offline fallback; hosted providers require configured keys. The audio also lands in the media bin. Set captions true to add timed subtitle overlays for the same text. Returns the clip, duration, lane and caption count.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "text": {"type": "string", "description": "Narration script, up to 4000 characters."},
+                "provider": {"type": "string", "enum": ["styletts2", "kokoro", "piper", "zonos", "sapi", "gemini", "mistral"], "description": "Optional speech provider; defaults to the best installed local neural voice. If the requested gender is unavailable on it, the app moves to a provider that has one."},
+                "voice": {"type": "string", "description": "Optional voice id or voice name from the Available speech voices system message (for example am_michael, Madhur, libritts-4077, Savannah, Microsoft David Desktop). The provider is inferred when it is unambiguous."},
+                "gender": {"type": "string", "enum": ["male", "female", "neutral"], "description": "Preferred narrator gender. Use it when the script or the user calls for a male or female voice instead of naming a specific voice."},
+                "model": {"type": "string", "description": "Optional speech model id."},
+                "speed": {"type": "number", "description": "Speaking rate 0.5 to 2 for providers that support it."},
+                "style": {"type": "string", "description": "Speaking style for providers that support it."},
+                "lane": {"type": "string", "enum": ["A1", "A2", "A3"], "description": "Audio lane; defaults to A1 voiceover."},
+                "start": {"type": "number", "description": "Timeline start in seconds; defaults to the playhead."},
+                "name": {"type": "string", "description": "Clip name shown on the timeline."},
+                "captions": {"type": "boolean", "description": "Also create timed caption overlays for this narration."},
+            },
+            "required": ["text"],
+        },
+    },
+    {
+        "name": "add_captions",
+        "description": "Add timed subtitle overlay clips on a free track above the scenes. Each cue is a transparent, safe-margin caption clip, so captions render in both the monitor and the export. Pass an audio clipId to match an existing voiceover's span, or start plus duration.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "text": {"type": "string", "description": "Caption text; sentences become cues."},
+                "start": {"type": "number", "description": "Start in seconds; defaults to the clip or the playhead."},
+                "duration": {"type": "number", "description": "Span in seconds; defaults to the clip's duration."},
+                "clipId": {"type": "string", "description": "Optional audio clip whose timing the captions follow."},
+                "maxChars": {"type": "number", "description": "Characters per cue, 40 to 160 (default 90)."},
+                "name": {"type": "string", "description": "Name prefix for the caption clips."},
+            },
+            "required": ["text"],
+        },
+    },
+    {
+        "name": "place_media",
+        "description": "Place an existing bin asset on the timeline. Images and videos go on a video track (V1 to V4 via track 0 to 3); audio goes on an audio lane A1, A2 or A3. Identify the asset by assetId or a search query that matches exactly one asset. Media comes from the bin only; import files first.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "assetId": {"type": "string", "description": "Bin asset id from get_app_state or search_assets."},
+                "query": {"type": "string", "description": "Name or description search when assetId is unknown."},
+                "track": {"type": "number", "description": "Video track index 0 to 3; ignored for audio."},
+                "lane": {"type": "string", "enum": ["A1", "A2", "A3"], "description": "Audio lane for audio assets; defaults to A2."},
+                "at": {"type": "number", "description": "Start in seconds; defaults to the playhead."},
+            },
+        },
+    },
+    {
+        "name": "verify_timeline",
+        "description": "Check the timeline for structural problems before rendering: empty scene code, clips shorter than 0.5s, same-track overlaps, audio clips outside A1-A3, missing media assets and transitions that point at deleted clips. Returns passed plus a problem list.",
+        "parameters": {
+            "type": "object",
+            "properties": {},
         },
     },
     {
@@ -740,7 +819,7 @@ def _write_session(project_id: str, name: str, saved_at: str) -> None:
     }, ensure_ascii=False))
 
 
-ANALYSIS_VERSION = 2
+ANALYSIS_VERSION = 3
 SEMANTIC_DEFAULT_MODEL = "gemini-2.5-flash"
 SEMANTIC_MAX_FRAMES = 6
 SEMANTIC_MAX_INLINE_BYTES = 19 * 1024 * 1024
@@ -770,6 +849,28 @@ SEMANTIC_SCHEMA = {
     },
     "required": ["description", "tags"],
 }
+VISUAL_MODEL = "google/embeddinggemma-2"
+VISUAL_DEVICE_DEFAULT = "auto"
+VISUAL_KEYFRAME_LIMIT = 3
+VISUAL_TAGS_PER_FRAME = 4
+VISUAL_TAG_LIMIT = 6
+VISUAL_TAG_THRESHOLD = 0.55
+VISUAL_TAG_MARGIN = 0.045
+VISUAL_ASSET_FILES = ("config.json", "model.safetensors", "tokenizer.json")
+VISUAL_LABELS = [
+    "person", "people", "crowd", "woman", "man", "child", "hands", "face", "interview",
+    "car", "truck", "bus", "motorcycle", "bicycle", "train", "airplane", "boat",
+    "road", "street", "city", "building", "house", "bridge", "tunnel", "stairs",
+    "sky", "clouds", "sun", "sunset", "sunrise", "night", "lights", "neon",
+    "ocean", "sea", "beach", "waves", "river", "lake", "waterfall", "rain", "snow", "fog",
+    "mountain", "forest", "tree", "grass", "field", "flowers", "garden", "desert",
+    "animal", "dog", "cat", "bird", "horse", "cow", "fish",
+    "food", "coffee", "table", "chair", "kitchen", "office", "room", "window", "door",
+    "computer", "phone", "screen", "text", "logo", "chart", "map", "money",
+    "factory", "construction", "machine", "robot", "fire", "smoke", "explosion",
+    "music", "concert", "stage", "microphone", "dance", "sport", "football", "cricket",
+    "shopping", "travel", "aerial view", "close-up", "hand-drawn", "animation", "cartoon",
+]
 _ANALYSIS_DURATION_RE = re.compile(r"Duration:\s*(\d+):(\d+):(\d+(?:\.\d+)?)")
 _ANALYSIS_VIDEO_RE = re.compile(r"Stream #\d+:\d+[^:]*: Video: ([A-Za-z0-9_\-]+)")
 _ANALYSIS_RESOLUTION_RE = re.compile(r"(?<![\d.])(\d{2,5})x(\d{2,5})(?![\d.])")
@@ -846,11 +947,14 @@ GEMINI_TTS_MODELS = [
     {"id": "gemini-3.8-flash-lite-tts", "label": "Gemini 3.8 Flash-Lite TTS"},
 ]
 GEMINI_TTS_VOICES = [
-    "Zephyr", "Puck", "Charon", "Kore", "Fenrir", "Leda", "Orus", "Aoede",
-    "Callirrhoe", "Autonoe", "Enceladus", "Iapetus", "Umbriel", "Algieba",
-    "Despina", "Erinome", "Algenib", "Rasalgethi", "Laomedeia", "Achernar",
-    "Alnilam", "Schedar", "Gacrux", "Pulcherrima", "Achird", "Zubenelgenubi",
-    "Vindemiatrix", "Sadachbia", "Sadaltager", "Sulafat",
+    ("Zephyr", "female"), ("Puck", "male"), ("Charon", "male"), ("Kore", "female"),
+    ("Fenrir", "male"), ("Leda", "female"), ("Orus", "male"), ("Aoede", "female"),
+    ("Callirrhoe", "female"), ("Autonoe", "female"), ("Enceladus", "male"), ("Iapetus", "male"),
+    ("Umbriel", "male"), ("Algieba", "male"), ("Despina", "female"), ("Erinome", "female"),
+    ("Algenib", "male"), ("Rasalgethi", "male"), ("Laomedeia", "female"), ("Achernar", "female"),
+    ("Alnilam", "male"), ("Schedar", "male"), ("Gacrux", "female"), ("Pulcherrima", "female"),
+    ("Achird", "male"), ("Zubenelgenubi", "male"), ("Vindemiatrix", "female"), ("Sadachbia", "male"),
+    ("Sadaltager", "male"), ("Sulafat", "female"),
 ]
 MISTRAL_TTS_URL = "https://api.mistral.ai/v1/audio/speech"
 MISTRAL_TTS_MODELS = [
@@ -861,14 +965,247 @@ MISTRAL_TTS_MODEL = MISTRAL_TTS_MODELS[0]["id"]
 # Speech v1 preset voice ids verified live on 2026-11-12. The legacy voice_*
 # catalog from the deprecated TTS docs is rejected by this endpoint.
 MISTRAL_TTS_VOICES = [
-    ("gb_jane_neutral", "English (UK)"),
-    ("gb_oliver_neutral", "English (UK)"),
-    ("en_paul_neutral", "English (US)"),
-    ("en_paul_sad", "English (US)"),
-    ("fr_marie_neutral", "French"),
+    ("gb_jane_neutral", "Jane", "en-GB", "female"),
+    ("gb_oliver_neutral", "Oliver", "en-GB", "male"),
+    ("en_paul_neutral", "Paul", "en-US", "male"),
+    ("en_paul_sad", "Paul (sad)", "en-US", "male"),
+    ("fr_marie_neutral", "Marie", "fr-FR", "female"),
 ]
 _SAPI_VOICE_CACHE = {"at": 0.0, "voices": [], "error": ""}
 _SAPI_VOICE_LOCK = threading.Lock()
+
+# Optional local neural engines installed beside the app. The packaged build
+# never bundles torch; the backend drives separate runtime interpreters through
+# persistent worker processes.
+STYLETTS2_MODEL = {"id": "libritts", "label": "StyleTTS2 LibriTTS"}
+# StyleTTS2 clones a narrator from a short reference clip. The bundled LibriTTS
+# references add three female and four male voices; `default` keeps the
+# original LJSpeech target.
+STYLETTS2_VOICES = [
+    {"id": "default", "label": "LJSpeech · female", "language": "en-US", "gender": "female"},
+    {"id": "libritts-1221", "label": "LibriTTS 1221 · female", "language": "en-US", "gender": "female"},
+    {"id": "libritts-3", "label": "LibriTTS 3 · female", "language": "en-US", "gender": "female"},
+    {"id": "libritts-4", "label": "LibriTTS 4 · female", "language": "en-US", "gender": "female"},
+    {"id": "libritts-4077", "label": "LibriTTS 4077 · male", "language": "en-US", "gender": "male"},
+    {"id": "libritts-5", "label": "LibriTTS 5 · male", "language": "en-US", "gender": "male"},
+    {"id": "libritts-5639", "label": "LibriTTS 5639 · male", "language": "en-US", "gender": "male"},
+    {"id": "libritts-908", "label": "LibriTTS 908 · male", "language": "en-US", "gender": "male"},
+]
+STYLETTS2_VOICE_REFS = {
+    "libritts-1221": "1221-135767-0014.wav",
+    "libritts-3": "3.wav",
+    "libritts-4": "4.wav",
+    "libritts-4077": "4077-13754-0000.wav",
+    "libritts-5": "5.wav",
+    "libritts-5639": "5639-40744-0020.wav",
+    "libritts-908": "908-157963-0027.wav",
+}
+STYLETTS2_ASSET_FILES = ("epoch_00080.pth", "bst.t7", "step_1000000.t7", "asr-config.yml", "plbert-config.yml")
+KOKORO_MODEL = {"id": "kokoro-82m", "label": "Kokoro 82M"}
+# Curated Kokoro-82M English and Hindi voices. Voice packs download on first
+# use from the model repository, so the list is wider than the warm cache.
+KOKORO_VOICES = [
+    {"id": "af_heart", "label": "Heart · female", "language": "en-US", "gender": "female"},
+    {"id": "af_bella", "label": "Bella · female", "language": "en-US", "gender": "female"},
+    {"id": "af_sarah", "label": "Sarah · female", "language": "en-US", "gender": "female"},
+    {"id": "af_nicole", "label": "Nicole · female", "language": "en-US", "gender": "female"},
+    {"id": "af_nova", "label": "Nova · female", "language": "en-US", "gender": "female"},
+    {"id": "af_sky", "label": "Sky · female", "language": "en-US", "gender": "female"},
+    {"id": "am_michael", "label": "Michael · male", "language": "en-US", "gender": "male"},
+    {"id": "am_adam", "label": "Adam · male", "language": "en-US", "gender": "male"},
+    {"id": "am_eric", "label": "Eric · male", "language": "en-US", "gender": "male"},
+    {"id": "am_fenrir", "label": "Fenrir · male", "language": "en-US", "gender": "male"},
+    {"id": "am_liam", "label": "Liam · male", "language": "en-US", "gender": "male"},
+    {"id": "am_onyx", "label": "Onyx · male", "language": "en-US", "gender": "male"},
+    {"id": "am_puck", "label": "Puck · male", "language": "en-US", "gender": "male"},
+    {"id": "bf_emma", "label": "Emma · female", "language": "en-GB", "gender": "female"},
+    {"id": "bf_isabella", "label": "Isabella · female", "language": "en-GB", "gender": "female"},
+    {"id": "bm_daniel", "label": "Daniel · male", "language": "en-GB", "gender": "male"},
+    {"id": "bm_george", "label": "George · male", "language": "en-GB", "gender": "male"},
+    {"id": "hf_alpha", "label": "Alpha · female", "language": "hi-IN", "gender": "female"},
+    {"id": "hm_omega", "label": "Omega · male", "language": "hi-IN", "gender": "male"},
+]
+PIPER_MODEL = {"id": "medium", "label": "Piper medium"}
+# Only voices whose .onnx file is installed are listed by the registry.
+PIPER_VOICES = [
+    ("en_US-lessac-medium", "Lessac · female", "en-US", "female"),
+    ("en_US-ryan-medium", "Ryan · male", "en-US", "male"),
+    ("en_US-joe-medium", "Joe · male", "en-US", "male"),
+    ("en_US-kusal-medium", "Kusal · male", "en-US", "male"),
+    ("en_GB-alan-medium", "Alan · male", "en-GB", "male"),
+    ("hi_IN-pratham-medium", "Pratham · male", "hi-IN", "male"),
+]
+ZONOS_MODEL = {"id": "zonos3-mini", "label": "ZONOS3-Mini"}
+# Zyphra ZONOS3-Mini release voices (Apache 2.0): 27 professional narrators
+# across English, French, German, Hindi, Italian, Korean, Mandarin,
+# Portuguese, Spanish and Telugu.
+ZONOS_VOICES = [
+    {"id": "Savannah", "label": "Savannah · female", "language": "en-US", "gender": "female"},
+    {"id": "Wyatt", "label": "Wyatt · male", "language": "en-US", "gender": "male"},
+    {"id": "Imogen", "label": "Imogen · female", "language": "en-GB", "gender": "female"},
+    {"id": "Rupert", "label": "Rupert · male", "language": "en-GB", "gender": "male"},
+    {"id": "Cillian", "label": "Cillian · male", "language": "en-GB", "gender": "male"},
+    {"id": "Jett", "label": "Jett · male", "language": "en-US", "gender": "male"},
+    {"id": "Morgana", "label": "Morgana · female", "language": "en-US", "gender": "female"},
+    {"id": "Sakura", "label": "Sakura · female", "language": "en-US", "gender": "female"},
+    {"id": "Thaddeus", "label": "Thaddeus · male", "language": "en-US", "gender": "male"},
+    {"id": "Willow", "label": "Willow · female", "language": "en-US", "gender": "female"},
+    {"id": "Gaspard", "label": "Gaspard · male", "language": "fr-FR", "gender": "male"},
+    {"id": "Liesel", "label": "Liesel · female", "language": "de-DE", "gender": "female"},
+    {"id": "Wolfgang", "label": "Wolfgang · male", "language": "de-DE", "gender": "male"},
+    {"id": "Ananya", "label": "Ananya · female", "language": "hi-IN", "gender": "female"},
+    {"id": "Arjun", "label": "Arjun · male", "language": "hi-IN", "gender": "male"},
+    {"id": "Ginevra", "label": "Ginevra · female", "language": "it-IT", "gender": "female"},
+    {"id": "Lorenzo", "label": "Lorenzo · male", "language": "it-IT", "gender": "male"},
+    {"id": "Seoyeon", "label": "Seoyeon · female", "language": "ko-KR", "gender": "female"},
+    {"id": "Minjun", "label": "Minjun · male", "language": "ko-KR", "gender": "male"},
+    {"id": "Meilin", "label": "Meilin · female", "language": "zh-CN", "gender": "female"},
+    {"id": "Haoran", "label": "Haoran · male", "language": "zh-CN", "gender": "male"},
+    {"id": "Leonor", "label": "Leonor · female", "language": "pt-BR", "gender": "female"},
+    {"id": "Thiago", "label": "Thiago · male", "language": "pt-BR", "gender": "male"},
+    {"id": "Ximena", "label": "Ximena · female", "language": "es-ES", "gender": "female"},
+    {"id": "Rodrigo", "label": "Rodrigo · male", "language": "es-ES", "gender": "male"},
+    {"id": "Sravya", "label": "Sravya · female", "language": "te-IN", "gender": "female"},
+    {"id": "Chaitanya", "label": "Chaitanya · male", "language": "te-IN", "gender": "male"},
+]
+ZONOS_VOICE_LANGUAGES = {
+    "Savannah": "en_us", "Wyatt": "en_us", "Imogen": "en_gb", "Rupert": "en_gb",
+    "Cillian": "en_gb", "Jett": "en_us", "Morgana": "en_us", "Sakura": "en_us",
+    "Thaddeus": "en_us", "Willow": "en_us", "Gaspard": "fr_fr", "Liesel": "de",
+    "Wolfgang": "de", "Ananya": "hi", "Arjun": "hi", "Ginevra": "it", "Lorenzo": "it",
+    "Seoyeon": "ko", "Minjun": "ko", "Meilin": "cmn", "Haoran": "cmn",
+    "Leonor": "pt_br", "Thiago": "pt_br", "Ximena": "es", "Rodrigo": "es",
+    "Sravya": "te", "Chaitanya": "te",
+}
+ZONOS_ASSET_FILES = ("config.json", "model.safetensors", "voices.safetensors", "modeling_zonos3.py")
+LOCAL_RUNTIME_ALIASES = {"styletts2": ("sts2",)}
+LOCAL_PROBE_TTL = 600
+LOCAL_WORKER_TIMEOUT = 180
+_LOCAL_PROBES: dict = {}
+_LOCAL_PROBE_LOCK = threading.Lock()
+_PROBE_CACHE_LOCK = threading.Lock()
+_PROBE_CACHE_FILE = "tts-probes.json"
+
+
+def _read_probe_cache_file() -> dict:
+    try:
+        data = json.loads((_keys_dir() / _PROBE_CACHE_FILE).read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+    return data if isinstance(data, dict) else {}
+
+
+def _write_probe_cache_entry(key: str, entry: dict) -> None:
+    with _PROBE_CACHE_LOCK:
+        data = _read_probe_cache_file()
+        data[key] = entry
+        cutoff = time.time() - LOCAL_PROBE_TTL * 6
+        data = {
+            name: value for name, value in data.items()
+            if isinstance(value, dict) and float(value.get("at") or 0) >= cutoff
+        }
+        try:
+            _write_text_atomic(_keys_dir() / _PROBE_CACHE_FILE, json.dumps(data))
+        except OSError:
+            pass
+
+
+class _LocalTtsWorker:
+    """A persistent JSON-lines worker in an optional runtime interpreter."""
+
+    def __init__(self, name: str):
+        self.name = name
+        self.lock = threading.RLock()
+        self.proc = None
+        self.queue = None
+        self.device = ""
+        self.boots = 0
+        self.last_stderr = ""
+
+    def alive(self) -> bool:
+        return bool(self.proc and self.proc.poll() is None)
+
+    def stop(self) -> None:
+        proc = self.proc
+        self.proc = None
+        self.queue = None
+        self.device = ""
+        if not proc:
+            return
+        try:
+            proc.terminate()
+            proc.wait(timeout=5)
+        except (OSError, subprocess.TimeoutExpired):
+            try:
+                proc.kill()
+            except OSError:
+                pass
+
+    def start(self, python: str, script: Path, args: list[str], timeout: int = 300) -> None:
+        self.stop()
+        self.last_stderr = ""
+        print(f"  [{self.name}] starting worker with {python}")
+        proc = subprocess.Popen(
+            [python, str(script), *args],
+            stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+            text=True, encoding="utf-8", errors="replace", bufsize=1,
+            creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+            cwd=str(script.parent),
+        )
+        messages: queue.Queue = queue.Queue()
+
+        def drain_stderr():
+            tail = []
+            for line in proc.stderr or []:
+                line = line.rstrip()
+                if line:
+                    tail = (tail + [line])[-12:]
+                    self.last_stderr = " | ".join(tail)[-1000:]
+
+        def pump():
+            try:
+                for line in proc.stdout or []:
+                    line = line.strip()
+                    if not line:
+                        continue
+                    try:
+                        message = json.loads(line)
+                    except ValueError:
+                        continue
+                    if isinstance(message, dict):
+                        messages.put(message)
+            finally:
+                messages.put({"event": "closed"})
+
+        threading.Thread(target=drain_stderr, name=f"{self.name}-stderr", daemon=True).start()
+        threading.Thread(target=pump, name=f"{self.name}-pump", daemon=True).start()
+        self.proc, self.queue = proc, messages
+        try:
+            ready = messages.get(timeout=timeout)
+        except queue.Empty:
+            self.stop()
+            raise RuntimeError(f"{self.name} runtime did not become ready in time.")
+        if ready.get("event") != "ready":
+            detail = self.last_stderr or ready.get("error") or "no ready signal"
+            self.stop()
+            raise RuntimeError(f"{self.name} runtime failed to load: {detail[-300:]}")
+        self.device = str(ready.get("device") or "")
+        self.boots += 1
+        print(f"  [{self.name}] worker ready ({self.device or 'unknown device'})")
+
+    def request(self, payload: dict, timeout: int = LOCAL_WORKER_TIMEOUT) -> dict:
+        if not self.alive():
+            raise OSError(f"{self.name} worker is not running")
+        self.proc.stdin.write(json.dumps(payload) + "\n")
+        self.proc.stdin.flush()
+        return self.queue.get(timeout=timeout)
+
+
+_STYLETTS2_WORKER = _LocalTtsWorker("StyleTTS2")
+_KOKORO_WORKER = _LocalTtsWorker("Kokoro")
+_PIPER_WORKER = _LocalTtsWorker("Piper")
+_ZONOS_WORKER = _LocalTtsWorker("ZONOS3-Mini")
+_EMBEDDING_WORKER = _LocalTtsWorker("EmbeddingGemma")
 
 
 def _tts_dir() -> Path:
@@ -908,11 +1245,13 @@ def _sapi_voice_list() -> tuple[list[dict], str]:
                 parts = line.strip().split("|")
                 if len(parts) < 2 or not parts[0]:
                     continue
+                name = parts[0].replace("Microsoft ", "").replace(" Desktop", "").strip() or parts[0]
+                gender = (parts[2] if len(parts) > 2 else "").strip().lower()
                 voices.append({
                     "id": parts[0],
-                    "label": parts[0].replace("Microsoft ", "").replace(" Desktop", ""),
+                    "label": f"{name} · {gender}" if gender else name,
                     "language": parts[1] or "unknown",
-                    "gender": parts[2] if len(parts) > 2 else "",
+                    "gender": gender,
                 })
             if not voices:
                 error = "No installed Windows speech voices were found."
@@ -923,10 +1262,123 @@ def _sapi_voice_list() -> tuple[list[dict], str]:
     return voices, error
 
 
+def _probe_local_engines(jobs: dict) -> dict:
+    """Run local runtime import probes in parallel; jobs maps name to (python, code) or None."""
+    results = {name: (False, "", "") for name in jobs}
+    pending = {name: job for name, job in jobs.items() if job}
+    if not pending:
+        return results
+    with ThreadPoolExecutor(max_workers=len(pending)) as pool:
+        futures = {
+            name: pool.submit(_local_probe, name, python, code)
+            for name, (python, code) in pending.items()
+        }
+        for name, future in futures.items():
+            try:
+                results[name] = future.result()
+            except Exception as exc:
+                results[name] = (False, f"{name} runtime check failed: {exc}", "")
+    return results
+
+
 def tts_provider_registry() -> dict:
     keys = _load_saved_keys()
     sapi_voices, sapi_error = _sapi_voice_list()
+
+    sts_python, sts_assets, sts_voices, sts_error = _styletts2_locate()
+    kk_python, kk_error = _kokoro_locate()
+    pp_python, pp_voices, pp_error = _piper_locate()
+    zo_python, zo_assets, zo_error = _zonos_locate()
+    probes = _probe_local_engines({
+        "StyleTTS2": (sts_python, "import torch, styletts2, soundfile; print('device=' + ('cuda' if torch.cuda.is_available() else 'cpu'))") if not sts_error else None,
+        "Kokoro": (kk_python, "import torch, kokoro, soundfile; print('device=' + ('cuda' if torch.cuda.is_available() else 'cpu'))") if not kk_error else None,
+        "Piper": (pp_python, "import piper, soundfile; print('device=cpu')") if not pp_error else None,
+        "ZONOS3-Mini": (zo_python, "import torch, transformers, soundfile; print('device=' + ('cuda' if torch.cuda.is_available() else 'cpu'))") if not zo_error else None,
+    })
+    sts_ok, sts_reason, sts_device = probes["StyleTTS2"]
+    kk_ok, kk_reason, kk_device = probes["Kokoro"]
+    pp_ok, pp_reason, _ = probes["Piper"]
+    zo_ok, zo_reason, _ = probes["ZONOS3-Mini"]
+    sts_note = "Local neural voice; no key, no upload. A voice is computed from its reference on first use, then about a second per line."
+    if sts_ok and sts_device:
+        sts_note = f"Local neural voice on {sts_device.upper()}; no key, no upload. A voice is computed from its reference on first use, then about a second per line."
+    kk_note = "Fast local neural voice; no key, no upload. Warm lines synthesize in a fraction of a second."
+    if kk_ok and kk_device:
+        kk_note = f"Fast local neural voice on {kk_device.upper()}; no key, no upload. Warm lines synthesize in a fraction of a second."
+    zo_note = "43 languages and 27 narrators at 44.1 kHz; no key, no upload. Runs on CPU by default, so long scripts take longer than the lightweight engines."
+    sts_voice_entries = [
+        dict(voice) for voice in STYLETTS2_VOICES
+        if voice["id"] == "default"
+        or (sts_voices and (Path(sts_voices) / STYLETTS2_VOICE_REFS[voice["id"]]).exists())
+    ]
+    piper_voice_entries = [
+        {"id": voice_id, "label": label, "language": language, "gender": gender}
+        for voice_id, label, language, gender in PIPER_VOICES
+        if pp_voices and (Path(pp_voices) / f"{voice_id}.onnx").exists()
+    ]
+    pp_available = bool(pp_ok and piper_voice_entries)
+
     providers = [
+        {
+            "id": "styletts2",
+            "label": "StyleTTS2 (local neural)",
+            "kind": "local",
+            "available": bool(sts_ok),
+            "reason": "" if sts_ok else (sts_error or sts_reason or "StyleTTS2 runtime is not installed."),
+            "requiresKey": "",
+            "models": [STYLETTS2_MODEL],
+            "voices": sts_voice_entries,
+            "languages": ["en-US"],
+            "formats": ["wav"],
+            "supports": {"speed": False, "style": False, "emotion": False, "voiceCloning": False, "streaming": False},
+            "notes": sts_note,
+            "terms": "Runs locally. Script text never leaves the machine.",
+        },
+        {
+            "id": "kokoro",
+            "label": "Kokoro (local neural)",
+            "kind": "local",
+            "available": bool(kk_ok),
+            "reason": "" if kk_ok else (kk_error or kk_reason or "Kokoro runtime is not installed."),
+            "requiresKey": "",
+            "models": [KOKORO_MODEL],
+            "voices": KOKORO_VOICES,
+            "languages": sorted({voice["language"] for voice in KOKORO_VOICES}),
+            "formats": ["wav"],
+            "supports": {"speed": True, "style": False, "emotion": False, "voiceCloning": False, "streaming": False},
+            "notes": kk_note,
+            "terms": "Runs locally. Script text never leaves the machine.",
+        },
+        {
+            "id": "piper",
+            "label": "Piper (local neural)",
+            "kind": "local",
+            "available": pp_available,
+            "reason": "" if pp_available else (pp_error or pp_reason or "Piper runtime is not installed."),
+            "requiresKey": "",
+            "models": [PIPER_MODEL],
+            "voices": piper_voice_entries,
+            "languages": sorted({voice["language"] for voice in piper_voice_entries}),
+            "formats": ["wav"],
+            "supports": {"speed": True, "style": False, "emotion": False, "voiceCloning": False, "streaming": False},
+            "notes": "Lightweight CPU neural voice; no key, no GPU needed. Good on laptops and while the GPU renders.",
+            "terms": "Runs locally. Script text never leaves the machine.",
+        },
+        {
+            "id": "zonos",
+            "label": "ZONOS3-Mini (local neural)",
+            "kind": "local",
+            "available": bool(zo_ok and zo_assets),
+            "reason": "" if zo_ok and zo_assets else (zo_error or zo_reason or "ZONOS3-Mini runtime is not installed."),
+            "requiresKey": "",
+            "models": [ZONOS_MODEL],
+            "voices": ZONOS_VOICES,
+            "languages": sorted({voice["language"] for voice in ZONOS_VOICES}),
+            "formats": ["wav"],
+            "supports": {"speed": False, "style": False, "emotion": False, "voiceCloning": False, "streaming": False},
+            "notes": zo_note,
+            "terms": "Runs locally. Script text never leaves the machine.",
+        },
         {
             "id": "sapi",
             "label": "Windows Speech (local)",
@@ -950,7 +1402,7 @@ def tts_provider_registry() -> dict:
             "reason": "" if keys.get("gemini") else "Add a Gemini API key in Settings.",
             "requiresKey": "gemini",
             "models": GEMINI_TTS_MODELS,
-            "voices": [{"id": voice, "label": voice, "language": "auto"} for voice in GEMINI_TTS_VOICES],
+            "voices": [{"id": voice, "label": f"{voice} · {gender}", "language": "auto", "gender": gender} for voice, gender in GEMINI_TTS_VOICES],
             "languages": ["auto"],
             "formats": ["wav"],
             "supports": {"speed": False, "style": True, "emotion": False, "voiceCloning": False, "streaming": False},
@@ -965,8 +1417,8 @@ def tts_provider_registry() -> dict:
             "reason": "" if keys.get("mistral") else "Add a Mistral API key in Settings.",
             "requiresKey": "mistral",
             "models": MISTRAL_TTS_MODELS,
-            "voices": [{"id": voice, "label": f"{voice} · {language}", "language": language} for voice, language in MISTRAL_TTS_VOICES],
-            "languages": sorted({language for _, language in MISTRAL_TTS_VOICES}),
+            "voices": [{"id": voice_id, "label": f"{label} · {gender}", "language": language, "gender": gender} for voice_id, label, language, gender in MISTRAL_TTS_VOICES],
+            "languages": sorted({language for _, _, language, _ in MISTRAL_TTS_VOICES}),
             "formats": ["wav", "mp3"],
             "supports": {"speed": False, "style": False, "emotion": False, "voiceCloning": False, "streaming": False},
             "notes": "Speech v1 preset voices verified live; styles are baked into the voice name. Cloning needs a reference upload and is not exposed yet.",
@@ -1116,6 +1568,323 @@ def _mistral_tts_synthesize(text: str, model: str, voice: str, audio_format: str
         raise RuntimeError("Mistral TTS returned invalid audio data.") from exc
 
 
+def _local_runtime_dir(name: str) -> Path:
+    return _keys_dir() / "runtimes" / name
+
+
+def _local_runtime_config(name: str) -> dict:
+    try:
+        data = json.loads((_local_runtime_dir(name) / "runtime.json").read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+    return data if isinstance(data, dict) else {}
+
+
+def _local_worker_path(script_name: str) -> Path | None:
+    for base in (APP_DIR, Path(sys.executable).resolve().parent, Path.cwd()):
+        candidate = base / script_name
+        if candidate.exists():
+            return candidate
+    return None
+
+
+def _local_python(name: str, env_var: str, config: dict) -> str:
+    runtime_dir = _local_runtime_dir(name)
+    candidates = [
+        os.environ.get(env_var, ""),
+        str(config.get("python") or ""),
+        str(runtime_dir / "python.exe"),
+        str(runtime_dir / "Scripts" / "python.exe"),
+        str(runtime_dir / "venv" / "Scripts" / "python.exe"),
+    ]
+    if not getattr(sys, "frozen", False):
+        candidates.append(sys.executable)
+    local_appdata = os.environ.get("LOCALAPPDATA") or ""
+    if local_appdata:
+        candidates.append(str(Path(local_appdata) / "Programs" / "Python" / "Python311" / "python.exe"))
+    venv_names = (name, *LOCAL_RUNTIME_ALIASES.get(name, ()))
+    venv_candidates = []
+    for base in (APP_DIR, Path.cwd(), Path(sys.executable).resolve().parent, Path(sys.executable).resolve().parent.parent):
+        for venv_name in venv_names:
+            venv_candidates.append(str(base / ".venvs" / venv_name / "Scripts" / "python.exe"))
+    # A dedicated engine venv is a stronger signal than the current interpreter.
+    candidates = venv_candidates + candidates
+    return next((item for item in candidates if item and Path(item).exists()), "")
+
+
+def _local_probe(name: str, python: str, code: str) -> tuple[bool, str, str]:
+    key = f"{name}|{python}"
+    with _LOCAL_PROBE_LOCK:
+        entry = _LOCAL_PROBES.get(key)
+        if entry and time.time() - entry["at"] < LOCAL_PROBE_TTL:
+            return entry["ok"], entry["reason"], entry["device"]
+    # The import probe costs seconds on a cold start (torch import), so reuse
+    # the last answer across launches and recheck after the TTL.
+    with _PROBE_CACHE_LOCK:
+        cached = _read_probe_cache_file().get(key)
+    if isinstance(cached, dict) and time.time() - float(cached.get("at") or 0) < LOCAL_PROBE_TTL:
+        entry = {
+            "at": float(cached.get("at") or 0),
+            "ok": bool(cached.get("ok")),
+            "reason": str(cached.get("reason") or ""),
+            "device": str(cached.get("device") or ""),
+        }
+        with _LOCAL_PROBE_LOCK:
+            _LOCAL_PROBES[key] = entry
+        return entry["ok"], entry["reason"], entry["device"]
+    ok, reason, device = False, "", ""
+    try:
+        proc = subprocess.run(
+            [python, "-c", code], capture_output=True, text=True, errors="replace", timeout=120,
+            creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0), cwd=str(APP_DIR),
+        )
+        match = re.search(r"device=(cuda|cpu)", proc.stdout or "")
+        if proc.returncode == 0 and match:
+            ok, device = True, match.group(1)
+        else:
+            lines = ((proc.stderr or "") + "\n" + (proc.stdout or "")).strip().splitlines()
+            reason = f"{name} runtime failed to start: {lines[-1][:200] if lines else 'unknown error'}"
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        reason = f"{name} runtime failed to start: {exc}"
+    entry = {"at": time.time(), "ok": ok, "reason": reason, "device": device}
+    with _LOCAL_PROBE_LOCK:
+        _LOCAL_PROBES[key] = entry
+    _write_probe_cache_entry(key, entry)
+    return ok, reason, device
+
+
+def _styletts2_locate() -> tuple[str, str, str, str]:
+    """Resolve the optional StyleTTS2 runtime: (python, assets root, voices root, error)."""
+    config = _local_runtime_config("styletts2")
+    python = _local_python("styletts2", "CLIPACANVAS_STYLETTS2_PYTHON", config)
+    runtime_dir = _local_runtime_dir("styletts2")
+    asset_roots = [
+        os.environ.get("CLIPACANVAS_STYLETTS2_ASSETS", ""),
+        str(config.get("assets") or ""),
+        str(runtime_dir / "assets"),
+        str(APP_DIR / "output" / "uitest" / "tts" / "sts2" / "assets"),
+    ]
+    assets = next(
+        (root for root in asset_roots
+         if root and all((Path(root) / name).exists() for name in STYLETTS2_ASSET_FILES)),
+        "",
+    )
+    reference_names = set(STYLETTS2_VOICE_REFS.values())
+    voice_roots = [
+        os.environ.get("CLIPACANVAS_STYLETTS2_VOICES", ""),
+        str(runtime_dir / "voices"),
+        str(APP_DIR / "styletts2-voices"),
+    ]
+    voices = next(
+        (root for root in voice_roots
+         if root and any((Path(root) / name).exists() for name in reference_names)),
+        "",
+    )
+    if not python:
+        return "", "", voices, "StyleTTS2 runtime is not installed."
+    if not assets:
+        return python, "", voices, "StyleTTS2 model assets are missing from the runtime folder."
+    if not _local_worker_path("styletts2_worker.py"):
+        return python, assets, voices, "The StyleTTS2 worker is missing from this build."
+    return python, assets, voices, ""
+
+
+def _kokoro_locate() -> tuple[str, str]:
+    """Resolve the optional Kokoro runtime: (python, error)."""
+    config = _local_runtime_config("kokoro")
+    python = _local_python("kokoro", "CLIPACANVAS_KOKORO_PYTHON", config)
+    if not python:
+        return "", "Kokoro runtime is not installed."
+    if not _local_worker_path("kokoro_worker.py"):
+        return python, "The Kokoro worker is missing from this build."
+    return python, ""
+
+
+def _piper_locate() -> tuple[str, str, str]:
+    """Resolve the optional Piper runtime: (python, voices root, error)."""
+    config = _local_runtime_config("piper")
+    python = _local_python("piper", "CLIPACANVAS_PIPER_PYTHON", config)
+    voices_roots = [
+        os.environ.get("CLIPACANVAS_PIPER_VOICES", ""),
+        str(config.get("voices") or ""),
+        str(_local_runtime_dir("piper") / "voices"),
+        str(APP_DIR / "output" / "uitest" / "tts" / "piper"),
+    ]
+    voices = next(
+        (root for root in voices_roots
+         if root and any((Path(root) / f"{voice_id}.onnx").exists() for voice_id, _, _, _ in PIPER_VOICES)),
+        "",
+    )
+    if not python:
+        return "", "", "Piper runtime is not installed."
+    if not voices:
+        return python, "", "Piper voice models are missing."
+    if not _local_worker_path("piper_worker.py"):
+        return python, voices, "The Piper worker is missing from this build."
+    return python, voices, ""
+
+
+def _zonos_locate() -> tuple[str, str, str]:
+    """Resolve the optional ZONOS3-Mini runtime: (python, assets root, error)."""
+    config = _local_runtime_config("zonos")
+    python = _local_python("zonos", "CLIPACANVAS_ZONOS_PYTHON", config)
+    runtime_dir = _local_runtime_dir("zonos")
+    asset_roots = [
+        os.environ.get("CLIPACANVAS_ZONOS_ASSETS", ""),
+        str(config.get("assets") or ""),
+        str(runtime_dir / "assets"),
+    ]
+    assets = next(
+        (root for root in asset_roots
+         if root and all((Path(root) / name).exists() for name in ZONOS_ASSET_FILES)),
+        "",
+    )
+    if not python:
+        return "", "", "ZONOS3-Mini runtime is not installed."
+    if not assets:
+        return python, "", "ZONOS3-Mini model assets are missing from the runtime folder."
+    if not _local_worker_path("zonos_worker.py"):
+        return python, assets, "The ZONOS3-Mini worker is missing from this build."
+    return python, assets, ""
+
+
+def _local_generate(worker: _LocalTtsWorker, python: str, script_name: str,
+                    script_args: list, payload: dict, label: str,
+                    timeout: int = LOCAL_WORKER_TIMEOUT) -> bytes:
+    script = _local_worker_path(script_name)
+    if not script:
+        raise RuntimeError(f"The {label} worker is missing from this build.")
+    with worker.lock:
+        for attempt in (0, 1):
+            if not worker.alive():
+                worker.start(python, script, script_args)
+            output = _tts_dir() / f"{worker.name.lower()}-{uuid.uuid4().hex}.wav"
+            try:
+                message = worker.request({**payload, "out": str(output)}, timeout=timeout)
+            except queue.Empty:
+                worker.stop()
+                if attempt == 0:
+                    continue
+                raise RuntimeError(f"{label} timed out generating speech.")
+            except OSError as exc:
+                worker.stop()
+                if attempt == 0:
+                    continue
+                raise RuntimeError(f"{label} runtime stopped unexpectedly: {exc}") from exc
+            if message.get("event") == "closed":
+                worker.stop()
+                if attempt == 0:
+                    continue
+                raise RuntimeError(f"{label} runtime exited while generating speech.")
+            if not message.get("ok"):
+                output.unlink(missing_ok=True)
+                raise RuntimeError(f"{label} failed: {message.get('error') or 'unknown error'}")
+            try:
+                data = output.read_bytes()
+            finally:
+                output.unlink(missing_ok=True)
+            if len(data) < 64:
+                raise RuntimeError(f"{label} returned empty audio.")
+            return data
+    raise RuntimeError(f"{label} failed.")
+
+
+def _styletts2_synthesize(text: str, voice: str) -> bytes:
+    python, assets, voices, error = _styletts2_locate()
+    if error:
+        raise RuntimeError(error)
+    reference = ""
+    ref_name = STYLETTS2_VOICE_REFS.get(voice)
+    if ref_name and voices:
+        candidate = Path(voices) / ref_name
+        if candidate.exists():
+            reference = str(candidate)
+    if voice != "default" and not reference:
+        raise RuntimeError("The selected StyleTTS2 voice reference is missing.")
+    return _local_generate(
+        _STYLETTS2_WORKER, python, "styletts2_worker.py",
+        ["--assets", assets], {"text": text, "voice": voice or "default", "ref": reference}, "StyleTTS2",
+    )
+
+
+def _kokoro_synthesize(text: str, voice: str, speed: float) -> bytes:
+    python, error = _kokoro_locate()
+    if error:
+        raise RuntimeError(error)
+    return _local_generate(
+        _KOKORO_WORKER, python, "kokoro_worker.py",
+        [], {"text": text, "voice": voice or "af_heart", "speed": speed}, "Kokoro",
+    )
+
+
+def _piper_synthesize(text: str, voice: str, speed: float) -> bytes:
+    python, voices, error = _piper_locate()
+    if error:
+        raise RuntimeError(error)
+    return _local_generate(
+        _PIPER_WORKER, python, "piper_worker.py",
+        ["--voices", voices], {"text": text, "voice": voice, "speed": speed}, "Piper",
+    )
+
+
+def _zonos_synthesize(text: str, voice: str) -> bytes:
+    python, assets, error = _zonos_locate()
+    if error:
+        raise RuntimeError(error)
+    device = os.environ.get("CLIPACANVAS_ZONOS_DEVICE", "cpu").strip().lower()
+    if device not in ("cpu", "cuda"):
+        device = "cpu"
+    return _local_generate(
+        _ZONOS_WORKER, python, "zonos_worker.py",
+        ["--assets", assets, "--device", device],
+        {"text": text, "voice": voice, "language": ZONOS_VOICE_LANGUAGES.get(voice, "en_us")},
+        "ZONOS3-Mini", timeout=900,
+    )
+
+
+def _local_engine(provider_id: str) -> dict | None:
+    if provider_id == "styletts2":
+        python, assets, voices, error = _styletts2_locate()
+        return {
+            "name": "StyleTTS2", "worker": _STYLETTS2_WORKER, "python": python,
+            "script": "styletts2_worker.py", "args": ["--assets", assets] if assets else [], "error": error,
+            "probe": "import torch, styletts2, soundfile; print('device=' + ('cuda' if torch.cuda.is_available() else 'cpu'))",
+        }
+    if provider_id == "kokoro":
+        python, error = _kokoro_locate()
+        return {
+            "name": "Kokoro", "worker": _KOKORO_WORKER, "python": python,
+            "script": "kokoro_worker.py", "args": [], "error": error,
+            "probe": "import torch, kokoro, soundfile; print('device=' + ('cuda' if torch.cuda.is_available() else 'cpu'))",
+        }
+    if provider_id == "piper":
+        python, voices, error = _piper_locate()
+        return {
+            "name": "Piper", "worker": _PIPER_WORKER, "python": python,
+            "script": "piper_worker.py", "args": ["--voices", voices] if voices else [], "error": error,
+            "probe": "import piper, soundfile; print('device=cpu')",
+        }
+    if provider_id == "zonos":
+        python, assets, error = _zonos_locate()
+        device = os.environ.get("CLIPACANVAS_ZONOS_DEVICE", "cpu").strip().lower()
+        if device not in ("cpu", "cuda"):
+            device = "cpu"
+        return {
+            "name": "ZONOS3-Mini", "worker": _ZONOS_WORKER, "python": python,
+            "script": "zonos_worker.py", "args": ["--assets", assets, "--device", device] if assets else [], "error": error,
+            "probe": "import torch, transformers, soundfile; print('device=' + ('cuda' if torch.cuda.is_available() else 'cpu'))",
+        }
+    return None
+
+
+def _stop_local_workers() -> None:
+    for worker in (_STYLETTS2_WORKER, _KOKORO_WORKER, _PIPER_WORKER, _ZONOS_WORKER, _EMBEDDING_WORKER):
+        worker.stop()
+
+
+atexit.register(_stop_local_workers)
+
+
 def synthesize_speech(payload: dict) -> dict:
     """Generate speech with the selected provider and return a normal media asset."""
     provider_id = str(payload.get("provider") or "").strip().lower()
@@ -1144,10 +1913,12 @@ def synthesize_speech(payload: dict) -> dict:
     emotion = str(payload.get("emotion") or "").strip()[:100]
     if not provider["supports"].get("emotion"):
         emotion = ""
-    if provider_id == "sapi" and not provider["available"]:
+    if provider["kind"] == "local" and not provider["available"]:
         raise RuntimeError(provider["reason"] or "Local speech is unavailable.")
-    if provider.get("requiresKey") and not provider["available"]:
-        raise PermissionError(provider["reason"] or f"{provider['label']} is not configured.")
+    if not provider["available"]:
+        if provider.get("requiresKey"):
+            raise PermissionError(provider["reason"] or f"{provider['label']} is not configured.")
+        raise RuntimeError(provider["reason"] or f"{provider['label']} is unavailable.")
 
     cache_request = {
         "version": TTS_CACHE_VERSION,
@@ -1180,6 +1951,14 @@ def synthesize_speech(payload: dict) -> dict:
             audio_bytes = output.read_bytes()
     elif provider_id == "gemini":
         audio_bytes = _gemini_tts_synthesize(text, model, voice, style)
+    elif provider_id == "styletts2":
+        audio_bytes = _styletts2_synthesize(text, voice)
+    elif provider_id == "kokoro":
+        audio_bytes = _kokoro_synthesize(text, voice, speed)
+    elif provider_id == "piper":
+        audio_bytes = _piper_synthesize(text, voice, speed)
+    elif provider_id == "zonos":
+        audio_bytes = _zonos_synthesize(text, voice)
     else:
         audio_bytes = _mistral_tts_synthesize(text, model, voice, audio_format)
     if len(audio_bytes) < 64:
@@ -1306,6 +2085,206 @@ def _write_analysis_manifest(filename: str, manifest: dict) -> None:
     os.replace(temp_path, cache_path)
 
 
+def _embedding_locate() -> tuple[str, str, str]:
+    """Resolve the optional EmbeddingGemma 2 runtime: (python, assets root, error)."""
+    config = _local_runtime_config("embedgemma2")
+    python = _local_python("embedgemma2", "CLIPACANVAS_EMBEDDING_PYTHON", config)
+    runtime_dir = _local_runtime_dir("embedgemma2")
+    asset_roots = [
+        os.environ.get("CLIPACANVAS_EMBEDDING_ASSETS", ""),
+        str(config.get("assets") or ""),
+        str(runtime_dir / "assets"),
+    ]
+    assets = next(
+        (root for root in asset_roots
+         if root and all((Path(root) / name).exists() for name in VISUAL_ASSET_FILES)),
+        "",
+    )
+    if not python:
+        return "", "", "EmbeddingGemma runtime is not installed."
+    if not assets:
+        return python, "", "EmbeddingGemma model assets are missing from the runtime folder."
+    if not _local_worker_path("embedding_worker.py"):
+        return python, assets, "The EmbeddingGemma worker is missing from this build."
+    return python, assets, ""
+
+
+def _embedding_device() -> str:
+    device = os.environ.get("CLIPACANVAS_EMBEDDING_DEVICE", VISUAL_DEVICE_DEFAULT).strip().lower()
+    return device if device in ("cpu", "cuda", "auto") else VISUAL_DEVICE_DEFAULT
+
+
+def _embedding_request(payload: dict, timeout: int = 600) -> dict:
+    python, assets, error = _embedding_locate()
+    if error:
+        raise RuntimeError(error)
+    script = _local_worker_path("embedding_worker.py")
+    if not script:
+        raise RuntimeError("The EmbeddingGemma worker is missing from this build.")
+    args = ["--assets", assets, "--device", _embedding_device()]
+    with _EMBEDDING_WORKER.lock:
+        for attempt in (0, 1):
+            if not _EMBEDDING_WORKER.alive():
+                _EMBEDDING_WORKER.start(python, script, args, timeout=420)
+            try:
+                message = _EMBEDDING_WORKER.request(payload, timeout=timeout)
+            except queue.Empty:
+                _EMBEDDING_WORKER.stop()
+                if attempt == 0:
+                    continue
+                raise RuntimeError("EmbeddingGemma timed out.")
+            except OSError as exc:
+                _EMBEDDING_WORKER.stop()
+                if attempt == 0:
+                    continue
+                raise RuntimeError(f"EmbeddingGemma runtime stopped unexpectedly: {exc}") from exc
+            if message.get("event") == "closed":
+                _EMBEDDING_WORKER.stop()
+                if attempt == 0:
+                    continue
+                raise RuntimeError("EmbeddingGemma runtime exited while indexing.")
+            if not message.get("ok"):
+                raise RuntimeError(f"EmbeddingGemma failed: {message.get('error') or 'unknown error'}")
+            return message
+    raise RuntimeError("EmbeddingGemma failed.")
+
+
+def _visual_keyframes(path: Path, filename: str, kind: str, shots: list[dict]) -> list[tuple[float, Path]]:
+    frame_dir = _analysis_frame_dir(filename)
+    if kind == "image":
+        target = frame_dir / "image.jpg"
+        if not target.exists():
+            try:
+                subprocess.run(
+                    [FFMPEG_EXE, "-y", "-hide_banner", "-loglevel", "error", "-i", str(path),
+                     "-frames:v", "1", "-vf", "scale=640:-2", "-q:v", "4", str(target)],
+                    capture_output=True, text=True, errors="replace", timeout=30,
+                )
+            except (OSError, subprocess.TimeoutExpired):
+                pass
+        return [(0.0, target)] if target.exists() and target.stat().st_size > 128 else []
+    entries: list[tuple[float, Path]] = []
+    for shot in shots:
+        match = re.search(r"/(\d+)\.jpg$", str(shot.get("keyframe") or ""))
+        if not match:
+            continue
+        target = frame_dir / f"shot-{int(match.group(1)):02d}.jpg"
+        if target.exists() and target.stat().st_size > 128:
+            entries.append((float(shot.get("start") or 0.0), target))
+        if len(entries) >= VISUAL_KEYFRAME_LIMIT:
+            break
+    return entries
+
+
+def _motion_profile(path: Path, duration: float | None) -> dict:
+    """Frame-difference motion score from grayscale samples, CPU only."""
+    if not duration or duration <= 0.25:
+        return {"score": 0.0, "peak": 0.0, "label": "still", "profile": []}
+    fps = 4
+    width, height = 128, 72
+    limit = min(float(duration), 120.0)
+    try:
+        proc = subprocess.run(
+            [FFMPEG_EXE, "-v", "error", "-t", f"{limit:.3f}", "-i", str(path),
+             "-vf", f"scale={width}:{height},format=gray", "-r", str(fps),
+             "-f", "rawvideo", "-"],
+            capture_output=True, timeout=90,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return {"score": 0.0, "label": "unknown", "profile": []}
+    frame_size = width * height
+    data = proc.stdout or b""
+    frames = [data[i:i + frame_size] for i in range(0, len(data) - frame_size + 1, frame_size)]
+    if len(frames) < 2:
+        return {"score": 0.0, "peak": 0.0, "label": "still", "profile": []}
+    buckets: dict[int, list[float]] = {}
+    diffs: list[float] = []
+    for index in range(1, len(frames)):
+        diff = sum(abs(a - b) for a, b in zip(frames[index], frames[index - 1])) / (frame_size * 255.0)
+        diffs.append(diff)
+        buckets.setdefault(int(index / fps), []).append(diff)
+    profile = [[second, round(sum(values) / len(values), 4)] for second, values in sorted(buckets.items())]
+    score = round(sum(diffs) / len(diffs), 4)
+    diffs.sort()
+    peak = round(diffs[int((len(diffs) - 1) * 0.95)], 4)
+    if score < 0.002:
+        label = "static"
+    elif score < 0.010:
+        label = "slow"
+    elif score < 0.025:
+        label = "moderate"
+    else:
+        label = "fast"
+    return {"score": score, "peak": peak, "label": label, "profile": profile[:60]}
+
+
+def _visual_analyze_media(path: Path, filename: str, technical: dict, shots: list[dict]) -> dict:
+    """Local EmbeddingGemma pass: zero-shot content tags, keyframe vectors, motion."""
+    kind = _media_kind_for(filename)
+    if kind not in ("image", "video"):
+        return {"status": "skipped", "reason": "Visual indexing covers images and videos."}
+    python, assets, error = _embedding_locate()
+    if error:
+        return {"status": "unavailable", "provider": VISUAL_MODEL, "reason": error}
+    frames = _visual_keyframes(path, filename, kind, shots)
+    if not frames:
+        return {"status": "unavailable", "provider": VISUAL_MODEL,
+                "reason": "No keyframe stills could be extracted for visual indexing."}
+    payload = {
+        "kind": "tags",
+        "paths": [str(target) for _, target in frames],
+        "labels": VISUAL_LABELS,
+        "topk": VISUAL_TAGS_PER_FRAME,
+    }
+    try:
+        message = _embedding_request(payload)
+    except Exception as exc:
+        return {"status": "error", "provider": VISUAL_MODEL, "reason": str(exc)[:300]}
+    results = message.get("results") or []
+    if len(results) != len(frames):
+        return {"status": "error", "provider": VISUAL_MODEL,
+                "reason": "EmbeddingGemma returned an unexpected frame count."}
+    aggregate: dict[str, float] = {}
+    frame_records = []
+    vectors = []
+    for (moment, _), result in zip(frames, results):
+        ranked = result.get("tags") or []
+        top_score = float(ranked[0].get("score") or 0) if ranked else 0.0
+        floor = max(VISUAL_TAG_THRESHOLD, top_score - VISUAL_TAG_MARGIN)
+        tags = [
+            {"label": str(tag.get("label")), "score": round(float(tag.get("score") or 0), 3)}
+            for tag in ranked[:VISUAL_TAGS_PER_FRAME]
+            if float(tag.get("score") or 0) >= floor
+        ]
+        frame_records.append({"time": round(moment, 3), "tags": tags})
+        for tag in tags:
+            aggregate[tag["label"]] = max(aggregate.get(tag["label"], 0.0), tag["score"])
+        vector = result.get("vector") or []
+        if vector:
+            vectors.append({"time": round(moment, 3), "vector": vector})
+    ordered = sorted(aggregate.items(), key=lambda item: -item[1])[:VISUAL_TAG_LIMIT]
+    motion = _motion_profile(path, technical.get("duration")) if kind == "video" else {
+        "score": 0.0, "peak": 0.0, "label": "still", "profile": []}
+    if vectors:
+        try:
+            (_analysis_dir() / f"embeddings-{Path(filename).stem}.json").write_text(
+                json.dumps({"model": VISUAL_MODEL, "dim": message.get("dim"), "frames": vectors}),
+                encoding="utf-8",
+            )
+        except OSError as exc:
+            print(f"  [SERVER] embedding sidecar write failed: {exc}")
+    return {
+        "status": "indexed",
+        "provider": "embeddinggemma-2",
+        "model": VISUAL_MODEL,
+        "device": _embedding_device(),
+        "tags": [{"label": label, "score": round(score, 3)} for label, score in ordered],
+        "frames": frame_records,
+        "motion": motion,
+        "indexedAt": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+    }
+
+
 def analyze_media_file(filename: str) -> dict:
     """Return a cached technical analysis manifest for a stored media file."""
     if not MEDIA_NAME_RE.match(filename or ""):
@@ -1326,6 +2305,7 @@ def analyze_media_file(filename: str) -> dict:
         return cached
     technical = _probe_media_technical(path)
     content_hash = filename[len("media-"):].split(".")[0]
+    shots = _detect_media_shots(path, filename, technical)
     manifest = {
         "asset": {
             "contentHash": content_hash,
@@ -1334,7 +2314,8 @@ def analyze_media_file(filename: str) -> dict:
             "bytes": technical["bytes"],
         },
         "technical": technical,
-        "shots": _detect_media_shots(path, filename, technical),
+        "shots": shots,
+        "visual": _visual_analyze_media(path, filename, technical, shots),
         "semantic": {
             "status": "not_analyzed",
             "provider": None,
@@ -1349,7 +2330,7 @@ def analyze_media_file(filename: str) -> dict:
         "user": {"description": "", "notes": "", "updatedAt": None},
         "analyzer": {
             "version": ANALYSIS_VERSION,
-            "engine": "ffmpeg-input-probe+scene-detect",
+            "engine": "ffmpeg-input-probe+scene-detect+embeddinggemma2",
             "analyzedAt": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
         },
     }
@@ -1873,6 +2854,7 @@ def _chatlog_connect() -> sqlite3.Connection:
     conn.executescript("""
         CREATE TABLE IF NOT EXISTS sessions (
             id TEXT PRIMARY KEY,
+            project_id TEXT NOT NULL DEFAULT '',
             title TEXT NOT NULL DEFAULT '',
             created_at INTEGER NOT NULL DEFAULT 0,
             updated_at INTEGER NOT NULL DEFAULT 0
@@ -1894,6 +2876,17 @@ def _chatlog_connect() -> sqlite3.Connection:
         conn.execute("ALTER TABLE messages ADD COLUMN code_before TEXT")
     if "code_after" not in columns:
         conn.execute("ALTER TABLE messages ADD COLUMN code_after TEXT")
+    session_columns = {row[1] for row in conn.execute("PRAGMA table_info(sessions)")}
+    if "project_id" not in session_columns:
+        conn.execute("ALTER TABLE sessions ADD COLUMN project_id TEXT NOT NULL DEFAULT ''")
+        # Chat history used to be global; attach it to the project that was
+        # last open so existing work keeps its conversations.
+        session = _read_session()
+        legacy_project = str((session or {}).get('projectId') or '')
+        if legacy_project:
+            conn.execute("UPDATE sessions SET project_id = ? WHERE project_id = ''", (legacy_project,))
+        conn.commit()
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_sessions_project ON sessions(project_id)")
     _migrate_chatlog_json(conn)
     return conn
 
@@ -1918,6 +2911,7 @@ def _migrate_chatlog_json(conn: sqlite3.Connection) -> None:
     if not isinstance(sessions, list):
         return
     inserted = 0
+    legacy_project = str((_read_session() or {}).get('projectId') or '')
     for session in sessions:
         if not isinstance(session, dict):
             continue
@@ -1926,8 +2920,8 @@ def _migrate_chatlog_json(conn: sqlite3.Connection) -> None:
             continue
         session_id = str(session.get("id") or f"chat-{int(time.time() * 1000)}")
         conn.execute(
-            "INSERT OR IGNORE INTO sessions (id, title, created_at, updated_at) VALUES (?, ?, ?, ?)",
-            (session_id, str(session.get("title") or "Previous chat")[:120],
+            "INSERT OR IGNORE INTO sessions (id, project_id, title, created_at, updated_at) VALUES (?, ?, ?, ?, ?)",
+            (session_id, legacy_project, str(session.get("title") or "Previous chat")[:120],
              int(session.get("createdAt") or 0), int(session.get("updatedAt") or 0)),
         )
         conn.executemany(
@@ -1950,16 +2944,19 @@ def _migrate_chatlog_json(conn: sqlite3.Connection) -> None:
         pass
 
 
-def _load_chatlog() -> list:
+def _load_chatlog(project_id=None) -> list:
     try:
         conn = _chatlog_connect()
     except sqlite3.Error:
         return []
     try:
         sessions = []
-        for row in conn.execute(
-            "SELECT id, title, created_at, updated_at FROM sessions ORDER BY updated_at, created_at"
-        ):
+        query = "SELECT id, title, created_at, updated_at FROM sessions"
+        params = ()
+        if project_id is not None:
+            query += " WHERE project_id = ?"
+            params = (str(project_id),)
+        for row in conn.execute(query + " ORDER BY updated_at, created_at", params):
             session = {
                 "id": row[0],
                 "title": row[1],
@@ -1992,7 +2989,7 @@ def _load_chatlog() -> list:
         conn.close()
 
 
-def _save_chatlog(sessions: list) -> None:
+def _save_chatlog(sessions: list, project_id=None) -> None:
     try:
         conn = _chatlog_connect()
     except sqlite3.Error:
@@ -2007,20 +3004,29 @@ def _save_chatlog(sessions: list) -> None:
             if not session_id or not messages:
                 continue
             prepared.append((session, session_id, messages))
+        scope = None if project_id is None else str(project_id)
         if not prepared:
             # A save that carries no messages would replace the store with
             # nothing; the client only legitimately clears chats through the
             # per-session DELETE endpoint.
-            existing = conn.execute("SELECT COUNT(*) FROM sessions").fetchone()[0]
+            if scope is None:
+                existing = conn.execute("SELECT COUNT(*) FROM sessions").fetchone()[0]
+            else:
+                existing = conn.execute(
+                    "SELECT COUNT(*) FROM sessions WHERE project_id = ?", (scope,)
+                ).fetchone()[0]
             if existing:
                 print("  [SERVER] refused empty chatlog save; keeping stored chats")
                 return
         with conn:
-            conn.execute("DELETE FROM sessions")
+            if scope is None:
+                conn.execute("DELETE FROM sessions")
+            else:
+                conn.execute("DELETE FROM sessions WHERE project_id = ?", (scope,))
             for session, session_id, messages in prepared:
                 conn.execute(
-                    "INSERT INTO sessions (id, title, created_at, updated_at) VALUES (?, ?, ?, ?)",
-                    (session_id, str(session.get("title") or "")[:120],
+                    "INSERT INTO sessions (id, project_id, title, created_at, updated_at) VALUES (?, ?, ?, ?, ?)",
+                    (session_id, scope or '', str(session.get("title") or "")[:120],
                      int(session.get("createdAt") or 0), int(session.get("updatedAt") or 0)),
                 )
                 conn.executemany(
@@ -2106,8 +3112,8 @@ class ClipACanvasHandler(SimpleHTTPRequestHandler):
                 return self._handle_projects_get()
             if self.path == '/api/llm/keys':
                 return self._handle_llm_keys_get()
-            if self.path == '/api/llm/chatlog':
-                return self._handle_chatlog_get()
+            if urllib.parse.urlparse(self.path).path == '/api/llm/chatlog':
+                return self._handle_chatlog_get(urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query))
             if self.path == '/api/prefs':
                 return self._handle_prefs_get()
             if self.path == '/api/tts/providers':
@@ -2172,6 +3178,8 @@ class ClipACanvasHandler(SimpleHTTPRequestHandler):
                 self._handle_media_semantic()
             elif self.path == '/api/tts/generate':
                 self._handle_tts_generate()
+            elif self.path == '/api/tts/warm':
+                self._handle_tts_warm()
             elif self.path == '/api/llm/chat':
                 self._handle_llm_chat()
             elif self.path == '/api/llm/models':
@@ -2597,11 +3605,14 @@ class ClipACanvasHandler(SimpleHTTPRequestHandler):
         _save_keys_to_disk(keys)
         self._send_json({'ok': True, 'keys': keys})
 
-    def _handle_chatlog_get(self):
+    def _handle_chatlog_get(self, query):
         if not self._same_origin_request():
             self.send_error(403, "Origin not allowed")
             return
-        self._send_json({'ok': True, 'sessions': _load_chatlog()})
+        scope = query.get('projectId', [None])[0]
+        if scope is not None:
+            scope = str(scope)[:80]
+        self._send_json({'ok': True, 'sessions': _load_chatlog(scope)})
 
     def _handle_prefs_get(self):
         if not self._same_origin_request():
@@ -2656,6 +3667,9 @@ class ClipACanvasHandler(SimpleHTTPRequestHandler):
         if not isinstance(sessions, list):
             self._send_json({'ok': False, 'error': 'sessions must be a list.'}, 400)
             return
+        scope = None
+        if 'projectId' in payload:
+            scope = str(payload.get('projectId') or '')[:80]
         cleaned_sessions = []
         for session in sessions:
             if not isinstance(session, dict):
@@ -2670,7 +3684,7 @@ class ClipACanvasHandler(SimpleHTTPRequestHandler):
                 'updatedAt': int(session.get('updatedAt') or 0),
                 'messages': messages,
             })
-        _save_chatlog(cleaned_sessions)
+        _save_chatlog(cleaned_sessions, scope)
         self._send_json({'ok': True, 'sessions': cleaned_sessions})
 
     def _handle_chatlog_delete(self, query):
@@ -3350,9 +4364,23 @@ class ClipACanvasHandler(SimpleHTTPRequestHandler):
         if entry is None or not PROJECT_FILE_RE.match(file_name):
             return self._send_json({'ok': False, 'error': 'Project not found.'}, 404)
         doc = _read_json_path(_projects_dir() / file_name)
+        autosave = _read_json_path(_project_autosave_path(project_id))
+        if isinstance(autosave, dict) and _validate_project_doc(autosave):
+            autosave = None
+        # Opening must land on the newest state. The library copy is only
+        # written on save/return Home while the per-project autosave follows
+        # every edit, so a stale library copy must never shadow it.
+        saved_at = str((doc or {}).get('savedAt') or '')
+        autosave_at = str((autosave or {}).get('savedAt') or '')
+        recovered = isinstance(autosave, dict) and (
+            doc is None
+            or (bool(autosave_at) and (not saved_at or autosave_at > saved_at))
+        )
+        if recovered:
+            doc = autosave
         if doc is None:
             return self._send_json({'ok': False, 'error': 'Project file could not be read.'}, 500)
-        self._send_json({'ok': True, 'project': doc, 'entry': _project_entry_meta(entry)})
+        self._send_json({'ok': True, 'project': doc, 'entry': _project_entry_meta(entry), 'recovered': recovered})
 
     def _handle_projects_recover(self, query):
         project_id = str((query.get('id') or [''])[0]).strip()
@@ -3594,6 +4622,44 @@ class ClipACanvasHandler(SimpleHTTPRequestHandler):
             print(f"  [SERVER] TTS error: {exc}")
             return self._send_json({'ok': False, 'error': 'Speech generation failed.'}, 500)
         self._send_json(result)
+
+    def _handle_tts_warm(self):
+        try:
+            length = int(self.headers.get('Content-Length') or 0)
+        except ValueError:
+            length = 0
+        payload = {}
+        if 0 < length <= 20000:
+            try:
+                payload = json.loads(self.rfile.read(length).decode('utf-8'))
+            except (ValueError, UnicodeDecodeError):
+                payload = {}
+        if not isinstance(payload, dict):
+            payload = {}
+        engine = _local_engine(str(payload.get('provider') or ''))
+        if not engine:
+            return self._send_json({'ok': False, 'error': 'Only a local neural runtime can be warmed.'}, 400)
+        if engine['error']:
+            return self._send_json({'ok': False, 'error': engine['error']}, 502)
+        ok, reason, device = _local_probe(engine['name'], engine['python'], engine['probe'])
+        if not ok:
+            return self._send_json({'ok': False, 'error': reason or f"{engine['name']} runtime is unavailable."}, 502)
+        worker = engine['worker']
+        script = _local_worker_path(engine['script'])
+        if not script:
+            return self._send_json({'ok': False, 'error': f"{engine['name']} worker is missing from this build."}, 502)
+
+        def boot():
+            with worker.lock:
+                if worker.alive():
+                    return
+                try:
+                    worker.start(engine['python'], script, engine['args'])
+                except RuntimeError as exc:
+                    print(f"  [{engine['name']}] warm-up failed: {exc}")
+
+        threading.Thread(target=boot, name=f"{engine['name'].lower()}-warm", daemon=True).start()
+        self._send_json({'ok': True, 'warming': True, 'device': device})
 
     def _send_json(self, payload, status=200):
         data = json.dumps(payload).encode('utf-8')

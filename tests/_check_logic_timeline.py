@@ -35,13 +35,13 @@ with sync_playwright() as p:
     page.goto(f"{base}/clipacanvas.html", wait_until="load")
     page.wait_for_timeout(1200)
 
-    # A fresh timeline is one single track, not a stacked V2 over V1.
+    # A fresh timeline is one single video track plus the three audio lanes.
     labels = page.locator(".et-label b").all_inner_texts()
     meta = page.locator("#timelineMeta").inner_text()
     print("initial layers:", labels, "meta:", meta)
-    assert labels == ["V1"], labels
+    assert labels == ["V1", "A1", "A2", "A3"], labels
     assert "1 LAYER" in meta, meta
-    assert page.locator(".et-row").count() == 1
+    assert page.locator(".et-row").count() == 4
 
     # Seed clip A into the initial box.
     page.evaluate("""code => {
@@ -118,7 +118,7 @@ with sync_playwright() as p:
     assert page.locator(".logic-box").count() == 2, "timeline did not persist"
     labels = page.locator(".et-label b").all_inner_texts()
     print("after reload layers:", labels)
-    assert labels == ["V1"], "an empty extra layer survived the reload"
+    assert [label for label in labels if label.startswith("V")] == ["V1"], "an empty extra layer survived the reload"
     active_name = page.locator(".logic-box.active .logic-name").inner_text()
     editor_value = page.evaluate("document.getElementById('codeInput').value")
     print("after reload active:", active_name, "editor has B:", "SCENE B" in editor_value)
@@ -154,7 +154,7 @@ with sync_playwright() as p:
     page.wait_for_timeout(300)
     labels = page.locator(".et-label b").all_inner_texts()
     print("after add layer:", labels)
-    assert labels == ["V2", "V1"], labels
+    assert [label for label in labels if label.startswith("V")] == ["V2", "V1"], labels
     assert "2 LAYERS" in page.locator("#timelineMeta").inner_text()
 
     # Drag the active box right into free space: this changes its start time
@@ -197,7 +197,7 @@ with sync_playwright() as p:
     page.wait_for_timeout(300)
     labels = page.locator(".et-label b").all_inner_texts()
     print("after add layer:", labels)
-    assert labels == ["V3", "V2", "V1"], labels
+    assert [label for label in labels if label.startswith("V")] == ["V3", "V2", "V1"], labels
     assert "3 LAYERS" in page.locator("#timelineMeta").inner_text()
 
     # Duplicate then delete.
@@ -213,7 +213,7 @@ with sync_playwright() as p:
     page.wait_for_timeout(1200)
     labels = page.locator(".et-label b").all_inner_texts()
     print("after reload layers:", labels)
-    assert labels == ["V2", "V1"], "empty V3 did not collapse on reload"
+    assert [label for label in labels if label.startswith("V")] == ["V2", "V1"], "empty V3 did not collapse on reload"
 
     # Chat add_scene creates a real separate scene box with its own code.
     page.evaluate("""async code => {

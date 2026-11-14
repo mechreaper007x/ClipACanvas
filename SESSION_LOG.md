@@ -4144,3 +4144,423 @@
 ### Open Items
 
 - Existing duplicate-named projects in a user library are left untouched; rename one from Home. The window-placement issue (restored window opens offset on a full-screen saved size) remains unfixed.
+
+## 2026-11-13 (NLE core: deterministic monitor, preview audio, voice and verify tools)
+
+### Summary
+
+- Root defect found: the exporter already drove a virtual clock and seeked every scene per frame, but the Program Monitor ran scenes on wall-clock time and ignored the playhead. Scrubbing never repainted the stage, playback scenes started from 0 on their own, and the monitor could disagree with the export.
+- Fix: the renderer's virtual clock (Date/performance.now/rAF/timers paused and seeked animations, media seek) now also runs inside every preview scene, single and composite. The host seeks by postMessage; playback drives the seek every tick; scrubbing previews; the composite reuse key includes layer and transition identity so edits reach the monitor. Video elements inside scenes seek with the scene.
+- Preview audio transport: A1-A3 clips now play during monitor playback with lane gain, mute and solo, drift-corrected against the playhead; stopping the transport stops the mix. Previously the monitor was silent and only the export had sound.
+- Agent voice and timeline tools (21 tools total): generate_voiceover (offline SAPI by default, hosted Gemini/Mistral when configured) places speech on A1/A2/A3 and can add captions; add_captions creates timed transparent caption clips on a free top track; place_media places bin assets on video tracks or audio lanes; verify_timeline reports empty scenes, overlaps, bad audio lanes, missing media and orphan transitions.
+- UI was not changed. Captions and voice surfaces are timeline clips and tool results.
+
+### Files Touched
+
+- `clipacanvas.html` (preview clock, seek/transport, composite seek host, preview audio, four agent tools, caption helpers, verifier, prompt bullets)
+- `serve.py` (generate_voiceover, add_captions, place_media, verify_timeline declarations)
+- `tests/_check_preview_seek.py`, `tests/_check_preview_audio.py`, `tests/_check_preview_export_parity.py`, `tests/_check_agent_voice.py` (new); `tests/_check_packaged_agent_plan.py` (extended)
+
+### Verification
+
+- `_check_preview_seek.py` PASS: monitor at 1.0s draws the box at 200px and at 1.5s at 300px without reloading the scene; playback advances the playhead and the transform; composite overlay at 1.0s is 150px while the scene behind is 200px.
+- `_check_preview_export_parity.py` PASS: monitor 200/300px at 1.0/1.5s equals exported frames 200/300px at the same times.
+- `_check_preview_audio.py` PASS: an A1 clip plays during monitor playback (currentTime follows the playhead), stops on pause, and a muted lane produces no audio elements.
+- `_check_agent_voice.py` PASS: SAPI "David" generated 5.88s of narration on A1, two caption cues on V4, verify_timeline clean, image placed on V2; export has audio at -19.5 dB mean, caption backdrop pixel (139) against the 241 ivory scene, image layer green at 3.5s.
+- `_check_packaged_agent_plan.py` PASS in the rebuilt exe: hidden plan 3/3 steps, two scenes, render, then generate_voiceover 2.23s on A1 with one caption.
+- Regressions PASS: `_check_transitions.py` (13 presets, custom transform, wipe clip-path, fade, handles, export pixels), `_check_media_timeline.py`, `_check_film_export.py`, `_check_project_persistence.py`, `_check_timeline_history.py`, `_check_agent_plan.py`, `_check_llm_tools.py` (21 tools valid).
+- Live Gemini check: a real tools:true request returned tools:true and toolsDisabled:false, so all 21 tool schemas are accepted.
+
+### Build
+
+- Rebuilt `dist/ClipACanvas.exe` (16:33, 463 MB) and `dist/ClipACanvas-windows.zip` with Python 3.11.
+
+### Open Items
+
+- Media clips on their own track still autoplay natively in the monitor (their start offset is applied on mount but not re-seeked every tick); code scenes and their embedded videos are frame-exact.
+- The 60s composition cap and the malformed 0.5s clip when inserting exactly at 60s remain unfixed.
+- No git commit/push for this entry (not requested).
+
+## 2026-11-13 (TTS provider audit and local voice-model benchmark)
+
+### Summary
+
+- Audited every speech provider in the app against live endpoints: Windows SAPI, Gemini TTS (gemini-3.8-flash-tts and flash-lite, 30 voices) and Mistral Voxtral. Captured the exact Gemini request shape (`v1beta/interactions`, `x-goog-api-key`, script under `input[0].content[0]`, style annotation, `generation_config.speech_config[0].voice`) and confirmed the response decodes to valid 24 kHz WAV. Mistral `voxtral-mini-tts-3-0` returned HTTP 429 rate_limited (code 1300) while `voxtral-mini-tts-latest` works; not a code defect.
+- Benchmarked four local engines on this machine (Ryzen 7 4800HS, 15.4 GB RAM, GTX 1650 4 GB, torch 2.11.0+cu128) with the same sentence, isolated venvs sharing system CUDA torch:
+  - Kokoro-82M, GPU: ~19-20x faster than realtime, 643 MB peak VRAM.
+  - Piper, CPU: ~145 ms per line, English and Hindi, no GPU needed.
+  - StyleTTS2-LibriTTS, GPU: 4.9 s load, 2.6 s one-time style extraction, 0.8-1.0 s per 4-5 s line (RTF ~0.2), 1.19 GB peak VRAM; voice cloning verified (default LJSpeech 200 Hz F0, clone of SAPI David 101 Hz vs 90 Hz source).
+  - F5-TTS v1 Base: 1.35 GB checkpoint; GPU inference returns all-NaN audio on this stack at 8 and 32 steps and with both default and math SDP kernels; CPU produces valid audio but needs 220 s for 5.4 s of speech (~40x slower than realtime).
+- Listening set: nine loudness-normalized samples in `output/uitest/tts/compare/` (F5, StyleTTS2, StyleTTS2 clone, Kokoro, Piper, Gemini Kore/Charon, SAPI David, Mistral Jane).
+
+### Files Touched
+
+- `output/uitest/tts/bench_f5.py`, `bench_f5_stats.py`, `bench_f5_nan.py`, `bench_f5_math.py`, `bench_sts2.py`, `bench_sts2_clone.py` (scratch benchmarks, output/ is gitignored)
+- `.venvs/f5`, `.venvs/sts2` (local test environments, not app dependencies)
+
+### Verification
+
+- Gemini live calls produced playable WAVs across both models and four voices; the full 68.4 s narration also synthesized successfully.
+- StyleTTS2 official checkpoints (LibriTTS 771 MB, ASR 94 MB, JDC 21 MB, PLBERT 25 MB) load only with legacy `weights_only=False` scoped to those official files; the ASR file is a training checkpoint, not a pure state dict.
+- F5's NaN appears only on the GPU path; same weights on CPU are finite, so the defect is in this torch/CUDA build on sm75, not the model files.
+
+### Open Items
+
+- No local provider is wired into the app yet; Kokoro stays the default recommendation, StyleTTS2 is the premium clone option, Piper covers CPU-only machines, F5 is not viable here.
+- F5 GPU NaN needs a different torch build or newer GPU to revisit.
+- No git commit/push for this entry (not requested).
+
+## 2026-11-13 (StyleTTS2 local neural voice provider)
+
+### Summary
+
+- StyleTTS2 (LibriTTS) is now a real speech provider in the app: local, keyless, on by default when its runtime is installed. It appears in the Voiceover Studio and in the agent `generate_voiceover` tool (provider enum now `sapi`, `styletts2`, `gemini`, `mistral`).
+- The packaged app never imports torch. The backend resolves an optional runtime (env vars, `%APPDATA%/ClipACanvas/runtimes/styletts2/runtime.json`, venv fallbacks), checks its assets and imports once per ten minutes, and drives a persistent worker process (`styletts2_worker.py`) over JSON lines. One model load serves every later line; the worker restarts once on a crash and is stopped at exit.
+- `POST /api/tts/warm` preloads the worker; the panel calls it when StyleTTS2 is selected so the first generate does not pay the whole cold start. Audio is converted to 24 kHz PCM16 WAV in the worker and then flows through the existing cache, `/media` asset, timeline and export paths.
+- Installed the runtime on this machine: assets copied to `%APPDATA%/ClipACanvas/runtimes/styletts2/assets`, `runtime.json` points at the validated `.venvs/sts2` interpreter.
+
+### Files Touched
+
+- `serve.py` (provider registry entry, runtime discovery, import probe, worker lifecycle, synthesis, `/api/tts/warm`, tool enum)
+- `clipacanvas.html` (warm-up on provider selection, agent prompt line)
+- `styletts2_worker.py` (new worker: scoped legacy checkpoint loading, default voice style, PCM16 output)
+- `tests/_check_voice_ui_styletts2.py` (new); `tests/_check_packaged_agent_plan.py` (StyleTTS2 provider and agent call)
+- `build_desktop.py`, `ClipACanvas.spec`, `ClipACanvasDebug.spec` (bundle the worker), `docs/EDITOR_AUDIT.md`
+
+### Verification
+
+- Backend: provider listed available on CUDA. Cold synthesis 36-38 s including model load; warm line 0.52 s for ~3 s of speech; 24 kHz mono PCM16.
+- `_check_voice_ui_styletts2.py` PASS: provider enabled, badge `LOCAL · READY`, 4.47 s result served over `/media`, inserted on A1 at 1.5 s, audio bytes > 200 KB.
+- `_check_packaged_agent_plan.py` PASS against the rebuilt exe: hidden plan 3/3, render, SAPI caption flow, provider list reports StyleTTS2 available, and an agent `generate_voiceover` with `provider: styletts2` produced 3 s on A1.
+- `_check_llm_tools.py` PASS: 21 tools, schemas valid after the enum change.
+
+### Build
+
+- Rebuilt `dist/ClipACanvas.exe` (19:20, 463,289,051 bytes) and `dist/ClipACanvas-windows.zip` (461,882,126 bytes) with Python 3.11.
+
+### Open Items
+
+- Voice cloning works in the runtime (verified with a SAPI David reference) but the app has no reference-voice picker yet; the provider exposes the default LJSpeech voice only.
+- First generation after app start takes about 30 s while torch and the model load; the panel pre-warms on selection, but the button has no separate "model loading" state.
+- The runtime is external by design (exe does not bundle torch); a fresh machine needs the StyleTTS2 environment and the four asset files.
+- No git commit/push for this entry (not requested).
+
+## 2026-11-13 (Kokoro and Piper providers, neural defaults, monitor fixes)
+
+### Summary
+
+- Windows Speech was still the app's default voice, and Kokoro/Piper existed only as benchmarks. Both are fixed: the registry now lists `styletts2`, `kokoro`, `piper`, `sapi`, `gemini`, `mistral`, and the panel plus the agent default to the best installed local neural engine. A previously auto-stored `sapi` preference no longer wins.
+- Kokoro (82M; Heart, Bella, Michael, Emma, Hindi Alpha; speed) and Piper (Lessac US English, Pratham Hindi; speed) run through the same persistent-worker design as StyleTTS2. Worker runtime import probes now run in parallel (first provider list dropped from 19 s serial to the slowest single probe) and the panel pre-warms whichever local engine is selected.
+- Program Monitor defect found in the screenshot review: `buildCompositePreview` refused any stack below two visual layers, so selecting an audio clip over a single scene replaced the program frame with the "AUDIO / NO PICTURE" badge. A single layer is now a valid composite and audio selection keeps the scene visible.
+- Voiceover inserts no longer stack or overlap: panel and agent inserts snap to the end of the occupied lane on the tenth-second grid. This also removes the 0.01-0.03 s overlap that appeared when appending at the timeline end.
+- Worker startup errors now retain the child stderr tail, so a failed runtime reports a real reason instead of "no ready signal".
+
+### Files Touched
+
+- `serve.py` (generic local worker class, Kokoro/Piper locales + probes, provider registry order, warm endpoint, tool enum)
+- `clipacanvas.html` (neural default selection, warm trigger, single-layer composite fix, insert snap, agent prompt)
+- `kokoro_worker.py`, `piper_worker.py` (new), `styletts2_worker.py` (unchanged contract)
+- `tests/_check_voice_ui_local_engines.py` (new); `tests/_check_packaged_agent_plan.py` (provider order, default voice, Piper)
+- `build_desktop.py`, `ClipACanvas.spec`, `ClipACanvasDebug.spec`, `docs/EDITOR_AUDIT.md`
+
+### Verification
+
+- Backend timings on this machine: Kokoro 18.4 s cold / 0.23 s warm (Hindi 2.33 s), Piper 1.31 s cold / 0.15 s warm (Hindi 1.1 s), StyleTTS2 warm ~0.5 s.
+- `_check_voice_ui_local_engines.py` PASS on an isolated profile: default selects StyleTTS2; Kokoro 6.68 s, Piper 4.40 s and Hindi 2.75 s all synthesized fresh through the panel; three sequential A1 clips with no overlap; monitor shows the scene while an audio clip is selected.
+- Regressions PASS: `_check_preview_seek.py`, `_check_preview_export_parity.py`, `_check_agent_voice.py`, `_check_llm_tools.py` (21 tools).
+- `_check_packaged_agent_plan.py` PASS on the rebuilt exe: plan/render/SAPI captions unchanged, provider order `styletts2, kokoro, piper, sapi`, explicit StyleTTS2 3 s on A1, default (no provider) StyleTTS2 3.6 s, Piper 1.9 s on A2.
+
+### Build
+
+- Rebuilt `dist/ClipACanvas.exe` (20:20, 463,300,655 bytes) and `dist/ClipACanvas-windows.zip` (461,894,432 bytes) with Python 3.11.
+
+### Open Items
+
+- Voice cloning is still runtime-only; no reference-voice picker.
+- Local runtimes are external; a fresh machine needs Python 3.11 with kokoro/piper installed, the separate StyleTTS2 venv and its assets, and Piper voice files (already installed on this machine under `%APPDATA%/ClipACanvas/runtimes`).
+- Adding Kokoro/Piper voices means dropping model files into their runtime folders and extending the static voice lists.
+- No git commit/push for this entry (not requested).
+
+## 2026-11-14 (Timeline lane layout, project-open recovery)
+
+### Summary
+
+- Timeline lanes no longer collapse into each other: rows with clips keep a 40 px minimum (max 74 px) and empty video/audio rows shrink to 20 px label-only slots instead of the old 30 px minimum. With 4 video + 3 audio lanes on a ~200 px track area, V4/V1 render 46-50 px tall and V3/V2/A1-A3 stay at 20 px, so names and code snippets are no longer clipped and the stack reads as separate layers.
+- Project progress loss on relaunch is fixed. The library copy is only written on save/return Home, so after a rebuild the project opened from Home could be the blank file saved at creation while the real work sat in the newer per-project autosave; any edit then overwrote that autosave. `/api/projects/open` now returns the newest valid autosave when it is newer than the library file (or when the library file is missing) with `recovered: true`, and the client treats that as a recovered open (status `AUTOSAVE RESTORED`, library copy refreshed on return Home). The in-editor project list uses the same endpoint, so it is covered too.
+
+### Files Touched
+
+- `clipacanvas.html` (lane CSS + `is-empty` rows, open recovery flag and status)
+- `serve.py` (`_handle_projects_open` prefers newer autosave)
+- `tests/_check_timeline_lanes.py`, `tests/_check_project_open_recovery.py`, `tests/_check_project_home_recovery.py` (new)
+
+### Verification
+
+- `_check_timeline_lanes.py` PASS: V4/V1 50.5 px, V3/V2/A1-A3 20 px, no clipping, no vertical scroll at 1664x916.
+- `_check_project_open_recovery.py` PASS: newer autosave restored (5 clips), edit persists to the same autosave (6 clips), older autosave does not shadow the library copy.
+- `_check_project_home_recovery.py` PASS in WebView2: Home card badge RECOVERABLE, open restores the autosave and shows `AUTOSAVE RESTORED`.
+- `_check_frame_lanes_project.py` and `_check_workspace.py` still PASS.
+- Packaged exe check with the live project: Home -> open restored all 9 clips (SCENE 01, FESTIVALS, SPICES, FUTURE, VOICEOVER, CAPTION 1-4), 4 layers, 22.1 s, lanes 46/20/20/46/32/20/20; screenshot `output/playwright/packaged-project-recovery.png`.
+
+### Build
+
+- Rebuilt `dist/ClipACanvas.exe` (04:40, 463,302,234 bytes) with Python 3.11 and launched it.
+
+### Open Items
+
+- Live project captions still run 4.0-22.1 s while the scenes end at 16 s and the voiceover is 0-19.85 s; caption placement itself lands on the requested window, so this is stale timing from the one-shot generation and needs a re-time decision.
+- The legacy single-slot `autosave.ccproj.json` holds an older voice-test project; its timestamp was restored to 2026-11-13T20:00:00Z so it does not appear as a false recent recovery.
+- No git commit/push for this entry (not requested).
+
+## 2026-11-14 (Adjustable timeline lanes)
+
+### Summary
+
+- Lane heights are now user-controlled instead of automatic: drag the 4 px bottom edge of any lane (video or audio) to any height between 20 and 120 px, double-click the edge to reset that lane to its default. Defaults are 46 px for video lanes with clips, 52 px for A1, 32 px for A2/A3 and 20 px for empty lanes; the automatic flex growth is gone.
+- Heights are stored per project (`timeline.laneHeights`) in the autosave and project file, so they survive save/reopen/relaunch. They are excluded from undo history but included in the durable-save signature; the track area shows a thin scrollbar when the stack is taller than the timeline.
+
+### Files Touched
+
+- `clipacanvas.html` (lane height state/helpers, row heights + resize handles, pointer gesture, double-click reset, payload + signature)
+- `tests/_check_timeline_lanes.py` (drag/reset/reload and project payload assertions)
+
+### Verification
+
+- `_check_timeline_lanes.py` PASS: defaults 46/20, drag V4 +30 px -> 76 px (playhead unchanged), height survives reload, double-click resets to 46 px, `buildProjectFilePayload().timeline.laneHeights` carries the value.
+- `_check_frame_lanes_project.py` and `_check_workspace.py` still PASS.
+- Live project (1706x930): V4 46, V3/V2 20, V1 46, A1 52, A2/A3 20; the taller stack scrolls as intended.
+
+### Open Items
+
+- Caption/voiceover timing drift in the live project is still unresolved.
+- No git commit/push for this entry (not requested).
+
+## 2026-11-14 (Per-project chats, instant voice providers)
+
+### Summary
+
+- Chat sessions are now scoped per project. The SQLite `sessions` table carries `project_id`; on first connect, existing global chats are bound to the project recorded in `projects/session.json` (this machine: all 8 chats moved to UNTITLED PROJECT 2, the last open project). `GET/POST /api/llm/chatlog` accept a `projectId` scope and a scoped save replaces only that project's rows. Opening or creating a project switches the chat to that project's sessions (new project -> new chat, active session remembered per project in localStorage); switching flushes any pending chat save first. The CHATS popover is labelled with the project name.
+- The Voice panel no longer starts blank. Local runtime import probes persist to `%APPDATA%/ClipACanvas/tts-probes.json` for 10 minutes, the frontend keeps the last provider registry in localStorage and renders it immediately, the panel shows `CHECKING ENGINES…` instead of an empty form while it waits, the registry is prefetched 1.2 s after launch, and opening the VOICE tab revalidates availability.
+
+### Files Touched
+
+- `serve.py` (sessions.project_id + migration and index, scoped chatlog GET/POST, probe disk cache)
+- `clipacanvas.html` (chat scope state, scoped load/save/flush, CHATS scope label, voice provider cache/hydration/loading, boot prefetch, tab revalidation)
+- `docs/EDITOR_AUDIT.md`
+- `tests/_check_project_chats.py`, `tests/_check_voice_provider_cache.py` (new)
+
+### Verification
+
+- `_check_project_chats.py` PASS: legacy chats migrate to the last project, scoped reads/writes stay isolated, empty scoped saves are refused, UI scope switching keeps alpha/beta messages in their own projects, popover shows only the project's chats and the project label.
+- `_check_voice_provider_cache.py` PASS: probe answers reuse the disk cache in 0 ms, a fresh failing probe still reports its reason, the live registry lists 6 providers and caches them, cached hydration renders instantly, and the loading state shows `CHECKING ENGINES…` with GENERATE disabled.
+- Regressions PASS: `_check_project_open_recovery.py`, `_check_frame_lanes_project.py`, `_check_workspace.py`.
+- Packaged exe with live data: UNTITLED PROJECT 2 opens with its 8 migrated chats (`· UNTITLED PROJECT 2`, active session restored), UNTITLED PROJECT has 0 chats, Voice shows LOCAL · READY with 6 providers and StyleTTS2 selected on first open.
+
+### Build
+
+- Rebuilt `dist/ClipACanvas.exe` (14:37, 463,306,194 bytes) and `dist/ClipACanvas-windows.zip` (14:37) with Python 3.11; relaunched.
+
+### Open Items
+
+- Caption/voiceover timing drift in the untitled-project timeline is still unresolved.
+- Orphaned chat rows for deleted projects are not cleaned up.
+- No git commit/push for this entry (not requested).
+
+## 2026-11-14 (Premiere-style shortcuts and timeline selection)
+
+### Summary
+
+- Ctrl/Cmd+A outside a text field now selects every timeline clip instead of highlighting the page; Ctrl+Shift+A clears the selection. Inputs, textareas and Monaco keep native select-all. Clicking empty timeline space clears the selection.
+- Added a real multi-clip selection: Shift+click adds, Ctrl+click toggles, selected clips get a go-colored ring. Delete/lift/ripple apply to the whole selection; a multi delete is one undo step, and batch ripple deletes from right to left so gaps close exactly once.
+- Adopted the Premiere-style key set: Space play/pause; J/K/L reverse/pause/forward (repeat doubles speed); Left/Right one frame; Shift+Left/Right five frames; Up/Down previous/next edit point; Home/End; Ctrl+K add edit (split); Delete/Backspace lift (gap stays); Shift+Delete ripple delete; S snapping toggle; = / - zoom; \ fit; Ctrl+Z / Ctrl+Shift+Z / Ctrl+Y undo/redo. Ctrl+Shift+K now focuses Clipppa chat (Ctrl+K was freed for Add Edit).
+- The timeline header has SNAP (on/off, also in the meta line) and a ? button. `?` or Ctrl+Alt+K opens a designed shortcut sheet; `?` no longer fires while typing in an input.
+- Project payloads now persist `timeline.activeId`, so restoring an autosave reopens the clip that was being edited instead of the first one.
+
+### Files Touched
+
+- `clipacanvas.html` (selection state/helpers, box selected styling, batch lift/ripple delete, shuttle playback, shortcut handler, shortcut sheet + SNAP button, activeId in project payload)
+- `docs/EDITOR_AUDIT.md` (shortcut addendum)
+- `tests/_check_shortcuts_selection.py`, `tests/_check_packaged_shortcuts.py` (new); `tests/_check_logic_timeline.py` and `tests/_check_frame_lanes_project.py` updated for typed audio lanes and the Premiere Shift+Arrow step
+
+### Verification
+
+- `_check_shortcuts_selection.py` PASS: Ctrl+A selects 3 clips with no page text, native Ctrl+A still works in inputs, Shift/Ctrl click selection, lift vs ripple, multi ripple delete + single undo, Ctrl+K split, S snapping, edit points 2->0, 5-frame step, zoom/fit, JKL shuttle, shortcut sheet, header fits 1664/1440/1280.
+- `_check_timeline_lanes.py`, `_check_timeline_history.py`, `_check_timeline_zoom.py`, `_check_project_ops.py`, `_check_media_timeline.py`, `_check_overlays.py`, `_check_frame_lanes_project.py`, `_check_logic_timeline.py` PASS.
+- `desktop_smoke.py` PASS (page errors: none, console errors: none).
+- `_check_packaged_shortcuts.py` PASS on the rebuilt exe: Ctrl+A 3 clips/no text, Ctrl+K split without focusing chat, SNAP OFF in the meta, L playback advances, shortcut sheet opens/closes.
+
+### Build
+
+- Backed up `%APPDATA%/ClipACanvas/projects` to `output/backups/projects-20261114-154438`, closed the running app, rebuilt `dist/ClipACanvas.exe` (15:47, 463,309,230 bytes) and `dist/ClipACanvas-windows.zip` (15:47) with Python 3.11, relaunched at Project Home with all 3 projects intact.
+- Rebuilt again on request: backup `output/backups/projects-20261114-155952`, `dist/ClipACanvas.exe` (16:02, 463,309,007 bytes) and `dist/ClipACanvas-windows.zip` (16:02); packaged shortcut test re-passed and the app is running at Project Home with all 3 projects visible.
+
+### Open Items
+
+- Caption/voiceover timing drift in the untitled-project timeline is still unresolved.
+- Orphaned chat rows for deleted projects are not cleaned up.
+- Dragging one clip of a multi-selection still moves only that clip.
+- No git commit/push for this entry (not requested).
+
+## 2026-11-14 (Male voice routing and automatic transitions)
+
+### Summary
+
+- Expanded the speech catalog and made gender a first-class voice choice. Kokoro now offers 19 curated English/Hindi voices with 10 male options (Michael, Adam, Eric, Fenrir, Liam, Onyx, Puck, Daniel, George, Omega), Gemini's 30 voices carry the documented Google Cloud genders, Mistral voices are labelled male/female, and Windows SAPI labels show the installed gender. The provider cache key moved to v2 so stale gender-less registries are discarded.
+- `generate_voiceover` accepts `gender` in addition to `voice`. The resolver matches ids, names and labels, and switches providers when the preferred engine has no matching voice (e.g. a male request on female-only StyleTTS2 goes to Kokoro/Piper/SAPI). The chat request now includes a live "Available speech voices" system message with ids and genders.
+- The AI now auto-scores cuts. `add_scene` installs a 0.4s dissolve on a new touching cut by default and accepts a `transition` object with preset or custom `renderTransition` code; `transition:false` keeps a hard cut. `add_transition` gained `all:true` to apply or update one effect at every touching cut without duplicate transitions, and the system prompt now makes transitions the default finish for every scene cut with custom code when the look is signature.
+- Fixed the transition badge regression introduced by empty-lane selection clearing: badge presses no longer re-render the timeline before the click, so the transition dialog opens again.
+
+### Files Touched
+
+- `serve.py` (voice catalogs with genders, SAPI labels, Gemini/Mistral registry, generate_voiceover schema)
+- `clipacanvas.html` (gender routing + voice catalog system message, prompt rules, add_scene auto/typed transitions, add_transition all, transition spec helpers, badge pointerdown fix, cache v2)
+- `docs/EDITOR_AUDIT.md`
+- `tests/_check_voice_genders_transitions.py` (new); `tests/_check_tts.py` pinned to SAPI; `tests/_check_voice_provider_cache.py` cache key v2
+
+### Verification
+
+- `_check_voice_genders_transitions.py` PASS: male/name/id routing, StyleTTS2 -> Kokoro fallback, SAPI name match, 19 Kokoro options with male labels, auto dissolve 0.4s on add_scene, custom-code scene transition, hard cut with transition:false, all-cuts custom update with no duplicates, verify_timeline clean.
+- `_check_tts.py`, `_check_agent_voice.py`, `_check_voice_provider_cache.py`, `_check_transitions.py`, `_check_shortcuts_selection.py`, `desktop_smoke.py` PASS.
+- Packaged exe: `_check_packaged_agent_plan.py` PASS (default StyleTTS2, SAPI, Piper; plan + render) and `_check_packaged_shortcuts.py` PASS.
+
+### Build
+
+- Backup `output/backups/projects-20261114-181849`; rebuilt `dist/ClipACanvas.exe` (18:22, 463,313,841 bytes) and `dist/ClipACanvas-windows.zip` (18:22) with Python 3.11, then relaunched at Project Home.
+- Project Home now lists 4 projects; UNTITLED PROJECT 4 was left untouched and shows its RECOVERABLE autosave badge (created/edited by the user before this rebuild).
+
+### Open Items
+
+- Kokoro voice packs for the newly listed voices download from the model repository on first use; offline machines fall back to the cached voices/SAPI.
+- Caption/voiceover timing drift in the older untitled-project timeline is still unresolved.
+- No git commit/push for this entry (not requested).
+
+## 2026-11-14 (Microsoft Edge neural voices)
+
+### Summary
+
+- Added a seventh speech provider, `edge` ("Microsoft Edge Neural (online)"): 322 free Microsoft neural voices across 142 locales with male and female options for most languages, no account or key, output mp3. English, Hindi and the other priority locales are sorted first.
+- The catalog is fetched once from Microsoft's read-aloud voice list, cached in `%APPDATA%/ClipACanvas/edge-voices.json` (24h TTL) plus memory, and falls back to a curated 49-voice list on a first start without internet. A failed fetch backs off for five minutes so offline registries stay instant.
+- `edge_tts` 7.2.8 got a 403 from the DRM-protected endpoint; upgrading to 7.3.1 fixed it. Synthesis passes an aiohttp connector with `ThreadedResolver` because aiodns cannot reach DNS servers on this machine.
+- `generate_voiceover` accepts `provider: "edge"` and the chat voice catalog lists 80 Edge ids (all priority locales) plus a `locale-NameNeural` id hint. The resolver matches Edge ids or names ("Ryan", "Madhur"); plain gender requests still prefer local engines. Voice Studio lists all 322 voices with genders.
+- Fixed the provider gate: an unavailable provider without a key now reports its reason instead of falling through to Mistral. Frontend provider cache key moved to v3.
+- Packaging: `edge_tts`/`aiohttp` are collected by `build_desktop.py` and both spec files; the build excludes the unused IPython/matplotlib/numpy/pydantic stack that aiohttp's optional typing imports were pulling in, keeping the exe at 467 MB instead of 512 MB. Requirements list `edge-tts>=7.3.1` and `aiohttp>=3.9`.
+
+### Files Touched
+
+- `serve.py` (Edge catalog/fetch/cache/backoff/synthesis, registry entry, provider gate, generate_voiceover schema)
+- `clipacanvas.html` (provider order and chat catalog, Edge guidance in the system prompt, cache key v3)
+- `build_desktop.py`, `ClipACanvas.spec`, `ClipACanvasDebug.spec`, `requirements.txt`, `desktop_requirements.txt`
+- `docs/EDITOR_AUDIT.md` (Edge addendum)
+- `tests/_check_voice_genders_transitions.py`, `_check_tts.py`, `_check_voice_provider_cache.py`, `_check_packaged_agent_plan.py`
+
+### Verification
+
+- `_check_voice_genders_transitions.py` PASS: 322 Edge voices, 159 male/163 female, en-GB-RyanNeural male and hi-IN coverage, id/name/gender routing to Edge, 322 panel options with speed control, plus the existing auto-transition checks.
+- `_check_tts.py` PASS: live Edge mp3 through `/api/tts/generate` (2.9 s), SAPI generate/cache/insert/export/mix unchanged.
+- `_check_voice_provider_cache.py` PASS with 7 providers and cache key v3; `_check_agent_voice.py` PASS; `_check_shortcuts_selection.py` PASS.
+- Packaged exe `_check_packaged_agent_plan.py` PASS: Edge provider available, chat `generate_voiceover` with `voice: "Ryan"` produced en-GB-RyanNeural on A3 (2.74 s), StyleTTS2 default and Piper still work, plan + render meta 1.98 s.
+
+### Build
+
+- Backed up `%APPDATA%/ClipACanvas/projects` to `output/backups/projects-20261114-184239`, closed the running app, rebuilt `dist/ClipACanvas.exe` (18:54, 467,097,826 bytes) and `dist/ClipACanvas-windows.zip` (18:55, 465,666,663 bytes) with Python 3.11, then relaunched at Project Home.
+- A first build at 18:48 came out at 512 MB because aiohttp/yarl pulled the local IPython/matplotlib stack; it was superseded by the lean build above.
+
+### Open Items
+
+- Edge voices need internet; the voice list is cached for a day and a curated subset stays available offline, but synthesis itself is online-only.
+- Caption/voiceover timing drift in the older untitled-project timeline is still unresolved.
+- No git commit/push for this entry (not requested).
+
+## 2026-11-14 (StyleTTS2 narrator voices; Edge provider removed)
+
+### Summary
+
+- Removed the Microsoft Edge provider on request: backend catalog/fetch/synthesis/registry entry, `generate_voiceover` enum, frontend prompt/catalog, packaging flags, requirements, tests and the stale `edge-voices.json` cache.
+- StyleTTS2 now offers eight narrators: the original LJSpeech target plus seven LibriTTS reference voices (three female, four male). References are 3 s, 16 kHz clips bundled in `styletts2-voices/` (LibriTTS CC BY 4.0, from the official StyleTTS2 demo page).
+- The worker computes a voice's style embedding lazily from its reference and caches it for the session; the registry lists a styletts2 voice only when its reference exists. `default` keeps the remote LJSpeech target.
+- Male requests now resolve to a StyleTTS2 LibriTTS male voice first because StyleTTS2 heads the local provider order; Kokoro and SAPI still cover names/engines StyleTTS2 lacks. Frontend provider cache key moved to v4.
+- Packaging bundles `styletts2-voices/`; the exe no longer contains `edge_tts`/`aiohttp`.
+
+### Files Touched
+
+- `serve.py` (StyleTTS2 voice catalog and reference map, 4-tuple locate with voices dir, ref-aware synthesis/registry; Edge code removed)
+- `styletts2_worker.py` (per-reference style embeddings with in-memory cache)
+- `clipacanvas.html` (prompt/catalog back to six providers, StyleTTS2 male-voice guidance, cache key v4)
+- `styletts2-voices/` (7 reference wavs + SOURCES.md)
+- `build_desktop.py`, `ClipACanvas.spec`, `ClipACanvasDebug.spec`, `requirements.txt`, `desktop_requirements.txt`
+- `docs/EDITOR_AUDIT.md`
+- `tests/_check_styletts2_voices.py` (new); `_check_voice_genders_transitions.py`, `_check_tts.py`, `_check_voice_provider_cache.py`, `_check_packaged_agent_plan.py` updated
+
+### Verification
+
+- `_check_styletts2_voices.py` PASS: 8-voice registry (4 male/4 female), LJSpeech ~205 Hz vs LibriTTS 4077 ~112 Hz on the same text, distinct media files.
+- `_check_voice_genders_transitions.py` PASS: 8 styletts2 panel options, male routing by gender/name/id to `libritts-4077`, Kokoro name routing unchanged, transitions still clean.
+- `_check_tts.py`, `_check_voice_provider_cache.py` (6 providers, v4) and `_check_agent_voice.py` PASS.
+- Packaged exe `_check_packaged_agent_plan.py` PASS: six providers with no `edge`, eight StyleTTS2 voices, chat `generate_voiceover` with `voice: "LibriTTS 4077"` produced `libritts-4077` on A3 (2.9 s), plus the existing plan/render round trip.
+
+### Build
+
+- Backup `output/backups/projects-20261114-190923`; rebuilt `dist/ClipACanvas.exe` (19:12, 463,833,080 bytes) and `dist/ClipACanvas-windows.zip` (19:12, 462,427,965 bytes) with Python 3.11, then relaunched at Project Home.
+
+### Open Items
+
+- StyleTTS2 style embeddings are kept in worker memory only; a fresh app launch recomputes the selected voice's embedding on first use (about a second).
+- Caption/voiceover timing drift in the older untitled-project timeline is still unresolved.
+- No git commit/push for this entry (not requested).
+
+
+
+## 2026-11-14 (ZONOS3-Mini narrator engine)
+
+### Summary
+
+- Added an eighth speech provider, ZONOS3-Mini (Zyphra, Apache 2.0): 27 named narrators and 43 languages at 44.1 kHz, running locally through `transformers` remote code in a persistent worker ([zonos_worker.py](file:///C:/Users/Savyasachi%20Mishra/Desktop/clipacanvas/zonos_worker.py)).
+- Runtime provisioned outside the repo: `%APPDATA%/ClipACanvas/runtimes/zonos/assets` holds the 2.39 GB HF checkpoint (`Zyphra/ZONOS3-Mini-hf`) and `runtime.json` points at the local Python 3.11 (torch 2.11, transformers 5.9). CPU `float32` is the default (~27 s cold load, ~8 s per short line); `CLIPACANVAS_ZONOS_DEVICE=cuda` runs fp16 on the 4 GB GTX 1650 (~17 s cold load, ~5 s per line).
+- `serve.py`: Zonos catalog/languages/locate/synthesis/registry/schema; the local worker warm-up now passes `--device`; `_local_generate` accepts a per-engine timeout and Zonos uses 900 s for long CPU lines.
+- `clipacanvas.html`: chat prompt names Zonos narrators, local provider order ends with Zonos, speech catalog and resolver include it, provider cache key bumped to v5, and the two `/api/tts/providers` fetches now wait up to 130 s so cold four-engine probes fit (a packaged fresh-profile run hit the old 30 s cap).
+- Voice quality verified by pitch: Savannah 200.6 Hz vs Wyatt 94.9 Hz; Arjun Hindi synthesis confirmed.
+
+### Files Touched
+
+- `zonos_worker.py` (new), `serve.py`, `clipacanvas.html`, `build_desktop.py`, `ClipACanvas.spec`, `ClipACanvasDebug.spec`
+- `tests/_check_zonos.py` (new), `tests/_check_voice_genders_transitions.py`, `tests/_check_voice_provider_cache.py`, `tests/_check_packaged_agent_plan.py`
+- `docs/EDITOR_AUDIT.md`, `SESSION_LOG.md`
+
+### Build
+
+- Backed up `%APPDATA%/ClipACanvas/projects` to `projects-backup-20261114-2006`; rebuilt `dist/ClipACanvas.exe` (20:26, 463,839,181 bytes) and `dist/ClipACanvas-windows.zip` (20:26, 462,434,908 bytes) with Python 3.11 after the providers-timeout fix.
+- Packaged `_check_packaged_agent_plan.py` passes with a real Zonos Savannah take (2.07 s) on A2, all four neural providers available and 27 Zonos voices listed.
+
+### Open Items
+
+- `zyphra-textnorm` is not installed, so numbers, dates and units are not normalized before synthesis; install it in the runtime interpreter to enable the model's text normalizer.
+- Zonos model assets (2.39 GB) stay in the per-machine runtime folder; a fresh machine needs the checkpoint downloaded into `runtimes/zonos/assets`.
+- No git commit/push for this entry (not requested).
+
+## 2026-11-14 (Local visual index, media-aware overlays, model-written transitions)
+
+### Summary
+
+- Added a local EmbeddingGemma 2 tier (`google/embeddinggemma-2`, Apache 2.0, 1.49 GB, text+image encoders) at `%APPDATA%/ClipACanvas/runtimes/embedgemma2` with a persistent worker ([embedding_worker.py](file:///C:/Users/Savyasachi%20Mishra/Desktop/clipacanvas/embedding_worker.py)). It turns imported media into local evidence: zero-shot object/scene tags, per-keyframe tags, 768-d frame vectors and a motion score — no upload and no consent step.
+- `serve.py`: analysis version 3; `analyze_media_file` now embeds up to three shot keyframes, tags them against a 96-label vocabulary (top 4 per keyframe, 0.55 floor and 0.045 top-relative margin), writes `analysis/embeddings-<asset>.json`, measures video motion (mean/peak/label), and stores `analysis.visual`. `embedding_worker.py` is bundled in the build configs.
+- `clipacanvas.html`: visual index is sanitized into project files and shown in the media inspector (tags, `LOCAL VISUAL INDEX · EMBEDDINGGEMMA2`, motion), `search_assets` matches visual tags, the agent's asset summaries carry `visualTags`/`motion`/shot count, and the chat prompt tells the agent to read asset analysis before writing overlays on media and to cite tags honestly.
+- Live Gemini verification (real key): the agent created a lower-third overlay with `create_overlay` + `parentClipId` on an imported football still (tags football/sport/sun/field visible in its context), then wrote its own custom wipe `renderTransition(ctx)` and saved it with `add_transition` (0.5 s). At the cut the Program Monitor composite showed both layers at opacity 0.5 with `clip-path: inset(0 50% 0 0)`; without the transition the preview returned to single-clip mode.
+- Runtime change: transformers upgraded 5.9 → 5.23 for the `embedding_gemma2` architecture and sentence-transformers 6.3 installed in base Python 3.11; Zonos retested afterwards and still passes (44.1 kHz, Savannah/Wyatt pitch split).
+- Device policy: `auto` uses CUDA only on ≥8 GB cards so this 4 GB GTX 1650 keeps VRAM for renders; CPU costs ~6 s per keyframe (3 keyframes max per asset, cached in the manifest).
+
+### Files Touched
+
+- `embedding_worker.py` (new), `serve.py`, `clipacanvas.html`, `build_desktop.py`, `ClipACanvas.spec`, `ClipACanvasDebug.spec`
+- `tests/_check_embeddings.py` (new), `tests/_check_visual_ui.py` (new), `tests/_check_agent_live_media.py` (new), `tests/_check_packaged_agent_plan.py`
+- `docs/EDITOR_AUDIT.md`, `SESSION_LOG.md`
+
+### Build
+
+- Backed up projects to `%APPDATA%/ClipACanvas/projects-backup-20261114-2306`; rebuilt `dist/ClipACanvas.exe` (22:51, 463,847,571 bytes) and `dist/ClipACanvas-windows.zip` (22:51, 462,444,052 bytes) with Python 3.11.
+- Packaged `_check_packaged_agent_plan.py` passes and now also indexes a still through `/api/media/analyze` (`football, sport, sun, field`, motion `still`); `_check_packaged_shortcuts.py` passes.
+
+### Open Items
+
+- Zero-shot tags are hints, not detections (scores cluster 0.55–0.68); the label set and margins may need tuning on real footage.
+- The stored frame vectors are not used by a search UI yet; they exist for a future "find similar / find by description" surface.
+- No git commit/push for this entry (not requested).

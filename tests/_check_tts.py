@@ -78,6 +78,12 @@ with tempfile.TemporaryDirectory() as tmp_name:
             assert any(item["id"] == "sapi" and not item["disabled"] for item in options), options
             assert any(item["id"] == "gemini" and item["disabled"] for item in options), options
             assert any(item["id"] == "mistral" and item["disabled"] for item in options), options
+            assert not any(item["id"] == "edge" for item in options), options
+            # Local neural runtimes may or may not be installed on the test
+            # machine, so pin this suite to the offline SAPI provider, which is
+            # always present on Windows.
+            page.select_option("#voiceProvider", "sapi")
+            page.wait_for_timeout(250)
             assert page.evaluate("document.getElementById('voiceProvider').value") == "sapi"
             assert page.locator("#voiceSpeedField").is_visible()
             assert not page.locator("#voiceStyleField").is_visible()
