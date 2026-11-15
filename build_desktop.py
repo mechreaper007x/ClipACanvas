@@ -51,7 +51,8 @@ def build_windows():
         ("kokoro_worker.py", "."),
         ("piper_worker.py", "."),
         ("zonos_worker.py", "."),
-        ("embedding_worker.py", "."),
+        ("embedding_litert_worker.py", "."),
+        ("stt_worker.py", "."),
     ]
 
     sts_voices_src = Path("styletts2-voices")

@@ -4564,3 +4564,491 @@
 - Zero-shot tags are hints, not detections (scores cluster 0.55–0.68); the label set and margins may need tuning on real footage.
 - The stored frame vectors are not used by a search UI yet; they exist for a future "find similar / find by description" surface.
 - Pushed to GitHub as `49d0cba` on request; the commit also carries the earlier uncommitted Zonos, StyleTTS2-voices and NLE work.
+
+## 2026-11-15 (No scene or timeline limits)
+
+### Summary
+
+- Removed the 40-scene cap and the 60-second timeline cap. `TIMELINE_MAX_SECONDS` and `HARD_MAX_DURATION_SECONDS` are now 24 hours (an arithmetic ceiling, not a product rule); the 40-clip checks in new scene, duplicate and project ops are gone; the 40-transition cap is gone too.
+- `playwright_render.py` carried the same limits: `build_sequence_document` clamped clip starts to 60 s, `render_payload` kept only the first 40 clips/transitions, and `HARD_MAX_DURATION_SECONDS` capped render ranges. Raised/removed so long sequences render like short ones.
+- Project payload cap raised 8 MB → 64 MB; timeline persistence now schedules the durable save even if the localStorage mirror throws (quota); duration and frame-range inputs accept up to 86400 s; ruler/timecode gained an hours field (`1:32.00`, `1:02:03.50`).
+- Agent tool schemas no longer say "0.5 to 60" for clip lengths.
+- Verified the exact user project (`untitled-project-5`, 31 clips, 1:00.00) in an isolated copy: a new scene appends at 1:00 and the timeline becomes 32 clips / 1:04.00 — screenshot `output/playwright/timeline-past-60.png`.
+
+### Files Touched
+
+- `clipacanvas.html`, `serve.py`, `playwright_render.py`
+- `tests/_check_unlimited_scenes.py` (new), `tests/_check_packaged_unlimited_scenes.py` (new)
+- `docs/EDITOR_AUDIT.md`, `SESSION_LOG.md`
+
+### Tests
+
+- New `_check_unlimited_scenes.py`: 45 scenes (3:04), duplicate → 46 clips, 44 transitions, render plan end 184 s, ruler `1:32.00`/`3:04.00`, playhead 2:50, backend save/reload, and a real 61–61.5 s render (blue 0.5 s mp4, clip at `data-start="60000"`).
+- Regressions pass: logic timeline, sequence render, timeline lanes/zoom/history, transitions, project persistence, frame lanes, preview seek, project guard, chat scenes, agent plan, project ops — run with isolated `CLIPACANVAS_KEYS_DIR` dirs.
+- Note: older UI tests such as `_check_logic_timeline.py` do not set `CLIPACANVAS_KEYS_DIR` themselves and can restore the real session project when run with the app's live data; they passed when given a temp keys dir. Isolating those test files is a follow-up.
+
+### Build
+
+- Backed up projects to `%APPDATA%/ClipACanvas/projects-backup-20261115-0030`; closed the running app; rebuilt `dist/ClipACanvas.exe` (00:32, 463,848,889 bytes) and `dist/ClipACanvas-windows.zip` (00:32, 462,444,305 bytes).
+- `_check_packaged_shortcuts.py` and new `_check_packaged_unlimited_scenes.py` pass against the rebuilt exe (46 clips, 3:04 plan, 86400 input maxima).
+
+### Open Items
+
+- No git commit/push for this entry (not requested).
+- Timeline zoom still tops out at 800%; very long edits will want a deeper zoom range later.
+
+## 2026-11-15 (Timeline working span and zoom-out)
+
+### Summary
+
+- Fixed the timeline view so a short sequence is not stretched to fill the lane: `timelineViewSpan()` now uses `max(30 s, content length) / zoom`. A lone 3 s scene is a ~10% box on a 30 s ruler; an empty timeline shows 0–30 s.
+- Zoom now allows 10%–800% instead of 100%–800%; zooming out reveals time beyond the content, FIT/100% returns to the baseline view. Playhead-anchored zoom and Ctrl+wheel use raw view time so the pointer stays anchored.
+- Widened the zoom percent input (58 px), centered it and hid native number spinners, fixing the clipped `100`.
+- Updated `tests/_check_timeline_zoom.py`; logic timeline, lanes, transitions, preview seek, frame lanes and unlimited-scenes regressions pass. Screenshots: `output/playwright/timeline-single-100.png`, `-64.png`, `-800.png`.
+
+### Files Touched
+
+- `clipacanvas.html`, `tests/_check_timeline_zoom.py`, `docs/EDITOR_AUDIT.md`, `SESSION_LOG.md`
+
+### Open Items
+
+- No git commit/push for this entry (not requested).
+
+## 2026-11-15 (Media playback stutter, terminal flashes, project recovery)
+
+### Summary
+
+- Fixed the Program Monitor stutter on video clips: `playbackClipKey()` no longer includes a 0.5 s media bucket, so the media iframe is mounted once per clip instead of being recreated every half second while the timeline plays.
+- Suppressed console flashes during media work: all `serve.py` ffmpeg/ffprobe calls (probe, shot detection, keyframes, motion, semantic frames, audio extraction) and both `playwright_render.py` child processes now pass `CREATE_NO_WINDOW`.
+- Recovered the original 31-clip `UNTITLED PROJECT 5` from the 01:10 project-store backup as `RESTORED PROJECT 5` (the store had re-created the project id at 17:42 with an empty timeline; the current 2-video test project was left untouched).
+- New playback-key regression check passed; source tests in progress.
+
+### Files Touched
+
+- `clipacanvas.html`, `serve.py`, `playwright_render.py`, `docs/EDITOR_AUDIT.md`, `SESSION_LOG.md`
+- Project store: added `restored-project-5.ccproj.json` plus its index entry
+
+### Open Items
+
+- No git commit/push for this entry (not requested).
+- Rebuild/relaunch pending at the time this entry was written.
+
+## 2026-11-15 (Local Hindi/English dictation for the prompt)
+
+### Summary
+
+- The chat composer gained mic dictation with a language chip (AUTO → EN → हिं). Click to record (120 s cap, live timer, level ring, Esc/✕ cancels), click again to transcribe; the transcript is inserted into the prompt for editing. Opening the Assistant tab warms the engine so the first click records immediately.
+- Speech-to-text runs fully local: new `stt_worker.py` records with `sounddevice` and transcribes with `openai/whisper-small` through transformers in the optional Python 3.11 runtime. A complete snapshot already in the user's HF cache is reused before downloading (926 MB safetensors subset); otherwise the model caches under `%APPDATA%/ClipACanvas/runtimes/stt/assets`. Nothing is uploaded and recordings are deleted after transcription.
+- Backend endpoints: `/api/stt/status`, `/warm`, `/prepare`, `/start`, `/stop`, `/cancel` and `/transcribe` (raw WAV for tests). Status reports model download/load percent, mic input, elapsed and peak; the model loads while the user speaks.
+- Two environment fixes found during bring-up: fp16 on the GTX 1650 decodes as empty text, so the worker uses fp32 (about 1.3–3.5 s for 4–6 s clips); and torch/transformers/scipy must import on the worker's main thread because importing scipy BLAS in a load thread after torch deadlocks on Windows (confirmed with faulthandler thread dumps).
+- A third fix from live packaged testing: opening the mic while the CUDA model load runs blocks PortAudio (and the worker's main loop) indefinitely. `/api/stt/start` now opens the microphone before priming the model, then loads the model in a background thread while the user speaks; the exe was rebuilt again with this order.
+- Silence guard: clips whose loudest 100 ms window RMS is below 0.02 (and degenerate repeated output at low peak) return `silent`, so Whisper does not insert invented words when nobody speaks.
+- Tests: `tests/_check_dictation.py` transcribes SAPI English and Kokoro Hindi (Devanagari keyword assertions), auto-detect, upload rejection, warm/prepare and a real mic start/stop smoke; `tests/_check_dictation_ui.py` covers the mic state machine, language cycling, insertion and cancel with stubbed STT; `tests/_check_packaged_dictation.py` verified the bundled worker inside the exe (model ready, English transcript through the app API).
+- Rebuilt `dist/ClipACanvas.exe` 2026-11-15 19:00 (463,873,222 bytes) and `ClipACanvas-windows.zip` (462,467,174 bytes) with `stt_worker.py` added to `build_desktop.py`, `ClipACanvas.spec` and `ClipACanvasDebug.spec`. Projects backed up to `projects-backup-20261115-1834` before the rebuild. The packaged dictation test passed against this build, and a live packaged check (`/api/stt/warm` → `/api/stt/start` → 2 s → `/api/stt/stop`) opened the Realtek microphone array and returned a clean silent result.
+
+### Files Touched
+
+- `stt_worker.py` (new), `serve.py`, `clipacanvas.html`, `build_desktop.py`, `ClipACanvas.spec`, `ClipACanvasDebug.spec`, `docs/EDITOR_AUDIT.md`, `SESSION_LOG.md`
+- `tests/_check_dictation.py`, `tests/_check_dictation_ui.py`, `tests/_check_packaged_dictation.py` (new)
+
+### Open Items
+
+- No git commit/push for this entry (not requested).
+- Try real spoken prompts (Hindi, English, mixed); noisy rooms may need a stronger VAD than the current energy gate.
+
+## 2026-11-15 (Media transitions, clip nesting, deep zoom, lightweight Vosk dictation)
+
+### Summary
+
+- Transitions on full-length media clips: removed the footage-handle validation that rejected `add_transition`/`update_transition` requests. The transition runtime already holds the outgoing last frame and incoming first frame during the window, so any touching cut works. Tool descriptions no longer claim handles are required; `_check_transitions.py` now expects a successful two-clip transition with no spare footage and checks the exported dissolve pixels.
+- Putting a bin asset inside a clip: the media inspector now targets any non-audio clip. Code scenes still receive the media element in their HTML; video/image clips get a transparent PIP overlay on the track above, with the asset as `<img>/<video>`, the parent's exact start/duration, and `parentClipId` attachment. The overlay is selected after creation; dragging the media on the preview resolves its owning clip by URL even when the video parent is selected. REMOVE FROM <parent> deletes the generated PIP overlay and leaves the video untouched. Agent prompt and `create_overlay` text explain this pattern for "inside this clip" requests, and asset summaries now include `url` so overlay HTML can reference the file.
+- Timeline zoom minimum lowered from 10% to 1%: a 30 s base span now gives a 50-minute view, number/slider minima are 1, and presets 1/2/5/10 were added. `_check_timeline_zoom.py` updated (clamp 1/800, 3000 s span, new preset list).
+- Dictation replaced Whisper with two separate lightweight Vosk models: `vosk-model-small-en-us-0.15` (~41 MB download) for English and `vosk-model-small-hi-0.22` (~44 MB) for Hindi. CPU-only, ~1 s load, 1–4 s per prompt, no GPU/VRAM. AUTO decodes with both and keeps the higher average word confidence (EN 0.988 vs HI 0.624; HI 0.995 vs EN 0.825). English gets a leading capital; Hindi returns Devanagari. First prepare downloads missing zips into `runtimes/stt/assets/models` with progress. The 1.6 GB Whisper large-v3-turbo experiment was deleted and the unused runtime HF cache removed; the whole Vosk model folder is ~147 MB. `serve.py` engine/model labels, runtime error text and docs updated.
+- Tests passed: `_check_timeline_zoom.py`, `_check_transitions.py`, new `_check_media_pip.py` (attached overlay, preview drag, remove, render), `_check_scene_embed.py`, `_check_asset_intelligence.py`, `_check_dictation.py` (English exact, Hindi Devanagari, auto), `_check_dictation_ui.py`, `_check_packaged_dictation.py` and `_check_packaged_unlimited_scenes.py`.
+- Build: closed the running app, backed up projects (`backups/projects-backup-20261115-1945.zip`) and media (`backups/media-backup-20261115-1946.zip`), rebuilt `dist/ClipACanvas.exe` (19:49, 463,871,153 bytes) and `dist/ClipACanvas-windows.zip` (19:50, 462,466,911 bytes).
+
+### Files Touched
+
+- `clipacanvas.html`, `serve.py`, `stt_worker.py`, `docs/EDITOR_AUDIT.md`, `SESSION_LOG.md`
+- `tests/_check_media_pip.py` (new), `tests/_check_timeline_zoom.py`, `tests/_check_transitions.py`, `tests/_check_asset_intelligence.py`, `tests/_check_dictation.py`, `tests/_check_packaged_dictation.py`
+
+### Open Items
+
+- No git commit/push for this entry (not requested).
+- Check the new build's Hindi and English mic dictation live; models are already installed under the runtime folder.
+- Confirm a transition on a media cut and PIP nesting in the packaged app.
+
+## 2026-11-15 (Media into a code Scene — drop and agent tool)
+
+### Summary
+
+- The user clarified that "put the clip in Scene 1" means inside a code scene's own page, not a clip-in-clip or a new layer. Dropping a bin image/video directly on a code scene's logic box now embeds it in that scene's HTML: `resolveTimelineDrop` returns the hit code clip (`embedClip`), the box gets a green `drop-embed` ring while dragging, and `embedAssetInScene(asset, position, targetClip)` writes the media element into the scene body. OS file drops on a scene box import and embed the first visual asset the same way. No new timeline clip or track is created.
+- The agent gained `put_media_in_scene` (assetId plus optional sceneId/x/y). It uses the same embedding path, defaults to the selected scene, rejects imported video-clip targets with a pointer to `create_overlay` + `parentClipId`, and returns the scene summary. The system prompt and `create_overlay` tool description now say: code scenes take media in their HTML; transparent overlays are only for imported video clips.
+- The media inspector's embed button distinguishes targets: `INSERT INTO <SCENE>` for code scenes, `ADD PIP OVER <CLIP>` for imported video clips (attached overlay). The inspector hint mentions dropping on a scene box.
+- Tests: `tests/_check_scene_embed.py` extended with a bin → Scene 01 box drop (2 clips stay 2, layers stay 1, only Scene 01 code gains the `<img>`) and an `executeChatTool` call to `put_media_in_scene` embedding into `scene-two` at x=30/y=40 plus a missing-asset rejection. All prior scene-embed checks still pass.
+- Reworked `stt_worker.py` for the two-model Vosk dictation (see previous entry) and rebuilt the exe with both batches.
+
+### Files Touched
+
+- `clipacanvas.html`, `serve.py`, `tests/_check_scene_embed.py`, `docs/EDITOR_AUDIT.md`, `SESSION_LOG.md`
+
+### Build
+
+- Backed up projects and media to `backups/projects-backup-20261115-2003.zip` and `backups/media-backup-20261115-2003.zip`; closed the app and rebuilt `dist/ClipACanvas.exe` (20:06, 463,874,825 bytes) and `dist/ClipACanvas-windows.zip` (20:06, 462,468,265 bytes). `_check_packaged_dictation.py` passed against this build (Vosk models ready, English transcript through the app API) and the app was relaunched.
+
+### Open Items
+
+- No git commit/push for this entry (not requested).
+- Verify the packaged drag-to-scene and `put_media_in_scene` in a real WebView2 session when the user next edits Scene 01/02.
+
+## 2026-11-15 (Images and videos added from the bin go into the selected scene)
+
+### Summary
+
+- Bin ＋ and double-click now use `addAssetSmart`: when a code scene is selected and the playhead is inside it, the image/video is embedded into that scene with `embedAssetInScene` instead of creating a V2 layer. With an imported video clip or no scene selected they keep the old insert behavior.
+- Native double-click was unreliable because selecting an asset re-renders the bin tile between clicks. The bin click handler now counts two clicks on the same asset within 450 ms and calls the smart add; the native dblclick handler only handles the empty-bin picker.
+- The explicit media-inspector actions stay distinct: `INSERT INTO <SCENE>` embeds, `INSERT AT PLAYHEAD` still adds a separate layer, and the inspector hint says so. Dropping on a scene box and the `put_media_in_scene` agent tool use the same embedding path.
+- Tests: `tests/_check_scene_embed.py` now covers drop, agent tool, and bin double-click (clip/layer counts unchanged, only the target scene's HTML gains the `<img>`). `_check_bin_dragdrop.py` fixtures were updated for the 30 s working span (zoom 5 fit, video fills for the occupied-lane cases, clamped drop beyond content); it passes. New `tests/_check_packaged_scene_embed.py` verifies double-click, bin ＋ and `put_media_in_scene` inside the real exe.
+- Rebuilt again with these changes: `dist/ClipACanvas.exe` 20:17, 463,875,506 bytes; `dist/ClipACanvas-windows.zip` 20:18, 462,468,558 bytes. `_check_packaged_dictation.py` and `_check_packaged_scene_embed.py` pass; app relaunched.
+
+### Files Touched
+
+- `clipacanvas.html`, `tests/_check_scene_embed.py`, `tests/_check_bin_dragdrop.py`, `tests/_check_packaged_scene_embed.py` (new), `docs/EDITOR_AUDIT.md`, `SESSION_LOG.md`
+
+### Open Items
+
+- No git commit/push for this entry (not requested).
+
+## 2026-11-15 (Full-frame media when a Scene is empty)
+
+### Summary
+
+- The user saw a video added to Scene 01 as a small "picture" floating on the scene. The saved project showed why: Scene 01 had empty code, and `sceneMediaElementHtml` defaulted to a centered 72% element.
+- An empty code scene now adopts the added image/video as full-frame content: the scene becomes a complete HTML document with a black page and a `100%×100%` media element (`object-fit: contain`, `data-cc-fill="1"`). Media added to a non-empty scene stays a positioned element (drop point, or 72% centered when added without a position). The preview media tools skip pointer handling for full-frame fill elements so they cannot be dragged into a broken inset state.
+- Existing projects stored as a lone 72% `cc-scene-media` fragment are upgraded on load by `upgradeLegacySceneMedia` in the timeline sanitizer; scenes with full HTML/body content are left untouched.
+- The `put_media_in_scene` tool now omits a position by default, so an empty target scene gets the full-frame treatment; passing x/y still places a positioned element.
+- Tests: `_check_scene_embed.py` covers full-frame image in an empty scene (black corners, centered image), and the legacy upgrade function; `_check_media_pip.py` covers a full-frame video added to an empty code scene (black corners, green video center) after the PIP/export checks. Both pass.
+- Rebuilt `dist/ClipACanvas.exe` (20:30, 463,874,560 bytes) and `dist/ClipACanvas-windows.zip` (20:30, 462,468,369 bytes); `_check_packaged_scene_embed.py` passes and the app was relaunched. Open UNTITLED PROJECT 7 once in the new build and the legacy Scene 01 fragment upgrades automatically.
+
+### Files Touched
+
+- `clipacanvas.html`, `serve.py`, `tests/_check_scene_embed.py`, `tests/_check_media_pip.py`, `docs/EDITOR_AUDIT.md`, `SESSION_LOG.md`
+
+### Open Items
+
+- No git commit/push for this entry (not requested).
+
+## 2026-11-15 (Pause + resume keeps videos embedded in scenes playing)
+
+### Summary
+
+- The user reported that pausing playback mid-video and pressing play again left a video inside Scene 01 stuck on its last frame while the scene animation continued. Root cause: the preview clock's `__clipacanvasMediaSeek` returned immediately for live playback (`seekMedia === false`) while the pause path had paused every `<video>`, so nothing resumed them.
+- The live branch now finds all videos, seeks a paused element to the clock time and calls `play()`, and corrects drift above 0.5 s on a playing element. Paused scrubbing keeps the existing pause + seek behavior; both branches share the same loop-aware `seekTime` math (`data-source-in` clips use `sourceIn + t`, other videos wrap on `t % duration`). The deterministic export clock in `playwright_render.py` is untouched.
+- Tests: new `tests/_check_media_pause_resume.py` (timeline media clip plus a video inside a code scene; play → pause → still → resume → time advances) and `tests/_check_packaged_scene_pause_resume.py` (same scene case in the real WebView2 exe with a generated 6 s clip, asserting the video time tracks the playhead). `_check_media_pip.py`, `_check_scene_embed.py`, `_check_packaged_media_playback.py` and `_check_packaged_scene_embed.py` also pass.
+
+### Files Touched
+
+- `clipacanvas.html`, `tests/_check_media_pause_resume.py` (new), `tests/_check_packaged_scene_pause_resume.py` (new), `docs/EDITOR_AUDIT.md`, `SESSION_LOG.md`
+
+### Build
+
+- Backed up projects and media to `%APPDATA%/ClipACanvas/projects-backup-20261115-2041` and `media-backup-20261115-2041`; closed the app and rebuilt `dist/ClipACanvas.exe` (20:45, 463,876,402 bytes) and `dist/ClipACanvas-windows.zip` (20:45, 462,470,886 bytes). Packaged playback, scene pause/resume and scene embed tests pass; app relaunched.
+
+### Open Items
+
+- No git commit/push for this entry (not requested).
+
+## 2026-11-15 (Agent writes titles and effects inside a scene with media)
+
+### Summary
+
+- The user's next step: when a code scene already contains an embedded video/image, the model must write its overlay code inside that same scene instead of creating another layer. Today the prompt pushed titles/captions toward `add_scene layer:"above"`, which added a layer above the video.
+- Chat system prompt: `insert_animation_code` now rewrites the selected scene in place and must keep its embedded `<img>/<video class="cc-scene-media">` elements unchanged; titles/effects/animations are composed around them. `add_scene layer:"above"` is scoped to imported video/image clips or an explicitly requested independent overlay scene. A new rule forbids answering a title/caption/effect request on a code scene with an overlay layer.
+- Context: every chat request with a selected scene that has embedded media now includes a system message listing its media (kind, src, full-frame) and telling the model to keep it inside the same document; full-frame video is the background, so new content goes after it with a higher z-index. `chatToolAppState().selectedClip.embeddedMedia` exposes the same summary.
+- Media safety: `insert_animation_code` carries existing scene media into the new HTML automatically when the model omits it (injected at the top of the body, behind new content) and reports `preservedMedia` in the result; `removeMedia:true` removes it explicitly. This replaced an initial rejection guard that surfaced long red tool errors whenever the model rewrote a scene without copying the video tag, as seen in the user's overlay run.
+- Goldfish reviewer: app-served `/media/` scene assets (`cc-scene-media`) are now explicitly local and allowed, so a valid in-scene edit is not "fixed" by deleting the video; a scene-media video is described as clock-driven, not the artifact's motion source.
+- Tests: `_check_scene_embed.py` now checks the per-turn media cue, rejection of a media-dropping rewrite (clip/layer counts and scene code unchanged), acceptance of an in-scene title that keeps the media, and explicit `removeMedia:true`. `_check_packaged_scene_embed.py` runs the guard and in-place edit inside the WebView2 exe. `_check_chat_scenes.py` asserts the new tool description and property. All pass; `_check_clipppa_multiscene.py` passes too.
+
+### Files Touched
+
+- `clipacanvas.html`, `serve.py`, `tests/_check_scene_embed.py`, `tests/_check_packaged_scene_embed.py`, `tests/_check_chat_scenes.py`, `docs/EDITOR_AUDIT.md`, `SESSION_LOG.md`
+
+### Build
+
+- Backed up projects and media to `%APPDATA%/ClipACanvas/*-backup-20261115-2136`; closed the app and rebuilt `dist/ClipACanvas.exe` (21:38, 463,879,956 bytes) and `dist/ClipACanvas-windows.zip` (21:39, 462,475,607 bytes) with automatic media preservation and the reviewer rule. Packaged scene-embed passes (one in-place edit kept both embedded images automatically). App relaunched.
+
+### Open Items
+
+- Live model behavior (does the model choose in-scene edits without being nudged?) needs a hosted-key session; the prompt and guard are in place. No git commit/push.
+
+## 2026-11-15 (Quota-aware Mistral/Gemini model fallback)
+
+### Summary
+
+- The user reported Mistral free-tier 429s while Gemini is exhausted until tomorrow. The dead end was a manual model pick: `allowFallback` was disabled for manual selections, so an exhausted `mistral-medium-3-5` failed immediately even if sibling Mistral models still had quota.
+- Server: manual picks now send `fallbackOnQuota`; on a 429 the handler retries sibling models of the SAME provider only (never Gemini↔Mistral), and keeps searching through siblings that are unavailable or fail for another reason until one answers or the list is exhausted. The response returns the real `model` plus `fallbackFrom`, which the assistant header already displays. Per-model cooldowns now persist in `<keys dir>/llm-quota.json`, parse `Retry-After`/`retryDelay`/`retry_after` with a 60 s floor, and survive restarts. `/api/llm/models` returns `cooldownSeconds`.
+- Client: chat, goldfish, planner and title requests send `fallbackOnQuota: true`; the model selector and composer menu label cooled models (`quota ~5m`), and a 429 refreshes the model list so the labels update. Rate-limit copy now points to another model or provider.
+- Tests: new `tests/_check_llm_quota_fallback.py` fakes a Mistral 429 and covers same-provider fallback, the no-fallback opt-out, cooldown persistence and model-list annotations; `_check_chat_scenes.py` covers the quota label and still passes.
+- Model catalog observed in the app cache: Mistral includes `mistral-medium-3-5`, `mistral-medium-latest`, `mistral-small-latest`, `ministral-3b/8b/14b-latest`, `codestral-*`, `magistral-*`; the live model menu is authoritative. Gemini models are listed but quota-expired until the next reset.
+
+### Files Touched
+
+- `serve.py`, `clipacanvas.html`, `tests/_check_llm_quota_fallback.py` (new), `tests/_check_chat_scenes.py`, `docs/EDITOR_AUDIT.md`, `SESSION_LOG.md`
+
+### Build
+
+- Backed up projects and media to `%APPDATA%/ClipACanvas/*-backup-20261115-2156`; closed the app and rebuilt `dist/ClipACanvas.exe` (21:59, 463,880,816 bytes) and `dist/ClipACanvas-windows.zip` (21:59, 462,476,087 bytes) with the continued sibling search and the picker refresh after a switch. Packaged scene-embed passes; app relaunched.
+
+### Open Items
+
+- No live Mistral quota test until the provider frees a model; same-provider fallback is covered with a fake 429. Gemini should be usable again on 2026-11-16. No git commit/push.
+
+## 2026-11-15 (LLM usage ledger: visible per-model calls and purpose breakdown)
+
+### Summary
+
+- The user suspected the app spends provider calls faster than their actions justify and asked to show how many calls each model has left. Investigation: providers do not expose remaining quota through their APIs; a normal reply is already 2+ requests. A plain chat turn is 1 elephant request plus 1 title request on the first turn; a code turn is a tool round + a summary round, plus 1 Goldfish review request, plus the first-turn title, plus a stealth fix turn (tool + summary) when the review blocks; planned briefs add a planner request and per-step rounds; each 429 fallback retry adds a request per model tried.
+- Server now keeps a local ledger at `<keys dir>/llm-usage.json` (14-day history): per day/provider/model/purpose (`chat`, `review`, `title`, `plan`, `plan-step`, `fix`) it counts every HTTP attempt (success and HTTP error), prompt/completion tokens from Gemini `usageMetadata` and Mistral `usage`, and the quota limit when known. Gemini 429 bodies are parsed for `quotaValue` before display truncation; Mistral reports no limit.
+- `GET /api/llm/usage` returns today's buckets with per-model `calls`, `ok`, tokens, `limit`, `remaining` and `cooldownSeconds`. The composer model menu loads it on open and after each turn: each model row shows `N calls` (or `N used · ~M left` after a known limit), cooled models get a burn dot, and a `Today` footer lists per-provider calls, tokens and the purpose split with the note that providers do not report remaining quota.
+- All chat entry points send `purpose` (`review`, `title`, `plan`, `plan-step`, `fix`, default `chat`), so the footer shows exactly which stage spends the calls.
+
+### Files Touched
+
+- `serve.py`, `clipacanvas.html`, `tests/_check_llm_usage.py` (new), `tests/_check_packaged_scene_embed.py`, `docs/EDITOR_AUDIT.md`, `SESSION_LOG.md`
+
+### Tests
+
+- `tests/_check_llm_usage.py` passes: ledger totals/purposes/tokens, Gemini 429 `quotaValue` → limit 20/remaining 19/cooldown, persisted file, composer usage footer, per-model counts, cooled row, and a UI chat that records `chat` + `title` purposes.
+- `_check_llm_quota_fallback.py`, `_check_chat_scenes.py` and `_check_scene_embed.py` still pass. Measured: a one-line "say hello" turn records 2 provider calls (`chat` + `title`).
+
+### Build
+
+- Backed up projects and media to `%APPDATA%/ClipACanvas/*-backup-20261115-2211`; closed the app and rebuilt `dist/ClipACanvas.exe` (22:14, 463,888,437 bytes) and `dist/ClipACanvas-windows.zip` (22:14, 462,484,157 bytes). Packaged scene-embed passes, including the `/api/llm/usage` endpoint and the usage footer inside WebView2. App relaunched.
+
+### Open Items
+
+- The ledger only counts requests made after this build; earlier calls today are not represented. Remaining quota is only shown for Gemini models after a 429 exposes `quotaValue`; Mistral shows counted calls and the cooldown only. No reduction of review/title/fix requests was made; the purpose split now shows where they go. No git commit/push.
+
+## 2026-11-15 (Per-model limits from the providers, context caps, quota-aware routing)
+
+### Summary
+
+- The user rejected a local-count-only display and asked for the real per-model limits and context limits. Live probes with the user's keys established: Gemini `models.list` gives only input/output token limits; successful Gemini calls return `X-Gemini-Service-Tier: standard` and `usageMetadata.serviceTier` but no rate-limit or quota headers; a Gemini 429 contains `QuotaFailure.violations` (`quotaId`, `quotaMetric`, `quotaValue`) and `RetryInfo.retryDelay` (observed `GenerateRequestsPerDayPerProjectPerModel-FreeTier`, limit 20, retry 54372 s). Mistral `models.list` gives `max_context_length` and `capabilities.function_calling` (previously ignored), and successful Mistral calls return live `x-ratelimit-*` headers (observed 2 req/min, 40 000 tok/min).
+- Gemini free-tier RPM/TPM/RPD are not exposed by the API, so the AI Studio free-tier table from the user's screenshots is encoded in `serve.py` (`_FREE_TIER_LIMITS`, verified 2026-11-15): flash 5 RPM / 250K TPM / 20 RPD, flash-lite 15/250K/500, 2.5-flash-lite 10/250K/20, Gemma 4 30/16K/14.4K, pro and 4-argon/carbon 0. A provider 429 overrides the exhausted metric.
+- Backend: rolling 60-second per-model request/token events, `limits`/`headroom`/`limitsSource` in `/api/llm/models` and `/api/llm/usage`, per-model `callsToday`/`okToday`, last-call token counts and service tier in the ledger, `maxOutputTokens` cap 16 384 for Gemini and `max_tokens` 16 384 for Mistral, prompt-token estimate guard against `inputTokenLimit` and TPM before spending a call.
+- Routing: the server switches to a sibling of the same model tier when RPM/RPD/TPM headroom is zero or the request cannot fit; if no sibling exists it waits for the minute window, and refuses requests that cannot fit. Gemini pro models with 0 RPD are skipped (AUTO falls back from pro to flash), Gemma is no longer auto-routed for code, Mistral models without `function_calling` are never auto-picked for tool turns, and the title request now runs after the review/render instead of beside it.
+- UI: model rows show `ctx` plus `used/limit rpm` and `used/limit day` and a burn dot for cooled rows; tooltips show TPM, per-day remaining and the limit source; the Today footer shows provider calls, tokens, purpose split, service tier and live req/token per-minute headroom.
+
+### Files Touched
+
+- `serve.py`, `clipacanvas.html`, `tests/_check_llm_usage.py`, `tests/_check_packaged_scene_embed.py`, `tests/_check_llm_quota_fallback.py`, `docs/EDITOR_AUDIT.md`, `SESSION_LOG.md`
+
+### Tests
+
+- `_check_llm_usage.py` passes: free-tier table/headroom, pro 0-RPD block, RPM-exhausted flash → flash-lite sibling, prompt-over-context 400 without a provider call, Mistral header parsing and per-minute sibling switch without a 429, model/usage payloads and menu labels.
+- `_check_llm_quota_fallback.py`, `_check_chat_scenes.py`, `_check_scene_embed.py` pass. A live Playwright run against a copied key store (models list only, no chat quota) showed Gemini pro rows `0/0 rpm · 0/0 day`, flash `5/5 · 20/20`, flash-lite `15/15 · 500/500` and AUTO routing code to `models/gemini-3.6-flash` with pro falling back to flash.
+
+### Build
+
+- Backed up projects and media to `%APPDATA%/ClipACanvas/*-backup-20261115-2242`; closed the app and rebuilt `dist/ClipACanvas.exe` (22:45, 463,908,763 bytes) and `dist/ClipACanvas-windows.zip` (22:45, 462,504,593 bytes). `_check_packaged_scene_embed.py` passes, including the usage footer inside WebView2. App relaunched.
+
+### Open Items
+
+- The Gemini table is free-tier data from the user's AI Studio page; a paid plan or provider limit change needs a table update (429s still override the exhausted metric). Gemini `gemini-3.5-flash` and `gemini-flash-lite-latest` are not in the screenshots, so they show no limit until a call/429 reports one. Mistral limits appear after the first call to that model. No git commit/push.
+
+## 2026-11-15 (Used/limit model counters from zero, local-only media content analysis)
+
+### Summary
+
+- The user read `5/5 rpm · 20/20 day` in the model menu as "5 of 5 already used" and asked why the counts did not start at 0. The row was printing remaining headroom with a used/limit label. Rows and the Today footer now show true used/limit counts (`0/5 rpm · 0/20 day` on a fresh model, `1/2 rpm · 2/20 day` after use) and tooltips say `X of Y requests/min used · Z left`; limit enforcement and routing are unchanged.
+- The user asked why ANALYZE CONTENT was spending Gemini calls when media content must come from local EmbeddingGemma 2. The consent-gated Gemini semantic path predated the local visual index and had stayed wired to the button. Removed `GET /api/media/semantic/providers`, `POST /api/media/semantic`, the Interactions upload/parse code, the consent UI, the transcript box and its CSS; the inspector no longer displays legacy Gemini descriptions.
+- ANALYZE CONTENT now posts `/api/media/analyze` with `refresh: true`, re-running the local manifest: FFmpeg technical probe and shots, EmbeddingGemma 2 tags per keyframe, motion profile and a local summary (`_visual_content_summary`) in `visual.description`. Analysis version 4 forces a rebuild on load; refresh preserves the USER NOTE. The inspector shows `LOCAL · EMBEDDINGGEMMA 2 · N TAGS · M FRAMES` with device and `NO UPLOAD`; audio is labelled `LOCAL INDEX · IMAGES AND VIDEO`; search and the agent read the visual description/tags.
+- Verified on the user's own airplane clip (`media-609775c1233a73f25ceb.mp4`, 5.47 s, 2160×3840): the local index returned clouds 0.685, aerial view 0.679, sky 0.669, airplane 0.668, motion slow, and `5.5 s video, 1 shot, slow motion, 2160×3840 portrait, silent. Local visual index: clouds, aerial view, sky, airplane.` The old Gemini semantic block is replaced with `not_analyzed`.
+
+### Files Touched
+
+- `serve.py`, `clipacanvas.html`, `tests/_check_asset_semantics.py` (rewritten), `tests/_check_asset_intelligence.py`, `tests/_check_visual_ui.py`, `tests/_check_webview_semantics.py`, `tests/_check_llm_usage.py`, `tests/_check_packaged_agent_plan.py`, `docs/EDITOR_AUDIT.md`, `SESSION_LOG.md`
+
+### Tests
+
+- `tests/_check_embeddings.py` passes with the real CPU runtime (football image/video tags, vectors, motion).
+- `tests/_check_asset_semantics.py` passes: local image/video index and summary, forced `refresh: true`, `/api/media/semantic` returns 404, user-note preservation, agent search/read, reload; a `_llm_http_post` spy fails the test if any hosted call happens.
+- `_check_llm_usage.py` passes with the menu row `0/2 rpm · 2/20 day`; `_check_asset_intelligence.py`, `_check_visual_ui.py` and `_check_webview_semantics.py` pass (WebView2: `LOCAL · EMBEDDINGGEMMA 2 · 6 TAGS · 3 FRAMES`, note survives reload).
+- Packaged `_check_packaged_agent_plan.py` passes on the 23:23 build, including a packaged local visual index with a description; `_check_packaged_scene_embed.py` passes on the final build (embed actions, preserved media, usage footer).
+
+### Build
+
+- Backed up projects and media to `%APPDATA%/ClipACanvas/*-backup-20261115-2313`; rebuilt `dist/ClipACanvas.exe` (23:32, 463,898,858 bytes) and `dist/ClipACanvas-windows.zip` (23:32, 462,493,967 bytes). App relaunched.
+
+### Open Items
+
+- EmbeddingGemma is an embedding model, not a captioner: the local summary is assembled from tags, shots, motion, resolution and audio; it names content (clouds/aerial view/sky/airplane) rather than writing prose. Old Gemini transcripts are not regenerated. The first launch after this update re-indexes any asset whose manifest is older than version 4, which can take a minute per video on CPU. No git commit/push.
+
+## 2026-11-15 (Local footage retrieval: per-second frame index, text→moment search, agent tool)
+
+### Summary
+
+- The user confirmed EmbeddingGemma 2 should be used for its real purpose — retrieval, not captions or boxes — following the official Video Moments Finder pattern: embed media locally, query it with text, get timestamps. The motivation is token cost: the chat model should read a few locally ranked moments instead of ingesting raw footage.
+- Analysis version 5 replaces the 3-keyframe visual index with a per-second frame index: video frames are sampled at 1 fps with the interval widened so each video yields at most 24 frames, each written with a timestamp, per-frame tags, a 768-d vector and an `index-NN.jpg` thumbnail served by `/api/media/frames/<filename>/index-NN.jpg`. The sidecar `analysis/embeddings-<stem>.json` stores `model`, `dim`, `filename`, `frames`, `indexedAt`; reindexing still preserves the USER NOTE.
+- `POST /api/media/search` embeds the query locally with the `Retrieval-query` prompt, cosine-ranks every indexed frame, drops scores under 0.2, collapses neighbouring frames within 1.5 s and returns filename, source time, score and thumbnail (limit 12). New SEARCH FOOTAGE field in the PROJECT panel shows ranked rows (thumb, time in source, score); clicking seeks the timeline clip covering the moment or previews the asset at the source time. New `search_footage` agent tool returns `assetId`, `name`, `timeSeconds`, `score`, `thumbUrl`.
+- Verified on a 9 s synthetic video (red 0–3 s, football photo 3–6 s, blue 6–9 s): "football ball on grass field" ranked the 5 s frame first at 0.6724, "solid blue screen" ranked 6 s at 0.7335, the UI row read `00:05.0 IN SOURCE · 67%`, and the agent tool returned the asset id and time. The packaged exe indexes a still and answers `football on grass` with score 0.6634 at time 0.
+
+### Files Touched
+
+- `serve.py` (`ANALYSIS_VERSION` 5, `_visual_frames`, search endpoint, frame route, tool declarations), `clipacanvas.html` (SEARCH FOOTAGE panel + CSS + JS, `search_footage` tool handler/summary), `tests/_check_embeddings.py`, `tests/_check_footage_search.py` (new), `tests/_check_asset_semantics.py`, `tests/_check_packaged_agent_plan.py`, `docs/EDITOR_AUDIT.md`, `SESSION_LOG.md`
+
+### Tests
+
+- `tests/_check_embeddings.py` passes with the real CPU runtime: 1 fps sampling (football video 6 frames at 0–5 s, still video 3 frames), per-frame thumbs, monotonic timestamps.
+- `tests/_check_footage_search.py` passes: empty query 400, football moment ranked in 2.0–6.5 s with score ≥ 0.2, blue moment at ≥ 5.5 s, JPEG thumbnails, UI search results and click-to-jump, agent tool payload.
+- `tests/_check_asset_semantics.py` passes on version 5 (local image/video index + summary, forced refresh, `/api/media/semantic` 404, user note preserved, no hosted `_llm_http_post`), as do `_check_visual_ui.py`, `_check_asset_intelligence.py` and `_check_webview_semantics.py` assertions that depend on the local status.
+- Packaged `_check_packaged_agent_plan.py` passes on the new build, including `/api/media/search` returning the indexed still at time 0 with a frame thumbnail; packaged `_check_packaged_scene_embed.py` passes (embed actions, preserved media, usage footer).
+
+### Build
+
+- Backed up projects and media to `Desktop/clipacanvas-backups/2026-11-15-2359`; closed the app and rebuilt `dist/ClipACanvas.exe` (2026-11-16 00:02, 463,905,255 bytes) and `dist/ClipACanvas-windows.zip` (00:02, 462,500,715 bytes). App relaunched.
+
+### Open Items
+
+- Retrieval is visual only: no OCR, speech transcription or audio embeddings, and the query prompt is English-first. First indexing of long videos on CPU can take a couple of minutes (1 frame/s up to 24 frames, ~6 s per frame). Search floors and dedupe are fixed constants (`VISUAL_SEARCH_MIN_SCORE` 0.2, 1.5 s); they may need tuning once more real footage is indexed. No git commit/push.
+
+## 2026-11-16 (EmbeddingGemma 2 moves to LiteRT; PyTorch runtime removed)
+
+### Summary
+
+- Replaced the 1.49 GB PyTorch/sentence-transformers EmbeddingGemma 2 runtime with the official `litert-community/embeddinggemma-2-740m-litert-lm` bundle: a 485 MB `.litertlm` file with QAT mixed precision (int4 transformer/embeddings, int8 vision), executed by LiteRT-LM's `EmbeddingEngine` on the CPU/XNNPACK backend.
+- A parity run on an identical 10-object still life showed the bundle is the same model semantically: image vector cosine 0.932–0.979, text cosine mean 0.994 (min 0.988); object ranking identical (all ten objects in the top ten of twenty labels, same margin over the best false label) and text→image retrieval 10/10 for both. Color words and color+object binding failed the same way in both (2/10 attribute pairs ranked first), so those limits are the model's, not the runtime's.
+- Resource measurement: load 0.38 s vs 18.7 s, RSS 0.32 GB after load / 0.88 GB after image work vs 2.72 / 3.34 GB fresh (the indexing app worker had grown to 4.26 GB working / 5.9 GB committed); image embedding 2.4 s vs 6.2 s; text query ~125 ms per call.
+- Integration: new `embedding_litert_worker.py` keeps the JSON-lines protocol (`text`, `images`, `tags`) and the model's original prompt map (`Retrieval-query`, `Classification`, `Document`). `serve.py` now resolves `runtimes/litert` (`runtime.json`), accepts `CLIPACANVAS_EMBEDDING_MODEL`/`_ASSETS`/`_PYTHON`/`_DEVICE`, and writes `runtime: "litert"` into the visual manifest and sidecar. Analysis version is 6 (client `ASSET_ANALYSIS_VERSION` = 6), so every existing manifest reindexes on next load.
+- Removed `runtimes/embedgemma2` (1.49 GB), the old `embedding_worker.py`, the obsolete `_fetch_embedgemma_assets.py` helper, and replaced the worker in `build_desktop.py` and both spec files. Added a dedicated runtime venv at `runtimes/litert/python` plus `runtime.json`; dev uses `.venvs/litert`.
+
+### Files Touched
+
+- `serve.py`, `embedding_litert_worker.py` (new), `clipacanvas.html`, `build_desktop.py`, `ClipACanvasDebug.spec`, `tests/_check_embeddings.py`, `tests/_check_asset_semantics.py`, `tests/_check_footage_search.py`, `tests/_check_visual_ui.py`, `tests/_check_webview_semantics.py`, `tests/_check_agent_live_media.py`, `tests/_check_packaged_agent_plan.py`, `tests/_embedding_smoke.py`, `docs/EDITOR_AUDIT.md`, `SESSION_LOG.md`; deleted `embedding_worker.py` and `tests/_fetch_embedgemma_assets.py`.
+
+### Tests
+
+- Source: `_check_embeddings.py` (football image/video tags, 1 fps frames, motion, 768-d), `_check_footage_search.py` (9 frames; football at 4 s / 0.6733, blue at 6 s / 0.7488, UI row, click-to-jump, agent tool), `_check_asset_semantics.py` (local index, refresh, no hosted calls, user note), `_check_visual_ui.py` (`LOCAL · EMBEDDINGGEMMA 2 · 4 TAGS · 1 FRAME`) and `_check_asset_intelligence.py` all pass on LiteRT.
+- Packaged on the new build: `_check_packaged_agent_plan.py` passes with a LiteRT visual index (`sport, sun, football, person`) and `/api/media/search` (`football on grass` at 0 s, 0.6576); `_check_packaged_scene_embed.py` passes (embed actions, preserved media, usage footer).
+
+### Build
+
+- Backed up projects and media to `Desktop/clipacanvas-backups/2026-11-16-0056`; rebuilt `dist/ClipACanvas.exe` (2026-11-16 00:59, 463,904,464 bytes) and `dist/ClipACanvas-windows.zip` (01:00, 462,500,751 bytes). App relaunched; existing projects reindex to analysis version 6 on open.
+
+### Open Items
+
+- The LiteRT worker still loads on first use and stays resident for the session; load-on-demand/idle-unload and consent prompts remain the next lifecycle step. Dictation still uses Vosk EN+HI; the approved English-only replacement is pending. Audio indexing stays out of scope; colors/attribute binding remain unreliable and must not be presented as detection. No git commit/push.
+
+## 2026-11-16 (Local model lifecycle: on-demand load, idle unload)
+
+### Summary
+
+- Local model workers (StyleTTS2, Kokoro, Piper, ZONOS3-Mini and EmbeddingGemma) now start on the first request and are stopped after 120 s of inactivity (`CLIPACANVAS_MODEL_IDLE_SECONDS`, 0 disables). A daemon watchdog takes each worker lock non-blockingly, so it cannot interrupt a synthesis or embedding in flight; the next request reloads the worker.
+- The Voice panel no longer warms a provider on selection or panel open, and the `/api/tts/warm` endpoint plus its client helper were removed. Listing voices is free; the first Generate pays the model load. STT stays loaded (about 51 MB) so dictation remains instant.
+- No dtype or quantization changes: StyleTTS2 stays float32 and its audio is unchanged. Measured: StyleTTS2 peak 2,433 MB, completely freed after the idle window; a cold synthesis (load + one line) takes 41 s, warm lines stay around 3 s. EmbeddingGemma loads in 0.4 s / 875 MB and reloads in the same time after idle. With no model loaded the app returns to the ~1 GB WebView2 + backend + STT baseline.
+- Added `tests/_check_model_lifecycle.py` (load, idle unload, reload). A separate StyleTTS2 probe confirmed the 2.4 GB process exits after idle and frees the RAM; the probe lives in `output/` (not part of the suite) because a cold load takes ~41 s.
+
+### Files Touched
+
+- `serve.py` (idle watchdog, worker `last_used`, removed warm endpoint), `clipacanvas.html` (removed auto warm-up), `tests/_check_model_lifecycle.py` (new), `docs/EDITOR_AUDIT.md`, `SESSION_LOG.md`
+
+### Tests
+
+- `_check_model_lifecycle.py` passes: first embedding request starts the worker, the 2 s test idle timeout stops it, and the next request reloads it.
+- StyleTTS2 lifecycle probe passes: 98 KB line synthesized, peak RSS 2,433 MB, worker exits after idle, RAM freed.
+- Packaged on the new build: `_check_packaged_agent_plan.py` passes (StyleTTS2/Zonos/Piper cold starts, LiteRT visual index and search) and `_check_packaged_scene_embed.py` passes.
+
+### Build
+
+- Backed up projects and media to `Desktop/clipacanvas-backups/2026-11-16-0120`; rebuilt `dist/ClipACanvas.exe` (2026-11-16 01:23, 463,906,606 bytes) and `dist/ClipACanvas-windows.zip` (01:24, 462,502,869 bytes). App relaunched.
+
+### Open Items
+
+- First Generate after 120 s idle now waits for the model load (up to ~41 s for StyleTTS2 on this CPU); a visible "loading model" stage and a longer per-engine timeout are follow-ups. Consent prompts for loading local models are still pending. Dictation remains Vosk EN+HI until the English-only replacement. No git commit/push.
+
+## 2026-11-16 (Editor declutter, bin import fix, 240 FPS controls)
+
+### Summary
+
+- The inline PROJECT LIBRARY list is suppressed whenever Project Home is enabled. Projects are switched from PROJECTS / Project Home, and the media panel no longer gets pushed down by a duplicate list. Browser/dev runs without Project Home keep the inline list.
+- The project bin's empty space is an import target again after assets exist: double-clicking any non-tile area of the bin opens the picker. The picker debounce was shortened from 900 ms to 450 ms so an intentional second click after cancelling is not swallowed; the second click of a double-click is still ignored.
+- Added 90, 144 and 240 FPS options next to 120 and made the Program Monitor's FPS chip a live selector. Changing it updates the Recipe frame rate (and vice versa), the stage/monitor labels, and the saved settings. A help line states that export renders frame-by-frame offline while live preview smoothness follows display refresh.
+- No pre-render/proxy was added: export already renders the whole timeline offline and opens the temporary result player, which is the "render once, then watch" flow. A 120/240 FPS file still plays at the display's refresh rate in any monitor.
+
+### Files Touched
+
+- `clipacanvas.html`, `serve.py`, `tests/_check_audio_import.py`, `tests/_check_packaged_persistence_render.py`, `tests/desktop_smoke.py`, `SESSION_LOG.md`
+
+### Tests
+
+- `_check_audio_import.py` passes, including double-clicking empty space in a populated bin and the audio render mix.
+- `_check_project_persistence.py` passes.
+- Browser UI probe passes: fps list `24/25/30/48/50/60/90/120/144/240`, monitor selector syncs both ways, 120 FPS survives reload, inline library hidden with Project Home.
+- 120 FPS render probe passes: 320×180 h264, 144 frames, 1.2 s (`output/uitest/fps-120.mp4`).
+- Packaged on the new build: `_check_packaged_persistence_render.py` passes (Project Home project, inline library hidden, 1080p A/V render, relaunch state intact). `desktop_smoke.py` reached its live Mistral chat call and failed with HTTP 502 because the isolated run has no provider key; settings/FPS checks before that passed.
+
+### Build
+
+- Backed up projects and media to `Desktop/ClipACanvas-data-backup-20261116-020322`; rebuilt `dist/ClipACanvas.exe` (2026-11-16 02:07, 463,908,008 bytes) and `dist/ClipACanvas-windows.zip` (02:07, 462,504,288 bytes). App relaunched.
+
+### Open Items
+
+- High frame rates multiply the frame count (240 FPS × 10 s = 2,400 frames), so render time and file size scale accordingly; RAM stays steady because frames stream to FFmpeg. GIF still caps at 50 FPS in the renderer. No git commit/push.
+
+## 2026-11-16 (English-only faster-whisper dictation)
+
+### What Changed
+
+- Replaced the two-model Vosk EN+HI dictation with local faster-whisper small.en (CTranslate2 int8, CPU, VAD filter, beam 5, timestamped decoding). Transcripts now include punctuation and capitalisation; the Hindi model and AUTO language switching were removed.
+- Benchmarked on 85 samples (73 LibriSpeech clean + JFK + 10 noisy Libri + noisy JFK): small.en clean corpus WER 5.45%, noisy 6.42%, all 5.81%, RTF 2.51, load 2.36 s, peak RSS 712 MB, 464 MB disk. Vosk small EN was 13.74% / 18.87% / 15.62%, RTF 4.68, 272 MB. base.en and distil-small.en were less accurate.
+- `stt_worker.py` now downloads `Systran/faster-whisper-small.en` files from Hugging Face on first prepare, writes `model-ready.json`, records with sounddevice, rejects near-silence and returns `language: "en"` plus confidence.
+- `serve.py`: model id default `faster-whisper-small.en`, engine/languages `["en"]`, English-only responses, `faster-whisper` runtime error text. The STT worker is now in the shared idle-unload set; a worker lock keeps it alive during recording/transcription.
+- Chat dictation UI: static `EN` badge (no cycling), English-only copy, stop request sends `language: "en"`. The strip still reports model download/load percent.
+- Installed faster-whisper 1.2.1 + ctranslate2 4.9.0 + av 18.1.0 into the configured Python 3.11 runtime. Seeded the 464 MB model at `%APPDATA%/ClipACanvas/runtimes/stt/assets/models/faster-whisper-small.en`. Removed the two Vosk model folders and the benchmark venv/HF caches.
+
+### Files Touched
+
+- `stt_worker.py`, `serve.py`, `clipacanvas.html`, `tests/_check_dictation.py`, `tests/_check_dictation_ui.py`, `tests/_check_packaged_dictation.py`, new `tests/_check_stt_lifecycle.py`, `docs/EDITOR_AUDIT.md`, `SESSION_LOG.md`
+
+### Tests
+
+- `tests/_check_dictation.py` PASS: model id/languages, SAPI English WER 0.000, punctuation/case, auto + legacy `lang=hi` both return English, 400 on tiny payload, mic smoke, cancel.
+- `tests/_check_dictation_ui.py` PASS: static EN span, "speak English", `{"language":"en"}` stop body, insertion, cancel, no page errors.
+- `tests/_check_stt_lifecycle.py` PASS: load on demand, worker survives a request beyond the idle window, unloads after idle, reloads.
+- `tests/_check_packaged_dictation.py` PASS on the new exe: packaged status English-only, model ready, SAPI WER 0.000.
+
+### Build
+
+- Backed up projects and media to `Desktop/ClipACanvas-data-backup-20261116-025743`; rebuilt `dist/ClipACanvas.exe` (2026-11-16 03:00, 463,906,552 bytes) and `dist/ClipACanvas-windows.zip` (03:00, 462,501,984 bytes). App relaunched.
+
+### Open Items
+
+- First use on a fresh machine downloads ~464 MB before the first transcription; local installs already have the model. The model unloads after 120 s idle (adds ~2.4 s cold load to the next dictation). No git commit/push.
+
+## 2026-11-16 (Scene-embedded footage context, stable composite preview, frame-accurate video export)
+
+### What Changed
+
+- The agent now sees what footage inside a scene shows. `sceneMediaDetails(code)` maps each `cc-scene-media` element to its project asset and returns the asset name, duration, resolution, full-frame flag, user/AI description, notes, visual tags, motion label and per-second moments. It feeds the selected-media system message, `timelineSummaryForChat().scenes[].embeddedMedia`, `chatToolAppState().selectedClip.embeddedMedia` and `getClipContext().embeddedMedia`.
+- Prompt rules now define captions as text-only transparent clips (never a full-frame copy of the scene video), keep embedded media with its own scene, time per-clip captions/overlays/transitions from the timeline, and require action lines that name the object and operation. A "Current selection" system message states the selected clip's kind, name, layer, start and duration.
+- The Program Monitor keeps one stable composite page across layer boundaries. It mounts every renderable clip when the edit has ≤12 clips (otherwise the playhead window plus transition participants), applies visibility inside the page, and rebuilds only when the mounted set, transitions or a code hash change. Only active layers are seeked; newly visible layers are seeked immediately; media plays while visible and pauses when hidden. Composite media layers map local time to the whole clip and respond to host seeks.
+- The renderer waits for unbuffered video data (`loadeddata`/`canplay`), then for a presented frame (`requestVideoFrameCallback`, real-time fallback) plus a double rAF. Media waits use captured real timers because the control script mocks `setTimeout` with the virtual clock. The Node fallback received the same video seek/await and paint wait.
+
+### Files Touched
+
+- `clipacanvas.html`, `playwright_render.py`, `playwright_render.mjs`, `docs/EDITOR_AUDIT.md`, `SESSION_LOG.md`; new `tests/_check_composite_stability.py`, `tests/_check_video_render_frames.py`, `tests/_check_scene_media_context.py`; isolated APPDATA in `tests/_check_preview_seek.py`, `tests/_check_preview_export_parity.py`, `tests/_check_chat_scenes.py`, `tests/_check_scene_embed.py`.
+
+### Tests
+
+- `_check_composite_stability.py` PASS: composite survives the cut without reload, seeks Scene 01/02 at their local times, layer pixel probes red/blue and no black frame.
+- `_check_video_render_frames.py` PASS: a scene-embedded three-colour video plus transparent overlay exports red (0.55/0.95 s), green (1.05/1.55 s) and blue (2.55 s) at the right times with no black frames.
+- `_check_scene_media_context.py` PASS: asset analysis reaches every chat context path and the caption/media prompt rules are present.
+- `_check_preview_seek.py`, `_check_preview_export_parity.py`, `_check_chat_scenes.py`, `_check_scene_embed.py`, `_check_sequence_render.py`, `_check_transitions.py` PASS. `_check_packaged_scene_embed.py` PASS on the new exe (double-click/plus/tool embeds, in-scene edit kept 2 media).
+
+### Build
+
+- Backed up projects and media to `Desktop/ClipACanvas-data-backup-20261116-041951`; rebuilt `dist/ClipACanvas.exe` (2026-11-16 04:22, 463,910,823 bytes) and `dist/ClipACanvas-windows.zip` (04:23, 462,505,574 bytes). App relaunched (PID 15328).
+
+### Open Items
+
+- Existing projects keep their saved composition; the corrected prompt/context affects new agent turns, not old clip content. The earlier `Gemini API error (400)` with an exhausted free key is a fallback artifact: quota-aware routing and cooled-model skipping are in place, but the final error text can still report the last fallback status instead of the 429. No git commit/push.

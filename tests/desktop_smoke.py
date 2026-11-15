@@ -261,7 +261,7 @@ def main() -> int:
         output_options_ok = (
             resolution_count == 5
             and resolution_tiers >= 6
-            and fps_values == ["24", "25", "30", "48", "50", "60", "120"]
+            and fps_values == ["24", "25", "30", "48", "50", "60", "90", "120", "144", "240"]
         )
         gpu_toggle_off = page.get_attribute("#gpuBoostToggle", "aria-pressed") == "false"
         page.click("#gpuBoostToggle")

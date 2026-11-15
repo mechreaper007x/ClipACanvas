@@ -19,9 +19,9 @@ sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 DATA = Path(tempfile.mkdtemp(prefix="cc-live-media-"))
 os.environ["CLIPACANVAS_KEYS_DIR"] = str(DATA)
 os.environ["CLIPACANVAS_EMBEDDING_PYTHON"] = str(
-    Path(os.environ["LOCALAPPDATA"]) / "Programs" / "Python" / "Python311" / "python.exe")
+    Path(os.environ["APPDATA"]) / "ClipACanvas" / "runtimes" / "litert" / "python" / "Scripts" / "python.exe")
 os.environ["CLIPACANVAS_EMBEDDING_ASSETS"] = str(
-    Path(os.environ["APPDATA"]) / "ClipACanvas" / "runtimes" / "embedgemma2" / "assets")
+    Path(os.environ["APPDATA"]) / "ClipACanvas" / "runtimes" / "litert" / "assets")
 os.environ["CLIPACANVAS_EMBEDDING_DEVICE"] = "cpu"
 
 for name in ("keys.dat", "keys.key"):

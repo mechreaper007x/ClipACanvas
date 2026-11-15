@@ -1,6 +1,10 @@
 import json
+import os
 import sys
+import tempfile
 from pathlib import Path
+
+os.environ["APPDATA"] = tempfile.mkdtemp(prefix="cc-chat-scenes-")
 
 ROOT = Path(r"C:\Users\Savyasachi Mishra\Desktop\clipacanvas")
 sys.path.insert(0, str(ROOT))
@@ -33,7 +37,10 @@ assert "add_scene" in tools, sorted(tools)
 assert tools["add_scene"]["parameters"]["required"] == ["code"]
 assert tools["add_scene"]["parameters"]["properties"]["layer"]["enum"] == ["same", "above"]
 assert "duration" in tools["insert_animation_code"]["parameters"]["properties"]
-assert "selected scene" in tools["insert_animation_code"]["description"].lower()
+assert "removeMedia" in tools["insert_animation_code"]["parameters"]["properties"]
+insert_description = tools["insert_animation_code"]["description"].lower()
+assert "selected code scene" in insert_description
+assert "embedded media" in insert_description
 
 server, thread = start_server()
 base = server_url(server)
@@ -171,6 +178,27 @@ with sync_playwright() as p:
     }""")
     print("queued render:", queued)
     assert queued["ok"] and queued.get("queued"), queued
+
+    # A cooled model is labelled in the picker so a quota dead end is visible.
+    quota_ui = page.evaluate("""() => {
+        const provider = document.getElementById('llmProvider');
+        const previous = provider.value;
+        provider.value = 'mistral';
+        chatState.models.mistral = [{name: 'mistral-small-latest', displayName: 'Mistral Small', cooldownSeconds: 300}];
+        chatState.modelPrefs.mistral = 'mistral-small-latest';
+        populateModelSelect();
+        document.getElementById('llmModel').value = 'mistral-small-latest';
+        chatState.modelPrefs.mistral = 'mistral-small-latest';
+        updateComposerModelLabel();
+        const options = Array.from(document.querySelectorAll('#llmModel option')).map(option => option.textContent);
+        const label = document.getElementById('chatModelLabel')?.textContent || '';
+        provider.value = previous;
+        populateModelSelect();
+        return { options, label };
+    }""")
+    print("quota label:", quota_ui)
+    assert any('quota ~5m' in text for text in quota_ui["options"]), quota_ui
+    assert 'quota ~5m' in quota_ui["label"], quota_ui
 
     page.screenshot(path=str(ROOT / "output" / "playwright" / "chat-scenes.png"), full_page=True)
     browser.close()

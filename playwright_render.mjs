@@ -38,6 +38,10 @@ const CONTROL_SCRIPT = `
   };
 
   const __RealDate = Date;
+  // Real-time waits for media decode/paint; the mocked timers only advance
+  // with the virtual clock and would deadlock the frame loop.
+  const __realSetTimeout = window.setTimeout.bind(window);
+  const __realClearTimeout = window.clearTimeout.bind(window);
 
   function __MockDate(...args) {
     return args.length ? new __RealDate(...args) : new __RealDate(__state.timeMs);
@@ -141,13 +145,84 @@ const CONTROL_SCRIPT = `
 
   window.clearInterval = window.clearTimeout;
 
+  window.__clipacanvasAwaitVideoFrame = function(video) {
+    return new Promise(resolve => {
+      if (!video || typeof video.requestVideoFrameCallback !== 'function') {
+        __realSetTimeout(resolve, 32);
+        return;
+      }
+      let done = false;
+      const finish = () => { if (done) return; done = true; resolve(); };
+      const timer = __realSetTimeout(finish, 200);
+      try {
+        video.requestVideoFrameCallback(() => { __realClearTimeout(timer); finish(); });
+      } catch (_) { __realClearTimeout(timer); finish(); }
+    });
+  };
+
+  window.__clipacanvasMediaSeek = function(seconds) {
+    const target = Math.max(0, Number(seconds) || 0);
+    const videos = Array.from(document.querySelectorAll('video'));
+    if (!videos.length) return Promise.resolve();
+    return Promise.all(videos.map(video => new Promise(resolve => {
+      let settled = false;
+      const finish = () => {
+        if (settled) return;
+        settled = true;
+        video.removeEventListener('seeked', onSeeked);
+        video.removeEventListener('error', finish);
+        window.__clipacanvasAwaitVideoFrame(video).then(resolve);
+      };
+      const onSeeked = () => finish();
+      const seekNow = () => {
+        try { video.pause(); } catch (_) {}
+        if (video.error) { finish(); return; }
+        const duration = Number(video.duration);
+        const sourceIn = Math.max(0, Number(video.dataset.sourceIn) || 0);
+        const absoluteTarget = sourceIn + target;
+        let seekTo = absoluteTarget;
+        if (Number.isFinite(duration) && duration > 0) {
+          seekTo = video.hasAttribute('data-source-in')
+            ? Math.min(absoluteTarget, Math.max(0, duration - 0.001))
+            : Math.min(Math.max(0, target % duration), Math.max(0, duration - 0.001));
+        }
+        if (Math.abs(video.currentTime - seekTo) < 0.02 && video.readyState >= 2) { finish(); return; }
+        video.addEventListener('seeked', onSeeked, { once: true });
+        video.addEventListener('error', finish, { once: true });
+        try { video.currentTime = seekTo; } catch (_) { finish(); }
+      };
+      if (video.readyState < 2 && !video.error) {
+        const ready = () => {
+          video.removeEventListener('loadeddata', ready);
+          video.removeEventListener('canplay', ready);
+          seekNow();
+        };
+        video.addEventListener('loadeddata', ready, { once: true });
+        video.addEventListener('canplay', ready, { once: true });
+        video.addEventListener('error', finish, { once: true });
+        __realSetTimeout(() => {
+          video.removeEventListener('loadeddata', ready);
+          video.removeEventListener('canplay', ready);
+          seekNow();
+        }, 1200);
+        return;
+      }
+      seekNow();
+    })));
+  };
+
+  window.__clipacanvasAwaitMedia = function() {
+    return window.__clipacanvasMediaReady || Promise.resolve();
+  };
+
   window.__clipacanvasSetTime = function(seconds) {
     const targetMs = Math.max(0, (Number(seconds) || 0) * 1000);
     __runDueTimers(targetMs);
     __state.timeMs = targetMs;
     __syncAnimations(targetMs);
     __flushAnimationFrame(targetMs);
-    return targetMs;
+    window.__clipacanvasMediaReady = window.__clipacanvasMediaSeek(targetMs / 1000);
+    return window.__clipacanvasMediaReady;
   };
 
   window.__clipacanvasCaptureMeta = function() {
@@ -288,10 +363,14 @@ async function captureFrames(page, settings) {
 
   for (let index = startFrame; index < endFrame; index++) {
     const t = Number((index / frameRate).toFixed(4));
-    await page.evaluate(seconds => {
+    await page.evaluate(async seconds => {
       if (typeof window.__clipacanvasSetTime === 'function') {
-        window.__clipacanvasSetTime(seconds);
+        await window.__clipacanvasSetTime(seconds);
       }
+      if (typeof window.__clipacanvasAwaitMedia === 'function') {
+        await window.__clipacanvasAwaitMedia();
+      }
+      await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
     }, t);
 
     const buffer = await page.screenshot({ type: 'png' });

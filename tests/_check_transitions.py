@@ -235,11 +235,23 @@ with tempfile.TemporaryDirectory() as tmp_name:
             v2 = ops("insertAsset", asset_id, {"track": 1, "at": 2})
             print("video clips:", v1, v2)
             assert v1["ok"] and v2["ok"], (v1, v2)
-            handle_error = ops("addTransition", {
+            # Full-length clips have no source handles; the transition must
+            # still apply and hold the frozen boundary frames instead.
+            no_handle = ops("addTransition", {
                 "fromClipId": v1["clipId"], "toClipId": v2["clipId"], "type": "dissolve", "duration": 1,
             })
-            print("handle validation:", handle_error)
-            assert handle_error["ok"] is False and ("handle" in handle_error["error"] or "footage" in handle_error["error"]), handle_error
+            print("full-length video transition:", no_handle)
+            assert no_handle["ok"], no_handle
+            frozen = page.evaluate("""() => {
+                const resolved = resolvedTransitions();
+                return {
+                    count: resolved.length,
+                    atCut: transitionsAtTime(2).length,
+                    alignment: resolved[0]?.alignment || ''
+                };
+            }""")
+            print("frozen transition:", frozen)
+            assert frozen["count"] == 1 and frozen["atCut"] == 1, frozen
 
             # 8. Restore a simple dissolve for the export and persistence checks.
             page.evaluate("""([aId]) => {

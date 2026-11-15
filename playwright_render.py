@@ -15,7 +15,8 @@ from pathlib import Path
 
 from playwright.sync_api import sync_playwright
 
-HARD_MAX_DURATION_SECONDS = 60.0
+HARD_MAX_DURATION_SECONDS = 24 * 60 * 60.0
+_NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0)
 
 _CODEC_ENCODERS = {
     "h264": "libx264",
@@ -53,6 +54,7 @@ def _encoder_usable(ffmpeg_exe: str, encoder: str) -> bool:
             ],
             capture_output=True,
             timeout=20,
+            creationflags=_NO_WINDOW,
         )
         usable = probe.returncode == 0
     except (OSError, subprocess.TimeoutExpired):
@@ -81,6 +83,10 @@ CONTROL_SCRIPT = r"""
   };
 
   const __RealDate = Date;
+  // Media decode/paint waits run on real wall time; the mocked timers below
+  // only advance with the virtual clock and would deadlock the frame loop.
+  const __realSetTimeout = window.setTimeout.bind(window);
+  const __realClearTimeout = window.clearTimeout.bind(window);
 
   function __MockDate(...args) {
     return args.length ? new __RealDate(...args) : new __RealDate(__state.timeMs);
@@ -184,6 +190,32 @@ CONTROL_SCRIPT = r"""
 
   window.clearInterval = window.clearTimeout;
 
+  // Resolve only after the compositor has a frame to show: a seeked video
+  // can still be one paint behind, which renders as a stale or black frame.
+  window.__clipacanvasPresentFrame = function() {
+    return new Promise(resolve => {
+      let done = false;
+      const finish = () => { if (done) return; done = true; resolve(); };
+      requestAnimationFrame(() => requestAnimationFrame(finish));
+      __realSetTimeout(finish, 120);
+    });
+  };
+
+  window.__clipacanvasAwaitVideoFrame = function(video) {
+    return new Promise(resolve => {
+      if (!video || typeof video.requestVideoFrameCallback !== 'function') {
+        __realSetTimeout(resolve, 32);
+        return;
+      }
+      let done = false;
+      const finish = () => { if (done) return; done = true; resolve(); };
+      const timer = __realSetTimeout(finish, 200);
+      try {
+        video.requestVideoFrameCallback(() => { __realClearTimeout(timer); finish(); });
+      } catch (_) { __realClearTimeout(timer); finish(); }
+    });
+  };
+
   window.__clipacanvasMediaSeek = function(seconds) {
     const target = Math.max(0, Number(seconds) || 0);
     const videos = Array.from(document.querySelectorAll('video'));
@@ -193,25 +225,47 @@ CONTROL_SCRIPT = r"""
       const finish = () => {
         if (settled) return;
         settled = true;
-        video.removeEventListener('seeked', finish);
+        video.removeEventListener('seeked', onSeeked);
         video.removeEventListener('error', finish);
-        resolve();
+        window.__clipacanvasAwaitVideoFrame(video).then(resolve);
       };
-      try { video.pause(); } catch (_) {}
-      if (video.error || video.readyState < 1) { finish(); return; }
-      const duration = Number(video.duration);
-      const sourceIn = Math.max(0, Number(video.dataset.sourceIn) || 0);
-      const absoluteTarget = sourceIn + target;
-      let seekTo = absoluteTarget;
-      if (Number.isFinite(duration) && duration > 0) {
-        seekTo = video.hasAttribute('data-source-in')
-          ? Math.min(absoluteTarget, Math.max(0, duration - 0.001))
-          : Math.min(Math.max(0, target % duration), Math.max(0, duration - 0.001));
+      const onSeeked = () => finish();
+      const seekNow = () => {
+        try { video.pause(); } catch (_) {}
+        if (video.error) { finish(); return; }
+        const duration = Number(video.duration);
+        const sourceIn = Math.max(0, Number(video.dataset.sourceIn) || 0);
+        const absoluteTarget = sourceIn + target;
+        let seekTo = absoluteTarget;
+        if (Number.isFinite(duration) && duration > 0) {
+          seekTo = video.hasAttribute('data-source-in')
+            ? Math.min(absoluteTarget, Math.max(0, duration - 0.001))
+            : Math.min(Math.max(0, target % duration), Math.max(0, duration - 0.001));
+        }
+        if (Math.abs(video.currentTime - seekTo) < 0.02 && video.readyState >= 2) { finish(); return; }
+        video.addEventListener('seeked', onSeeked, { once: true });
+        video.addEventListener('error', finish, { once: true });
+        try { video.currentTime = seekTo; } catch (_) { finish(); }
+      };
+      if (video.readyState < 2 && !video.error) {
+        // The data is not buffered yet; seeking a HAVE_NOTHING video leaves a
+        // black frame. Wait for the first frame, then seek.
+        const ready = () => {
+          video.removeEventListener('loadeddata', ready);
+          video.removeEventListener('canplay', ready);
+          seekNow();
+        };
+        video.addEventListener('loadeddata', ready, { once: true });
+        video.addEventListener('canplay', ready, { once: true });
+        video.addEventListener('error', finish, { once: true });
+        __realSetTimeout(() => {
+          video.removeEventListener('loadeddata', ready);
+          video.removeEventListener('canplay', ready);
+          seekNow();
+        }, 1200);
+        return;
       }
-      if (Math.abs(video.currentTime - seekTo) < 0.02 && video.readyState >= 2) { finish(); return; }
-      video.addEventListener('seeked', finish, { once: true });
-      video.addEventListener('error', finish, { once: true });
-      try { video.currentTime = seekTo; } catch (_) { finish(); }
+      seekNow();
     })));
   };
 
@@ -313,7 +367,7 @@ def build_sequence_document(clips: list[dict], transitions: list[dict] | None = 
             start_ms = cursor_ms
         else:
             start_ms = int(round(max(0.0, float(raw_start)) * 1000))
-        start_ms = min(max(0, 60000 - duration_ms), max(0, start_ms))
+        start_ms = min(max(0, int(HARD_MAX_DURATION_SECONDS * 1000) - duration_ms), max(0, start_ms))
         try:
             track = max(0, min(7, int(clip.get("track") or 0)))
         except (TypeError, ValueError):
@@ -416,6 +470,11 @@ def build_sequence_document(clips: list[dict], transitions: list[dict] | None = 
     if (waits.length) {{
       try {{ await Promise.all(waits); }} catch (error) {{}}
     }}
+    // Let the compositor promote the newly painted layer and video frame
+    // before the host captures the screenshot.
+    await new Promise(function (resolve) {{
+      requestAnimationFrame(function () {{ requestAnimationFrame(resolve); }});
+    }});
     return ms;
   }};
 
@@ -522,7 +581,7 @@ def render_payload(payload: dict, output_path: str | Path, ffmpeg_exe: str | Non
     clips: list[dict] = []
     clip_cursor = 0.0
     if isinstance(raw_clips, list):
-        for raw_clip in raw_clips[:40]:
+        for raw_clip in raw_clips:
             if not isinstance(raw_clip, dict):
                 continue
             clip_code = str(raw_clip.get("code") or "")
@@ -629,7 +688,7 @@ def render_payload(payload: dict, output_path: str | Path, ffmpeg_exe: str | Non
     transition_engine = ""
     raw_transitions = payload.get("transitions")
     if isinstance(raw_transitions, list) and sequence_mode:
-        for raw_transition in raw_transitions[:40]:
+        for raw_transition in raw_transitions:
             if not isinstance(raw_transition, dict):
                 continue
             from_id = str(raw_transition.get("fromClipId") or "")
@@ -786,7 +845,10 @@ def render_payload(payload: dict, output_path: str | Path, ffmpeg_exe: str | Non
                 ffmpeg_cmd += ["-shortest"]
     ffmpeg_cmd += [str(output_path)]
 
-    ffmpeg_proc = subprocess.Popen(ffmpeg_cmd, stdin=subprocess.PIPE, stderr=subprocess.PIPE)
+    ffmpeg_proc = subprocess.Popen(
+        ffmpeg_cmd, stdin=subprocess.PIPE, stderr=subprocess.PIPE,
+        creationflags=_NO_WINDOW,
+    )
 
     frame_times: list[float] = []
     last_signature = ""

@@ -1350,6 +1350,61 @@ main {
 .chat-model-hint.error { color: var(--burn); }
 .chat-model-hint.error:hover { color: var(--burn); opacity: 0.8; }
 
+.chat-model-item.cooled .m-dot {
+  background: var(--burn);
+  border-color: var(--burn);
+  box-shadow: 0 0 7px rgba(255, 68, 0, 0.55);
+}
+
+.chat-usage {
+  border-top: 1px solid var(--line);
+  margin-top: 4px;
+  padding: 9px 12px 10px;
+}
+
+.chat-usage-title {
+  font-size: 0.5rem;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--muted-3);
+  margin-bottom: 5px;
+}
+
+.chat-usage-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  font-family: var(--mono);
+  font-size: 0.58rem;
+  color: var(--ink-soft);
+  padding: 2px 0;
+}
+
+.chat-usage-row .u-provider {
+  color: var(--muted);
+  font-size: 0.5rem;
+  letter-spacing: 1.4px;
+  text-transform: uppercase;
+}
+
+.chat-usage-row .u-count { color: var(--go); }
+
+.chat-usage-purposes {
+  font-family: var(--mono);
+  font-size: 0.52rem;
+  color: var(--muted-3);
+  line-height: 1.5;
+}
+
+.chat-usage-note {
+  font-family: var(--mono);
+  font-size: 0.5rem;
+  line-height: 1.5;
+  color: var(--muted-3);
+  margin-top: 6px;
+}
+
 #chatSend {
   flex: 0 0 auto;
   background: transparent;
@@ -1366,6 +1421,123 @@ main {
 
 #chatSend:hover:not(:disabled) { background: rgba(var(--go-rgb), 0.12); }
 #chatSend:disabled { opacity: 0.45; cursor: wait; border-color: var(--line-strong); color: var(--muted-5); }
+
+/* ── Dictation ── */
+.chat-dictation-controls {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-left: auto;
+  flex: 0 0 auto;
+}
+
+.chat-mic-lang {
+  background: transparent;
+  border: 1px solid var(--line-soft);
+  border-radius: 3px;
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 0.56rem;
+  letter-spacing: 1px;
+  line-height: 1.3;
+  padding: 4px 7px 3px;
+  cursor: default;
+}
+
+.chat-mic {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 26px;
+  padding: 0;
+  background: transparent;
+  border: 1px solid var(--line-soft);
+  border-radius: 3px;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.chat-mic:hover:not(:disabled) { color: var(--ink-soft); border-color: var(--muted-3); }
+.chat-mic:disabled { opacity: 0.45; cursor: wait; }
+
+.chat-mic.recording {
+  color: var(--burn);
+  border-color: var(--burn);
+  background: rgba(255, 68, 0, 0.1);
+}
+
+.chat-mic.recording::after {
+  content: "";
+  position: absolute;
+  inset: -4px;
+  border: 1px solid var(--burn);
+  border-radius: 4px;
+  opacity: calc(0.18 + var(--mic-level, 0) * 0.55);
+  transform: scale(calc(1 + var(--mic-level, 0) * 0.22));
+  transition: opacity 0.16s linear, transform 0.16s linear;
+  pointer-events: none;
+}
+
+.chat-mic.recording svg { animation: micPulse 1.4s ease-in-out infinite; }
+.chat-mic.busy { color: var(--go); border-color: rgba(var(--go-rgb), 0.4); }
+.chat-mic.busy svg { animation: micPulse 1.1s ease-in-out infinite; }
+
+@keyframes micPulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
+
+.chat-dictation {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: 0 0 5px;
+  padding: 1px 2px 5px;
+  border-bottom: 1px solid var(--line-soft);
+  font-family: var(--mono);
+  font-size: 0.6rem;
+  letter-spacing: 0.3px;
+  color: var(--muted-2);
+}
+
+.chat-dictation[hidden] { display: none; }
+
+.chat-dictation-dot {
+  width: 6px;
+  height: 6px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: var(--burn);
+  animation: dictationBlink 1.1s ease-in-out infinite;
+}
+
+.chat-dictation.busy .chat-dictation-dot { background: var(--go); animation-duration: 0.8s; }
+.chat-dictation.done .chat-dictation-dot { background: var(--go); animation: none; }
+.chat-dictation.error { color: var(--danger-ink); }
+.chat-dictation.error .chat-dictation-dot { background: var(--danger-ink); animation: none; }
+
+.chat-dictation-text {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chat-dictation-cancel {
+  flex: 0 0 auto;
+  background: transparent;
+  border: none;
+  color: var(--muted-3);
+  font-family: var(--mono);
+  font-size: 0.62rem;
+  line-height: 1;
+  padding: 2px 3px;
+  cursor: pointer;
+}
+
+.chat-dictation-cancel:hover { color: var(--ink-soft); }
+
+@keyframes dictationBlink { 0%, 100% { opacity: 1; } 50% { opacity: 0.25; } }
 
 /* ── RIGHT: CONTROL PANEL ── */
 .ctrl-panel {
@@ -2497,52 +2669,12 @@ main.control-room #splitRight {
   color: var(--ink-soft);
 }
 .mi-semantic-text[hidden] { display: none; }
-.mi-transcript {
-  max-height: 110px;
-  overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  padding: 4px 6px;
-  border-left: 2px solid var(--line-soft);
-}
-.mi-transcript[hidden] { display: none; }
-.mi-transcript p {
-  margin: 0;
-  font-family: var(--mono);
-  font-size: 0.44rem;
-  line-height: 1.5;
-  color: var(--muted-2);
-}
-.mi-transcript b { color: var(--ink-soft); font-weight: 600; }
-.mi-content-actions,
-.mi-consent-actions {
+.mi-content-actions {
   display: flex;
   align-items: center;
   gap: 6px;
 }
-.mi-content-actions .timeline-btn,
-.mi-consent-actions .timeline-btn { flex: 0 0 auto; }
-.mi-check {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-family: var(--mono);
-  font-size: 0.44rem;
-  letter-spacing: 0.5px;
-  color: var(--muted-2);
-}
-.mi-check input { accent-color: var(--go); }
-.mi-check[hidden] { display: none; }
-.mi-consent {
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-  padding: 6px;
-  border: 1px solid var(--line-soft);
-  background: var(--panel-2);
-}
-.mi-consent[hidden] { display: none; }
+.mi-content-actions .timeline-btn { flex: 0 0 auto; }
 .mi-note-edit { display: flex; flex-direction: column; gap: 4px; }
 .mi-note-edit textarea {
   width: 100%;
@@ -2939,6 +3071,10 @@ main.control-room #splitRight {
   transition: background 0.1s ease;
 }
 .logic-box:hover { background: var(--hover); }
+.logic-box.drop-embed {
+  border-color: var(--go);
+  box-shadow: inset 0 0 0 2px var(--go), 0 0 0 3px rgba(var(--go-rgb), 0.22);
+}
 .logic-box.active {
   background: rgba(var(--go-rgb), 0.08);
   border-color: rgba(var(--go-rgb), 0.6);
@@ -3594,6 +3730,72 @@ main.control-room #splitRight {
   padding: 0 0 4px;
 }
 .project-file-row .dock-link { font-size: 0.44rem; }
+.footage-search { display: flex; flex-direction: column; gap: 4px; padding: 0 0 6px; }
+.footage-search-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--line-soft);
+  background: var(--panel-2);
+  padding: 4px 6px;
+}
+.footage-search-row input {
+  flex: 1;
+  min-width: 0;
+  background: transparent;
+  border: 0;
+  outline: none;
+  font-family: var(--mono);
+  font-size: 0.5rem;
+  letter-spacing: 0.4px;
+  color: var(--ink);
+}
+.footage-search-row input::placeholder { color: var(--muted-2); }
+.footage-search-row:focus-within { border-color: rgba(var(--go-rgb), 0.5); }
+.footage-results {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  max-height: 240px;
+  overflow-y: auto;
+  border: 1px solid var(--line-soft);
+  background: var(--panel-2);
+  padding: 4px;
+}
+.footage-results[hidden] { display: none; }
+.footage-result {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--ink);
+  text-align: left;
+  padding: 4px;
+  cursor: pointer;
+  font-family: var(--mono);
+}
+.footage-result:hover,
+.footage-result:focus-visible { border-color: rgba(var(--go-rgb), 0.45); background: var(--panel); }
+.footage-result .fr-thumb {
+  width: 64px;
+  height: 36px;
+  object-fit: cover;
+  background: #050608;
+  flex: 0 0 auto;
+  border: 1px solid var(--line-soft);
+}
+.footage-result .fr-body { min-width: 0; flex: 1; display: flex; flex-direction: column; gap: 2px; }
+.footage-result .fr-name {
+  font-size: 0.5rem;
+  color: var(--ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.footage-result .fr-meta { font-size: 0.44rem; color: var(--muted-2); }
+.footage-result .fr-score { font-size: 0.44rem; color: var(--go); letter-spacing: 0.4px; }
+.footage-empty { font-family: var(--mono); font-size: 0.46rem; color: var(--muted-2); padding: 6px; }
 .project-library {
   display: flex;
   flex-direction: column;
@@ -4232,6 +4434,22 @@ body.asset-dragging * { cursor: grabbing !important; user-select: none !importan
 .monitor-sep { margin: 0 6px; color: var(--muted-3); }
 .monitor-spacer { flex: 1; }
 .monitor-chip { font-family: var(--mono); font-size: 0.44rem; letter-spacing: 1px; color: var(--muted-3); white-space: nowrap; }
+select.monitor-chip {
+  background: var(--panel-3);
+  border: 1px solid var(--line);
+  color: var(--muted-3);
+  font: inherit;
+  font-family: var(--mono);
+  font-size: 0.44rem;
+  letter-spacing: 1px;
+  height: 20px;
+  padding: 0 3px;
+  outline: none;
+  cursor: pointer;
+}
+select.monitor-chip:hover,
+select.monitor-chip:focus { border-color: var(--go); color: var(--ink); }
+select.monitor-chip option { background: var(--panel-3); color: var(--ink); }
 
 #previewContainer:fullscreen,
 #previewContainer:-webkit-full-screen {
@@ -4247,12 +4465,14 @@ body.asset-dragging * { cursor: grabbing !important; user-select: none !importan
   align-items: center;
   gap: 3px;
   margin-left: auto;
+  flex: 0 0 auto;
 }
 .timeline-btn.icon { width: 20px; padding: 3px 0; text-align: center; font-size: 0.55rem; line-height: 1; }
 .timeline-zoom-control {
   display: flex;
   align-items: center;
   gap: 4px;
+  flex: 0 0 auto;
 }
 .timeline-zoom-range {
   width: 84px;
@@ -4261,14 +4481,23 @@ body.asset-dragging * { cursor: grabbing !important; user-select: none !importan
   cursor: pointer;
 }
 .timeline-zoom-input {
-  width: 48px;
-  padding: 2px 3px;
+  width: 58px;
+  min-width: 58px;
+  box-sizing: border-box;
+  padding: 2px 4px;
   border: 1px solid var(--line);
   background: var(--field);
   color: var(--ink);
   font-family: var(--mono);
   font-size: 0.56rem;
-  text-align: right;
+  text-align: center;
+  appearance: textfield;
+  -moz-appearance: textfield;
+}
+.timeline-zoom-input::-webkit-outer-spin-button,
+.timeline-zoom-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
 }
 .timeline-zoom-pct {
   font-family: var(--mono);
@@ -4875,6 +5104,13 @@ body.asset-dragging * { cursor: grabbing !important; user-select: none !importan
           <button type="button" class="dock-link" id="projectOpen" title="Open a project file">OPEN PROJECT</button>
           <input type="file" id="projectFileInput" accept=".json,.ccproj.json,application/json" hidden>
         </div>
+        <div class="footage-search">
+          <div class="footage-search-row">
+            <input id="footageSearchInput" type="search" placeholder="SEARCH FOOTAGE — describe the shot" autocomplete="off" spellcheck="false" aria-label="Search footage by meaning">
+            <span class="mono-dim" id="footageSearchStatus">LOCAL INDEX</span>
+          </div>
+          <div class="footage-results" id="footageSearchResults" hidden></div>
+        </div>
         <div class="project-library" id="projectLibrary" hidden>
           <div class="project-library-head">
             <span>PROJECT LIBRARY</span>
@@ -4993,7 +5229,7 @@ body.asset-dragging * { cursor: grabbing !important; user-select: none !importan
       <button type="button" id="playToggle" class="monitor-btn monitor-play" title="Play / pause (Space)" aria-label="Play"><svg viewBox="0 0 12 12" aria-hidden="true"><path d="M3 2l7 4-7 4z" fill="currentColor"/></svg></button>
       <span class="monitor-time"><span id="monitorTime">00:00:00:00</span><span class="monitor-sep">/</span><span id="monitorDuration">00:00:00:00</span></span>
       <span class="monitor-spacer"></span>
-      <span class="monitor-chip" id="monitorFps">60 FPS</span>
+      <select class="monitor-chip" id="monitorFps" title="Frame rate for preview timing and export. Preview smoothness follows your display refresh; export renders every frame offline." aria-label="Frame rate"><option value="60">60 FPS</option></select>
       <button type="button" id="fitToggle" class="monitor-btn" title="Fit preview to the monitor">FIT</button>
       <button type="button" id="monitorFullscreen" class="monitor-btn" title="Fullscreen program monitor" aria-label="Fullscreen monitor"><svg viewBox="0 0 12 12" aria-hidden="true"><path d="M1.5 4.5V1.5h3M8 1.5h2.5v3M10.5 8v2.5H8M4 10.5H1.5V8" stroke="currentColor" fill="none" stroke-width="1.2"/></svg></button>
     </div>
@@ -5043,7 +5279,7 @@ body.asset-dragging * { cursor: grabbing !important; user-select: none !importan
           </label>
           <label class="mi-field">
             <span>DURATION</span>
-            <input id="ciDuration" type="number" min="0.5" max="60" step="0.1" value="3">
+            <input id="ciDuration" type="number" min="0.5" max="86400" step="0.1" value="3">
           </label>
           <label class="mi-field">
             <span>TRACK</span>
@@ -5085,11 +5321,11 @@ body.asset-dragging * { cursor: grabbing !important; user-select: none !importan
           </label>
           <label class="mi-field">
             <span id="miDurationLabel">CLIP LENGTH</span>
-            <input id="miDuration" type="number" min="0.5" max="60" step="0.1" value="3">
+            <input id="miDuration" type="number" min="0.5" max="86400" step="0.1" value="3">
           </label>
           <label class="mi-field" id="miSourceInField" hidden>
             <span>SOURCE IN · SLIP</span>
-            <input id="miSourceIn" type="number" min="0" max="60" step="0.1" value="0">
+            <input id="miSourceIn" type="number" min="0" max="86400" step="0.1" value="0">
           </label>
           <label class="mi-field" id="miFitField">
             <span>FIT</span>
@@ -5139,25 +5375,15 @@ body.asset-dragging * { cursor: grabbing !important; user-select: none !importan
           <div class="mi-analysis-head"><span>TECHNICAL</span><span id="miAnalysisStatus">—</span></div>
           <div class="mi-analysis-grid" id="miAnalysisGrid"></div>
           <div class="mi-content-block" id="miContentBlock" hidden>
-            <div class="mi-analysis-head"><span>CONTENT</span><span id="miContentStatus">NOT ANALYZED</span></div>
+            <div class="mi-analysis-head"><span>CONTENT</span><span id="miContentStatus">NOT INDEXED</span></div>
             <div class="mi-shots" id="miShots" hidden></div>
             <div class="mi-shots-meta" id="miShotsMeta" hidden></div>
             <div class="mi-tags" id="miTags" hidden></div>
             <p class="mi-semantic-text" id="miSemanticText" hidden></p>
-            <div class="mi-transcript" id="miTranscript" hidden></div>
             <p class="mi-note" id="miSemanticNote"></p>
             <div class="mi-content-actions">
               <button type="button" id="miAnalyzeToggle" class="timeline-btn">ANALYZE CONTENT</button>
               <span class="mi-shots-meta" id="miAnalyzeHint"></span>
-            </div>
-            <div class="mi-consent" id="miConsentRow" hidden>
-              <p class="mi-note" id="miConsentText"></p>
-              <label class="mi-check"><input type="checkbox" id="miConsentCheck"> I AGREE TO THIS UPLOAD</label>
-              <label class="mi-check" id="miConsentAudioRow" hidden><input type="checkbox" id="miConsentAudioCheck" checked> INCLUDE AUDIO FOR TRANSCRIPTION</label>
-              <div class="mi-consent-actions">
-                <button type="button" id="miAnalyzeRun" class="timeline-btn media-btn" disabled>UPLOAD &amp; ANALYZE</button>
-                <button type="button" id="miAnalyzeCancel" class="timeline-btn">CANCEL</button>
-              </div>
             </div>
             <div class="mi-note-edit">
               <label class="mi-field"><span>USER NOTE</span><textarea id="miUserNote" rows="2" maxlength="2000" placeholder="Human-confirmed description used by search and the agent…"></textarea></label>
@@ -5225,6 +5451,11 @@ body.asset-dragging * { cursor: grabbing !important; user-select: none !importan
       <div id="chatMessages"></div>
       <div class="ai-chat-foot">
         <div class="chat-composer">
+          <div id="chatDictation" class="chat-dictation" hidden>
+            <span class="chat-dictation-dot" aria-hidden="true"></span>
+            <span id="chatDictationText" class="chat-dictation-text">Starting dictation engine…</span>
+            <button type="button" id="chatDictationCancel" class="chat-dictation-cancel" title="Cancel dictation" aria-label="Cancel dictation">✕</button>
+          </div>
           <textarea id="chatInput" placeholder="Ask Clipppa to write or fix animation code..." rows="1"></textarea>
           <div class="chat-composer-bar">
             <div class="chat-model-wrap">
@@ -5235,6 +5466,12 @@ body.asset-dragging * { cursor: grabbing !important; user-select: none !importan
                 <span class="chat-model-caret">▾</span>
               </button>
               <div id="chatModelMenu" class="chat-model-menu" role="listbox" aria-label="Model" hidden></div>
+            </div>
+            <div class="chat-dictation-controls">
+              <span id="chatMicLang" class="chat-mic-lang" title="Dictation language: English">EN</span>
+              <button type="button" id="chatMic" class="chat-mic" title="Speak your prompt in English" aria-label="Dictate prompt" aria-pressed="false">
+                <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"></path><path d="M19 10v1a7 7 0 0 1-14 0v-1"></path><line x1="12" y1="18" x2="12" y2="22"></line></svg>
+              </button>
             </div>
             <button type="button" id="chatSend">SEND</button>
           </div>
@@ -5286,7 +5523,7 @@ body.asset-dragging * { cursor: grabbing !important; user-select: none !importan
                 id="customClipLength"
                 type="number"
                 min="0.5"
-                max="60"
+                max="86400"
                 step="0.25"
                 value="15"
                 placeholder="Custom seconds"
@@ -5294,18 +5531,18 @@ body.asset-dragging * { cursor: grabbing !important; user-select: none !importan
                 oninput="activateCustomClipLength(); updateTimingSummary()"
               />
             </div>
-            <small class="field-help">Custom length runs 0.5–60s; Auto adapts to the animation.</small>
+            <small class="field-help">Custom length runs 0.5s and up; Auto adapts to the animation.</small>
 
             <div class="field">
               <label class="field-label">Frame Range (seconds)</label>
               <div class="grid-2 range-fields">
                 <div class="field">
                   <label class="field-sub-label" for="renderStart">Start</label>
-                  <input id="renderStart" type="number" min="0" max="60" step="0.25" value="0" placeholder="0">
+                  <input id="renderStart" type="number" min="0" max="86400" step="0.25" value="0" placeholder="0">
                 </div>
                 <div class="field">
                   <label class="field-sub-label" for="renderEnd">End</label>
-                  <input id="renderEnd" type="number" min="0.5" max="60" step="0.25" value="" placeholder="auto">
+                  <input id="renderEnd" type="number" min="0.5" max="86400" step="0.25" value="" placeholder="auto">
                 </div>
               </div>
               <div class="chips">
@@ -5356,7 +5593,10 @@ body.asset-dragging * { cursor: grabbing !important; user-select: none !importan
                   <option value="48">48 FPS</option>
                   <option value="50">50 FPS</option>
                   <option value="60" selected>60 FPS</option>
+                  <option value="90">90 FPS</option>
                   <option value="120">120 FPS</option>
+                  <option value="144">144 FPS</option>
+                  <option value="240">240 FPS</option>
                 </select>
               </div>
               <div class="field">
@@ -5372,6 +5612,7 @@ body.asset-dragging * { cursor: grabbing !important; user-select: none !importan
                 </select>
               </div>
             </div>
+            <small class="field-help">24–240 FPS. Export renders frame-by-frame offline; live preview smoothness follows your display refresh.</small>
             <div class="grid-2 profiles-row">
               <div class="field">
                 <label class="field-label" for="bitrate">Bitrate</label>
@@ -5453,9 +5694,16 @@ body.asset-dragging * { cursor: grabbing !important; user-select: none !importan
               <button type="button" id="zoomFit" class="timeline-btn" title="Fit the sequence to the view">FIT</button>
               <button type="button" id="zoomIn" class="timeline-btn icon" title="Zoom in">+</button>
               <div class="timeline-zoom-control">
-                <input id="timelineZoomRange" class="timeline-zoom-range" type="range" min="100" max="800" step="5" value="100" aria-label="Timeline zoom slider">
-                <input id="timelineZoomInput" class="timeline-zoom-input" type="number" min="100" max="800" step="5" value="100" list="timelineZoomPresets" aria-label="Timeline zoom percent">
+                <input id="timelineZoomRange" class="timeline-zoom-range" type="range" min="1" max="800" step="1" value="100" aria-label="Timeline zoom slider">
+                <input id="timelineZoomInput" class="timeline-zoom-input" type="number" min="1" max="800" step="1" value="100" list="timelineZoomPresets" aria-label="Timeline zoom percent">
                 <datalist id="timelineZoomPresets">
+                  <option value="1"></option>
+                  <option value="2"></option>
+                  <option value="5"></option>
+                  <option value="10"></option>
+                  <option value="25"></option>
+                  <option value="50"></option>
+                  <option value="75"></option>
                   <option value="100"></option>
                   <option value="125"></option>
                   <option value="150"></option>
@@ -5805,7 +6053,7 @@ const BASE_CAPTURE_SETTINGS = Object.freeze({
   minDuration: 0.35,
   settleWindow: 0.45
 });
-const HARD_MAX_DURATION_SECONDS = 60;
+const HARD_MAX_DURATION_SECONDS = 24 * 60 * 60;
 const CANVAS_CAPTURE_SETTINGS = Object.freeze({
   contentMode: 'canvas',
   frameRate: 60,
@@ -6271,6 +6519,12 @@ function updateTimingModeBadge(settings) {
 
 function formatTimelineTime(seconds) {
   const safe = Math.max(0, Number(seconds) || 0);
+  if (safe >= 3600) {
+    const hours = Math.floor(safe / 3600);
+    const mins = Math.floor((safe - hours * 3600) / 60);
+    const secs = (safe - hours * 3600 - mins * 60).toFixed(2).padStart(5, '0');
+    return `${hours}:${String(mins).padStart(2, '0')}:${secs}`;
+  }
   if (safe >= 60) {
     const mins = Math.floor(safe / 60);
     const secs = (safe - mins * 60).toFixed(2).padStart(5, '0');
@@ -6610,19 +6864,20 @@ window.addEventListener('message', (event) => {
     });
     return;
   }
-  const scene = activeClip();
-  if (!scene || clipIsMedia(scene)) return;
+  const src = String(data.src || '');
   if (data.kind === 'select') {
-    const asset = findAssetByUrl(String(data.src || ''));
+    const asset = findAssetByUrl(src);
     if (asset) selectAsset(asset.id);
     return;
   }
   if (data.kind === 'move') {
+    const owner = sceneMediaOwner(src);
+    if (!owner) return;
     const left = Math.max(2, Math.min(98, Number(data.left) || 0));
     const top = Math.max(2, Math.min(98, Number(data.top) || 0));
-    if (updateSceneMediaPosition(scene, String(data.src || ''), left, top)) {
+    if (updateSceneMediaPosition(owner, src, left, top)) {
       saveTimelineState(true);
-      setStatus(`Media moved inside ${scene.name}`, 'ok');
+      setStatus(`Media moved inside ${owner.name}`, 'ok');
     }
   }
 });
@@ -6659,7 +6914,7 @@ function injectPreviewReporter(code) {
 const SCENE_MEDIA_MARK = 'data-clipacanvas-scene-media';
 const SCENE_MEDIA_TOOLS = '<script ' + SCENE_MEDIA_MARK + '>(function(){'
   + 'var post=function(kind,el){try{parent.postMessage({source:"clipacanvas-scene-media",kind:kind,src:el.getAttribute("src")||"",left:parseFloat(el.style.left)||0,top:parseFloat(el.style.top)||0},"*")}catch(e){}};'
-  + 'var bind=function(el){if(el.getAttribute("data-cc-bound"))return;el.setAttribute("data-cc-bound","1");'
+  + 'var bind=function(el){if(el.getAttribute("data-cc-bound"))return;el.setAttribute("data-cc-bound","1");if(el.getAttribute("data-cc-fill")==="1"){el.style.pointerEvents="none";return;}'
   + 'el.style.pointerEvents="auto";el.style.cursor="grab";'
   + 'el.addEventListener("click",function(e){e.preventDefault();post("select",el)});'
   + 'el.addEventListener("pointerdown",function(e){e.preventDefault();e.stopPropagation();'
@@ -6759,25 +7014,37 @@ const PREVIEW_CLOCK = `<script data-clipacanvas-clock>(function(){
   window.clearTimeout = function(id){ state.timers.delete(id); };
   window.clearInterval = window.clearTimeout;
   window.__clipacanvasMediaSeek = function(seconds, seekMedia){
-    if (seekMedia === false) return Promise.resolve();
     var target = Math.max(0, Number(seconds) || 0);
     var videos = Array.prototype.slice.call(document.querySelectorAll('video'));
     if (!videos.length) return Promise.resolve();
+    function seekTime(video){
+      var duration = Number(video.duration);
+      var sourceIn = Math.max(0, Number(video.dataset.sourceIn) || 0);
+      var absolute = sourceIn + target;
+      if (!isFinite(duration) || !(duration > 0)) return absolute;
+      return video.hasAttribute('data-source-in')
+        ? Math.min(absolute, Math.max(0, duration - 0.001))
+        : Math.min(Math.max(0, target % duration), Math.max(0, duration - 0.001));
+    }
+    // Live playback: the pause path stopped every video, so resuming the
+    // timeline has to start them again and keep them near the clock.
+    if (seekMedia === false) {
+      videos.forEach(function(video){
+        try {
+          var expected = seekTime(video);
+          if (video.readyState >= 1 && Math.abs(video.currentTime - expected) > 0.5) video.currentTime = expected;
+          if (video.paused) { var started = video.play(); if (started && started.catch) started.catch(function(){}); }
+        } catch (e) {}
+      });
+      return Promise.resolve();
+    }
     return Promise.all(videos.map(function(video){
       return new Promise(function(resolve){
         var settled = false;
         var finish = function(){ if (settled) return; settled = true; video.removeEventListener('seeked', finish); video.removeEventListener('error', finish); resolve(); };
         try { video.pause(); } catch (e) {}
         if (video.error || video.readyState < 1) { finish(); return; }
-        var duration = Number(video.duration);
-        var sourceIn = Math.max(0, Number(video.dataset.sourceIn) || 0);
-        var absolute = sourceIn + target;
-        var seekTo = absolute;
-        if (isFinite(duration) && duration > 0) {
-          seekTo = video.hasAttribute('data-source-in')
-            ? Math.min(absolute, Math.max(0, duration - 0.001))
-            : Math.min(Math.max(0, target % duration), Math.max(0, duration - 0.001));
-        }
+        var seekTo = seekTime(video);
         if (Math.abs(video.currentTime - seekTo) < 0.02 && video.readyState >= 2) { finish(); return; }
         video.addEventListener('seeked', finish, { once: true });
         video.addEventListener('error', finish, { once: true });
@@ -7225,13 +7492,13 @@ function getFrameRangeValues() {
 function getFrameRangeValidationError() {
   const { start, end } = getFrameRangeValues();
   if (start > HARD_MAX_DURATION_SECONDS) {
-    return `Frame range start must be ${HARD_MAX_DURATION_SECONDS}s or less.`;
+    return `Frame range start must be ${formatTimelineTime(HARD_MAX_DURATION_SECONDS)} or less.`;
   }
   if (end === null) return '';
   if (!Number.isFinite(end)) return 'Frame range end must be a number.';
   if (end <= start) return 'Frame range end must be greater than the start.';
   if (end > HARD_MAX_DURATION_SECONDS) {
-    return `Frame range end must be ${HARD_MAX_DURATION_SECONDS}s or less.`;
+    return `Frame range end must be ${formatTimelineTime(HARD_MAX_DURATION_SECONDS)} or less.`;
   }
   return '';
 }
@@ -8156,11 +8423,12 @@ const CHAT_SYSTEM_PROMPT = [
   'You are Clipppa, the AI assistant inside Clip.A.Canvas, a desktop tool that renders single-file HTML/CSS/JS animations to MP4, WebM, MOV or GIF files.',
   'You can act on the app with tools instead of only talking:',
   '- get_app_state: read the selected scene code, the full timeline, export settings and latest render result.',
-  '- insert_animation_code: put a finished animation into the SELECTED scene (the editor); the live preview refreshes immediately. If the selected clip is imported media, a new blank code scene is created instead; imported media is never converted or overwritten.',
+  '- insert_animation_code: write or replace the SELECTED code scene with one complete HTML document; the live preview refreshes immediately. When the scene already contains embedded media (an <img>/<video> with class="cc-scene-media"), the app carries those elements into your new HTML automatically if you omit them, inserting them at the top of the body behind your content; include them yourself when you need to control their placement or stacking. Build titles, captions, animation or effects inside the same document — never create a separate overlay scene for content that belongs to that scene. A full-frame video is the background, so put new content after it with a higher z-index (for example 30). Pass removeMedia:true only when the user explicitly asks to remove the media. If the selected clip is imported media, a new blank code scene is created instead; imported media is never converted or overwritten.',
   '- add_scene: create an additional scene as its own logic box on the timeline, with its own complete HTML animation. The app appends it, selects it and previews it.',
   '- search_assets and get_asset_analysis: inspect the project bin before composing around imported media. They return cached technical metadata, a locally detected shot list with keyframe indices, a local visual index (EmbeddingGemma 2 tags with scores per asset and per keyframe, plus a motion score and label for videos), AI descriptions (only when the user ran consented content analysis) and an explicit semantic status. The visual index is computed on this machine without consent, so its tags are evidence about what the footage shows — cite them plainly and never claim more than they say. When both the visual index and the semantic status are empty, do not claim to see what the footage shows or to have heard its audio. For an overlay, title or caption on a media clip, call get_asset_analysis first and let its tags, shot times and motion steer the text, the timing and what the overlay must not cover.',
   '- update_asset_description: save a human-confirmed description or production note on an asset. Keep it separate from AI-generated analysis and never overwrite it with generated text.',
-  '- create_overlay, update_overlay, delete_overlay, attach_overlay, detach_overlay: build HTML overlays on their own track above footage. Overlay pages must use a fully transparent background. parentClipId makes an overlay follow its parent clip\'s timing while staying independently editable. This is attachment, not motion tracking — never claim to track objects in the footage.',
+  '- create_overlay, update_overlay, delete_overlay, attach_overlay, detach_overlay: build HTML overlays on their own track above footage. Use these for imported video/image clips that have no HTML of their own; content for a code scene goes inside that scene. Overlay pages must use a fully transparent background. parentClipId makes an overlay follow its parent clip\'s timing while staying independently editable. This is attachment, not motion tracking — never claim to track objects in the footage.',
+  '- Putting a bin asset INSIDE a SCENE (a code scene such as Scene 01): call put_media_in_scene with the assetId and the sceneId from get_app_state, or with the scene selected. It writes the media element into that scene\'s own HTML and never creates a new layer. Only when the target is an imported VIDEO clip (which has no HTML of its own) create a transparent overlay with the asset src, the parent clip\'s exact start and duration, and parentClipId. The user can drag media on the preview to reposition it.',
   '- get_clip_context: read a clip\'s timing, track, parent/children relationships and asset analysis before changing it.',
   '- generate_voiceover: narrate a script and place the audio on A1 (voiceover), A2 (music) or A3 (sound effects). It uses the best installed local neural voice by default (StyleTTS2, Kokoro, Piper or ZONOS3-Mini — provider ids "styletts2", "kokoro", "piper", "zonos"); Windows Speech stays the offline fallback and hosted voices need a configured key. Pick the narrator deliberately: when the script or the user calls for a male or female voice, pass gender "male"/"female" (never settle for the default female voice for a male narration), or pass voice with an id or name from the Available speech voices system message. StyleTTS2 ships LJSpeech plus three female and four male LibriTTS voices, ZONOS3-Mini adds 27 named male/female narrators across 43 languages (for example Savannah, Arjun, Ananya, Gaspard, Meilin), Kokoro and Windows Speech also have male voices, and the app switches providers when the preferred engine has no match. For languages outside the installed voices, prefer the ZONOS3-Mini voice for that language. Set captions true when the brief asks for subtitles, or call add_captions for existing narration. Never claim audio was generated unless the tool returned ok with a duration.',
   '- add_captions: add timed subtitle clips above the scenes from a text, an audio clip or explicit start and duration. Captions are real timeline clips and appear in both the Program Monitor and the export.',
@@ -8169,7 +8437,7 @@ const CHAT_SYSTEM_PROMPT = [
   '- add_transition, update_transition, remove_transition: put a saved transition on a cut where two clips touch on one track. Presets: dissolve, fade-black, fade-white, dip-color, wipe, push, slide, zoom-in, zoom-out, zoom-blur, glitch, rgb-split, blur-dissolve. Transitions are the default finish for a cut: whenever two or more scenes touch on a track, add a transition on your own without waiting to be asked — choose a preset that fits the energy, and for a signature look (light leak, glitch, comic snap, custom wipe) write the renderTransition code yourself and pass type "custom". One add_transition call with all:true applies the same effect to every touching cut; add_scene also accepts a transition object for the cut it creates and otherwise installs a 0.4s dissolve placeholder, which you should replace with the right effect before finishing. Never leave a produced sequence as raw hard cuts unless the user explicitly asks for hard cuts. For a requested custom effect generate type "custom" with code declaring function renderTransition(ctx) that returns { outgoing, incoming, overlay } style objects using ctx.progress (0→1) and CSS properties opacity, transform, filter, clipPath, backgroundColor, mixBlendMode — no timers, randomness, network or DOM access. Transitions are deterministic in both the Program Monitor and the export; never claim a transition exists unless the tool returned ok.',
   '- set_export_settings: change export settings, only for settings the user explicitly requested in their latest message.',
   '- render_video: render the whole timeline (every scene, in order and by layer) to one video file with the current settings.',
-  'Before each tool call, write one short action line in plain text (max 8 words, present tense), such as "Writing the canvas animation…" or "Rendering the final video…". The app shows that line live in the chat while the tool runs; do not repeat it in your final answer.',
+  'Before each tool call, write one short action line in plain text (max 8 words, present tense) that names the object and the operation, such as "Rewriting Scene 01 around the wheel video…", "Adding transparent captions over Scene 02…" or "Placing a dissolve at the 6s cut…". Never use a vague line like "Updating…". The app shows that line live in the chat while the tool runs; do not repeat it in your final answer.',
   'Match the user\'s pace; do not force one fixed interview and do not force immediate action. Read the latest message and the conversation, then choose one of three flows:',
   '1. Guided: the user is vague, asks for help, or wants to set things up step by step. Ask ONE useful question at a time, offer concrete options when helpful, and build after the key choices are settled.',
   '2. One-shot: the user gives a complete brief or says "just make it". Do not ask anything; decide the remaining details yourself and deliver the animation.',
@@ -8183,9 +8451,13 @@ const CHAT_SYSTEM_PROMPT = [
   '- The timeline is the deliverable: it is an NLE-style sequence with V1-V4 video tracks, a playhead and a project bin of imported assets. Each logic box is one code scene with its own complete HTML document. Scenes play at their start times and export as a single video. The editor always shows only the selected clip.',
   '- Imported images and videos live in the project bin; the user inserts them at the playhead or drags them onto a track, then trims and splits the resulting clips. They are the user\'s media: never replace, convert or delete them unless the user explicitly asks. Use add_scene only for new code scenes.',
   '- For a sequence, a story, an ad with several beats, an intro/outro, or any request for "another scene", "scene two", "add a scene" or multiple scenes: write the first scene with insert_animation_code (when it belongs in the selected scene) and call add_scene once for every additional scene. One tool call and one HTML document per scene. Never merge several scenes into one HTML file and never simulate extra scenes inside a single document.',
-  '- A multi-scene brief is a production, not a single reply. Count the scenes the user asked for and keep calling tools across rounds until every one of them exists on the timeline, then add transitions at every cut (automatically — use custom code when the look is signature), overlays and audio, and only then write a short closing summary. Never stop after the first scene, never wait for the user to say "continue", and never replace an existing scene to make room for a new one. The app keeps executing your tool calls until you stop calling tools.',
-  '- When the user asks to add a scene to an existing edit, call add_scene. Do not rewrite or replace the existing scene unless the user asked to change it.',
-  '- Use add_scene with layer:"same" for normal cuts that follow the previous scene, and layer:"above" for titles, captions, logos or overlays that must sit on top of another scene. Overlay scenes must use a fully transparent page background (html, body { background: transparent; margin: 0; }).',
+  '- A multi-scene brief is a production, not a single reply. Count the scenes the user asked for and keep calling tools across rounds until every one of them exists on the timeline, then add transitions at every cut (automatically — use custom code when the look is signature), titles or captions where they belong, overlays for imported media clips, and audio, and only then write a short closing summary. Never stop after the first scene, never wait for the user to say "continue", and never replace an existing scene to make room for a new one. The app keeps executing your tool calls until you stop calling tools.',
+  '- When the user asks to add a scene to an existing edit, call add_scene. Do not rewrite a different existing scene unless the user asked to change it. When the user asks for content on the selected scene (a title, caption, logo, effect or animation around its media), that is a change to that scene: rewrite it in place with insert_animation_code and keep its embedded media.',
+  '- A caption or subtitle clip is text only. Its HTML background must be fully transparent (html, body and every full-size wrapper: background: transparent), it must never contain or re-place a video/image source, and it must not paint any background fill over the frame. Captions for a scene\'s footage go either inside that scene document or in a transparent clip on a higher track at the scene\'s exact start and duration. Never make a caption clip by copying the scene\'s video full-frame; that hides the scenes below it, which reads as one scene overlaid on another.',
+  '- Embedded media belongs to its own scene only. Never copy Scene 01\'s media into Scene 02, a caption clip or an overlay clip. When a new scene sits over existing footage, either the footage stays in its scene and the new clip is transparent content above it on a higher track, or that media is inserted into the new scene with put_media_in_scene.',
+  '- When the user asks for captions, overlays or transitions "for the clips", work from the timeline: identify each clip by name, layer and start/duration, write the caption text for what that clip shows (use its embeddedMedia visual tags/moments and description), and time it to the same start and duration. State in one short line which clip you are changing before each tool call.',
+  '- Never answer a title, caption or effect request on a code scene by adding an overlay layer: the scene document is the composition. Only imported video/image clips use overlay layers.',
+  '- Use add_scene with layer:"same" for normal cuts that follow the previous scene. Use layer:"above" only for a separate overlay scene above an imported video/image clip, or when the user explicitly asks for an independent overlay scene. When the target is a code scene, write titles, captions, logos and effects inside that same scene with insert_animation_code and keep its media element; do not add another layer. Independent overlay scenes must use a fully transparent page background (html, body { background: transparent; margin: 0; }).',
   '- Give every scene a duration that matches its animation length; that duration is used on the timeline and in the export. Pass duration to add_scene for a new scene, and to insert_animation_code when you fill a scene or change its animation length.',
   '- A new scene is blank until its code is written. If the user selects an empty scene and asks for its content, fill it with insert_animation_code; do not create yet another scene for it.',
   '- The timeline can also hold imported image and video clips (their timeline type is image or video). They are the user\'s media: never replace, convert or delete them unless the user explicitly asks. Use add_scene only for new code scenes.',
@@ -8202,7 +8474,7 @@ const CHAT_SYSTEM_PROMPT = [
   '- Keep animations between 3 and 12 seconds of motion.',
   '- For non-code questions, answer in at most 3 short sentences.',
   '- Never output JSON, thinking blocks, or internal reasoning.',
-  '- If tools are unavailable, deliver the same file as exactly ONE complete HTML document inside a single ```html code fence and nothing else. As the LAST line inside that HTML, include one settings comment like <!--SETTINGS resolution=1920x1080 fps=60 duration=8 format=mp4 bitrate=5M--> (resolution is WxH pixels matching the user\'s aspect ratio and tier; fps 24/25/30/48/50/60/120; duration in seconds; format mp4/webm/mov/gif; bitrate 1M/2M/5M/10M/20M). The app only keeps settings the user actually requested.',
+  '- If tools are unavailable, deliver the same file as exactly ONE complete HTML document inside a single ```html code fence and nothing else. As the LAST line inside that HTML, include one settings comment like <!--SETTINGS resolution=1920x1080 fps=60 duration=8 format=mp4 bitrate=5M--> (resolution is WxH pixels matching the user\'s aspect ratio and tier; fps 24/25/30/48/50/60/90/120/144/240; duration in seconds; format mp4/webm/mov/gif; bitrate 1M/2M/5M/10M/20M). The app only keeps settings the user actually requested.',
   '- The current export settings are provided in a system message; they are the user\'s fixed choices, so use them as-is and do not adjust them.'
 ].join('\n');
 
@@ -8218,8 +8490,8 @@ const GOLDFISH_SYSTEM_PROMPT = [
   'You are strictly read-only. Do not rewrite the code, do not return a replacement, do not ask questions.',
   'The artifact is a single-file HTML/CSS/JS animation that Clip.A.Canvas plays in a sandboxed browser preview and renders to video at the given resolution, fps and duration.',
   'Run this checklist item by item against the evidence:',
-  '1. Execution: parse errors, syntax errors, undefined references, unsupported APIs, external scripts/fonts/images, fetch or network dependencies. Any error or missing dependency is a blocker.',
-  '2. Motion: a canvas draw loop, CSS/WAAPI/SMIL animation or equivalent must start on load and advance with virtual time. No dependence on wall-clock startup timing, user input, hover, autoplay permission or random init that can stall. Nothing moving is a blocker.',
+  '1. Execution: parse errors, syntax errors, undefined references, unsupported APIs, external scripts/fonts/images, fetch or network dependencies. A project asset served by the app under /media/ (an <img>/<video> with class="cc-scene-media") is local media and is allowed; any other remote or network dependency is a blocker.',
+  '2. Motion: a canvas draw loop, CSS/WAAPI/SMIL animation or equivalent must start on load and advance with virtual time. No dependence on wall-clock startup timing, user input, hover, autoplay permission or random init that can stall. A scene-media video is driven by the scene clock, so it is not expected to be the artifact\'s motion source. Nothing moving is a blocker.',
   '3. Viewport: the root/canvas must fit the export resolution exactly (width x height and aspect ratio); no fixed size that overflows, no clipping, no letterboxing, no elements outside the frame. A resolution mismatch is at least a major finding; a clipped or blank frame is a blocker.',
   '4. Request match: every explicitly requested subject, character, action, text, color, setting and duration/loop behavior must be present. Substituting a different subject or omitting a requested element is at least a major finding.',
   '5. Visibility: no blank first frame, no off-canvas or overlapping content, no unreadable contrast, no undefined/placeholder text, no absurdly fast or stalled motion.',
@@ -8319,7 +8591,9 @@ async function runGoldfishReview({ request, code, provider, apiKey, model, allow
         provider,
         apiKey,
         model,
+        purpose: 'review',
         allowFallback,
+        fallbackOnQuota: true,
         tools: false,
         messages: buildGoldfishReviewMessages(request, code, currentSettingsSnapshot(), collectPreviewDiagnostics())
       })
@@ -8344,6 +8618,9 @@ let keysSaveTimer = null;
 let chatLogSaveTimer = null;
 let chatProjectScope = '';
 let chatScopeLoading = false;
+// Today's provider request counts, read from the local ledger in the backend.
+// Providers don't expose remaining quota, so this is what the app can honestly show.
+let llmUsage = { today: '', usage: {} };
 
 function chatActiveSessionKey(scope = chatProjectScope) {
   return `clipacanvas.chatActive.${scope || 'global'}`;
@@ -8586,6 +8863,80 @@ function modelShortName(modelName) {
   return String(modelName || '').replace(/^models\//, '');
 }
 
+function formatCooldown(seconds) {
+  const total = Math.max(1, Math.round(Number(seconds) || 0));
+  if (total < 90) return `${total}s`;
+  if (total < 3600) return `${Math.ceil(total / 60)}m`;
+  return `${(total / 3600).toFixed(1).replace(/\.0$/, '')}h`;
+}
+
+function modelQuotaNote(model) {
+  const seconds = Number(model && model.cooldownSeconds) || 0;
+  return seconds > 0 ? `quota ~${formatCooldown(seconds)}` : '';
+}
+
+// Limits come from the backend: Gemini uses the AI Studio free-tier table
+// (RPM/TPM/RPD; no quota headers exist on the API) plus local per-minute
+// counting; Mistral uses its live x-ratelimit headers. Counts are shown as
+// used/limit so a fresh model reads 0/20, not 20/20.
+function modelUsed(limit, remaining) {
+  if (limit == null) return null;
+  return remaining != null ? Math.max(0, Number(limit) - Number(remaining)) : null;
+}
+
+function modelLimitNote(model) {
+  const limits = model && model.limits;
+  if (limits) {
+    const headroom = model.headroom || {};
+    const parts = [];
+    if (limits.rpm != null) {
+      const used = modelUsed(limits.rpm, headroom.rpm);
+      parts.push(`${used != null ? used : '?'}/${limits.rpm} rpm`);
+    }
+    if (limits.rpd != null) {
+      const used = modelUsed(limits.rpd, headroom.rpd);
+      parts.push(`${used != null ? used : '?'}/${limits.rpd} day`);
+    }
+    if (parts.length) return parts.join(' · ');
+  }
+  const quota = model && model.quotaLimit;
+  if (!quota || !quota.limit) return '';
+  if (quota.window === 'minute') return `${quota.limit}/min`;
+  const window = quota.window || 'day';
+  if (quota.window === 'day' && quota.remaining != null) {
+    const used = modelUsed(quota.limit, quota.remaining);
+    return `${used != null ? used : '?'}/${quota.limit} ${window}`;
+  }
+  return `${quota.limit}/${window}`;
+}
+
+function modelLimitsTitle(model) {
+  const limits = model && model.limits;
+  if (!limits) return '';
+  const headroom = model.headroom || {};
+  const parts = [];
+  if (limits.rpm != null) {
+    const used = modelUsed(limits.rpm, headroom.rpm);
+    parts.push(`${used != null ? used : '?'} of ${limits.rpm} requests/min used${headroom.rpm != null ? ` · ${headroom.rpm} left` : ''}`);
+  }
+  if (limits.tpm != null) {
+    const used = modelUsed(limits.tpm, headroom.tpm);
+    parts.push(`${used != null ? formatTokenCount(used) : '?'} of ${formatTokenCount(limits.tpm)} tokens/min used`);
+  }
+  if (limits.rpd != null) {
+    const used = modelUsed(limits.rpd, headroom.rpd);
+    parts.push(`${used != null ? used : '?'} of ${limits.rpd} requests/day used${headroom.rpd != null ? ` · ${headroom.rpd} left` : ''}`);
+  }
+  if (model.limitsSource === 'free-table' || model.limitsSource === 'free-table+429') {
+    parts.push('free-tier limits (AI Studio, verified ' + (model.limitsVerifiedAt || '') + ')');
+  } else if (model.limitsSource === 'headers' || model.limitsSource === 'headers+429') {
+    parts.push('live provider headers');
+  } else if (model.limitsSource === '429') {
+    parts.push('reported by the provider 429');
+  }
+  return parts.join(' · ');
+}
+
 function populateModelSelect() {
   const select = document.getElementById('llmModel');
   if (!select) return;
@@ -8599,7 +8950,8 @@ function populateModelSelect() {
   for (const model of chatState.models[provider] || []) {
     const option = document.createElement('option');
     option.value = model.name;
-    option.textContent = model.displayName + ' — ' + modelShortName(model.name);
+    const quota = modelQuotaNote(model);
+    option.textContent = model.displayName + ' — ' + modelShortName(model.name) + (quota ? ` · ${quota}` : '');
     select.appendChild(option);
   }
   const stillValid = (chatState.models[provider] || []).some(m => m.name === previous);
@@ -8690,6 +9042,37 @@ async function refreshModels(provider = currentProvider()) {
 function queueModelsRefresh() {
   clearTimeout(modelsRefreshTimer);
   modelsRefreshTimer = setTimeout(() => refreshModels(currentProvider()), MODELS_REFRESH_DEBOUNCE_MS);
+}
+
+async function refreshLlmUsage() {
+  try {
+    const response = await fetchWithTimeout(buildApiUrl('/api/llm/usage'), { method: 'GET' }, 8000);
+    const payload = await response.json().catch(() => null);
+    if (!response.ok || !payload || !payload.ok || !payload.usage || typeof payload.usage !== 'object') return;
+    llmUsage = { today: String(payload.today || ''), usage: payload.usage };
+    for (const provider of ['gemini', 'mistral']) {
+      const models = payload.usage[provider] && payload.usage[provider].models;
+      if (!models) continue;
+      for (const model of chatState.models[provider] || []) {
+        const bucket = models[model.name] || models[modelShortName(model.name)];
+        if (!bucket) continue;
+        model.callsToday = Math.max(Number(model.callsToday) || 0, Number(bucket.calls) || 0);
+        if (bucket.limits) model.limits = bucket.limits;
+        if (bucket.headroom) model.headroom = bucket.headroom;
+        if (bucket.rateLimit) model.rateLimit = bucket.rateLimit;
+        if (bucket.serviceTier) model.serviceTier = bucket.serviceTier;
+      }
+    }
+    if (isComposerMenuOpen()) renderComposerMenu();
+  } catch (error) {
+    // Usage is informational; a failed read must never block the chat.
+  }
+}
+
+function usageForModel(provider, modelName) {
+  const models = llmUsage.usage && llmUsage.usage[provider] && llmUsage.usage[provider].models;
+  if (!models) return null;
+  return models[modelName] || models[modelShortName(modelName)] || null;
 }
 
 function queueKeysSave() {
@@ -8812,25 +9195,54 @@ function classifyQuestion(question, hasCode) {
   return 'flash';
 }
 
+function modelBlocked(model) {
+  if (!model) return true;
+  if (Number(model.cooldownSeconds) > 0) return true;
+  const limits = model.limits;
+  const headroom = model.headroom;
+  if (limits) {
+    if (limits.rpd === 0) return true;
+    if (headroom && (headroom.rpd === 0 || headroom.rpm === 0 || headroom.tpm === 0)) return true;
+  }
+  const quota = model.quotaLimit;
+  if (quota && quota.window === 'day' && quota.remaining === 0) return true;
+  const rate = model.rateLimit;
+  if (rate) {
+    const remaining = Number(rate['x-ratelimit-remaining-req-minute']);
+    const updated = Number(rate.updatedAt) || 0;
+    if (updated && Date.now() / 1000 - updated <= 70 && Number.isFinite(remaining) && remaining <= 0) return true;
+  }
+  return false;
+}
+
+function modelMatchesTier(provider, tier, model) {
+  const name = String(model.name || '').toLowerCase();
+  if (provider === 'gemini') {
+    if (tier === 'pro') return name.includes('pro') && !name.includes('flash');
+    if (tier === 'lite') return name.includes('flash-lite');
+    if (tier === 'flash') return name.includes('flash') && !name.includes('lite') && !name.includes('pro');
+    return false;
+  }
+  if (tier === 'pro') return name.includes('large');
+  if (tier === 'lite') return name.includes('small') || name.includes('ministral');
+  if (tier === 'flash') return name.includes('medium') || name.includes('codestral') || name.includes('code');
+  return false;
+}
+
 function findModelForTier(provider, tier, models) {
   const list = models || chatState.models[provider] || [];
   const good = (chatState.knownGood[provider] || {})[tier];
   if (good) {
     const hit = list.find(m => m.name === good);
-    if (hit) return hit;
+    if (hit && !modelBlocked(hit) && hit.supportsTools !== false) return hit;
   }
-  for (const model of list) {
-    const name = String(model.name || '').toLowerCase();
-    if (provider === 'gemini') {
-      if (tier === 'pro' && name.includes('pro') && !name.includes('flash')) return model;
-      if (tier === 'lite' && name.includes('flash-lite')) return model;
-      if (tier === 'flash' && (name.includes('flash') || name.includes('gemma')) && !name.includes('lite') && !name.includes('pro')) return model;
-    } else {
-      if (tier === 'pro' && name.includes('large')) return model;
-      if (tier === 'lite' && (name.includes('small') || name.includes('ministral'))) return model;
-      if (tier === 'flash' && (name.includes('medium') || name.includes('codestral') || name.includes('code'))) return model;
-    }
-  }
+  const candidates = list
+    .map((model, index) => ({ model, index }))
+    .filter(entry => modelMatchesTier(provider, tier, entry.model))
+    .filter(entry => entry.model.supportsTools !== false)
+    .filter(entry => !modelBlocked(entry.model))
+    .sort((a, b) => (Number(a.model.callsToday) || 0) - (Number(b.model.callsToday) || 0) || a.index - b.index);
+  if (candidates.length) return candidates[0].model;
   return null;
 }
 
@@ -8845,9 +9257,11 @@ function routeModel(question) {
     : (hasGemini ? ['gemini', 'mistral'] : (hasMistral ? ['mistral'] : []));
 
   for (const provider of providerOrder) {
-    const model = findModelForTier(provider, tier);
+    let model = findModelForTier(provider, tier);
+    if (!model && tier === 'pro') model = findModelForTier(provider, 'flash');
     if (model) return { tier, provider, model };
-    const fallback = (chatState.models[provider] || [])[0];
+    const list = chatState.models[provider] || [];
+    const fallback = list.find(m => m.supportsTools !== false && !modelBlocked(m)) || list[0];
     if (fallback) return { tier, provider, model: fallback };
   }
   return { tier, provider: null, model: null };
@@ -9196,7 +9610,9 @@ async function generateChatTitle(session, provider, apiKey, modelName) {
         provider,
         apiKey,
         model: modelName,
+        purpose: 'title',
         allowFallback: true,
+        fallbackOnQuota: true,
         tools: false,
         messages: [
           { role: 'system', content: 'You title chat conversations. Reply with only a short title of 2 to 6 words. No quotes, no ending punctuation, no explanation.' },
@@ -9279,11 +9695,33 @@ function buildChatApiMessages(userText) {
       role: 'system',
       content: `Current editor code (the selected scene only):\n\`\`\`html\n${code.slice(0, CHAT_CODE_CONTEXT_LIMIT)}\n\`\`\``
     });
+    const selectedMedia = sceneMediaDetails(code);
+    if (selectedMedia.length) {
+      messages.push({
+        role: 'system',
+        content: `The media embedded in the selected scene (from the local visual index — this is what the footage actually shows):\n${sceneMediaPrompt(selectedMedia)}\nTitles, captions, logos, effects and animation for this scene belong INSIDE this same document: call insert_animation_code with the complete scene HTML and compose around this footage. If you omit the media elements, the app keeps them automatically at the top of the body behind your content; include them yourself to control placement. A full-frame video is the background, so place new content after it with a higher z-index (for example 30). Do not use add_scene layer:"above" or create_overlay for content on this scene. Never copy one scene's media into another scene or into a caption clip.`
+      });
+    }
   }
   messages.push({
     role: 'system',
-    content: `Current timeline (the real edit, ordered first scene to last): ${JSON.stringify(timelineSummaryForChat())}\nThe project bin holds imported assets (projectAssets); timeline items are clips on V1-V4 tracks with a playhead. Each timeline item is one clip: type "code" clips hold their own HTML document, type "image"/"video" clips reference a project asset with an in point. The editor code above is only the selected clip. Add every additional code scene with add_scene; never merge multiple scenes into one HTML document. Media clips belong to the user; do not replace, convert or delete them unless asked.`
+    content: `Current timeline (the real edit, ordered first scene to last): ${JSON.stringify(timelineSummaryForChat())}\nThe project bin holds imported assets (projectAssets); timeline items are clips on V1-V4 tracks with a playhead. Each timeline item is one clip: type "code" clips hold their own HTML document, type "image"/"video" clips reference a project asset with an in point. embeddedMedia on a scene is the local visual index of footage inside that scene's HTML (what it shows, its visual tags and per-second moments). The editor code above is only the selected clip. Add every additional code scene with add_scene; never merge multiple scenes into one HTML document. Media clips belong to the user; do not replace, convert or delete them unless asked.`
   });
+  if (active) {
+    const layer = active.type === 'audio' ? audioTrackForClip(active) : `V${(Number(active.track) || 0) + 1}`;
+    const kind = active.type === 'audio' ? 'audio clip' : active.type === 'code' || !active.type ? 'code scene' : `${active.type} clip`;
+    const start = Math.round((Number(active.start) || 0) * 10) / 10;
+    const duration = Math.round((Number(active.duration) || 0) * 10) / 10;
+    messages.push({
+      role: 'system',
+      content: `Current selection: ${kind} "${active.name}" on ${layer}, starts at ${start}s, ${duration}s long. The editor and the preview are showing exactly this clip right now, and this is the clip your next edit targets unless the user names another one.`
+    });
+  } else {
+    messages.push({
+      role: 'system',
+      content: 'Current selection: no clip is selected. The editor code above (if any) is not on the timeline.'
+    });
+  }
   const settings = currentSettingsSnapshot();
   messages.push({
     role: 'system',
@@ -9329,7 +9767,7 @@ const ASPECT_PRESETS = {
   '4:3': { ratio: 4 / 3, label: '4:3 · Classic' },
   '3:4': { ratio: 3 / 4, label: '3:4 · Portrait Photo' }
 };
-const CHAT_SETTINGS_FPS = [24, 25, 30, 48, 50, 60, 120];
+const CHAT_SETTINGS_FPS = [24, 25, 30, 48, 50, 60, 90, 120, 144, 240];
 
 function evenDimension(value) {
   return Math.max(16, Math.round(value / 2) * 2);
@@ -9663,7 +10101,8 @@ function chatToolAppState() {
       type: active.type || 'code',
       layer: `V${(Number(active.track) || 0) + 1}`,
       startSeconds: Number(active.start) || 0,
-      durationSeconds: Number(active.duration) || 0
+      durationSeconds: Number(active.duration) || 0,
+      embeddedMedia: clipIsMedia(active) ? [] : sceneMediaDetails(active.code)
     } : null,
     timeline: timelineSummaryForChat(),
     settings: currentSettingsSnapshot(),
@@ -9697,13 +10136,18 @@ function summarizeChatToolResult(name, result) {
   if (!result || result.ok === false) return String((result && result.error) || 'failed');
   if (name === 'get_app_state') return `${(result.editorCode || '').length} chars of editor code`;
   if (name === 'set_export_settings') return result.applied || 'settings unchanged';
-  if (name === 'insert_animation_code') return `${result.insertedCharacters || 0} chars inserted · preview refreshed`;
+  if (name === 'insert_animation_code') {
+    const kept = Number(result.preservedMedia) || 0;
+    return `${result.insertedCharacters || 0} chars inserted${kept ? ` · ${kept} media kept` : ''} · preview refreshed`;
+  }
   if (name === 'add_scene') {
     const scene = result.scene || {};
     const transition = result.transition?.ok ? ` · ${transitionTypeLabel(result.transition.type)}` : '';
     return `${scene.name || 'scene'} · ${scene.layer || 'V1'} · ${formatTimelineTime(scene.duration || 0)}${transition}`;
   }
+  if (name === 'put_media_in_scene') return `${result.asset?.name || 'media'} inside ${result.scene?.name || 'scene'}`;
   if (name === 'search_assets') return `${result.count || 0} asset${result.count === 1 ? '' : 's'}`;
+  if (name === 'search_footage') return `${result.count || 0} moment${result.count === 1 ? '' : 's'}`;
   if (name === 'get_asset_analysis') return result.asset?.name || 'asset analysis';
   if (name === 'update_asset_description') return 'asset note saved';
   if (name === 'generate_voiceover') {
@@ -9787,14 +10231,20 @@ async function executeChatTool(call) {
     const editor = document.getElementById('codeInput');
     if (!editor) return { ok: false, error: 'Editor is unavailable' };
     let clip = activeClip();
+    const previousCode = clip && !clipIsMedia(clip) ? String(clip.code || '') : '';
+    const nextSources = mediaElementSources(code);
+    const keptMedia = args.removeMedia === true
+      ? []
+      : sceneMediaTags(previousCode).filter(item => item.src && !nextSources.has(item.src));
+    const nextCode = keptMedia.length ? injectSceneMediaTags(code, keptMedia) : code;
     if (!clip || clipIsMedia(clip)) {
       const created = createSceneClip({ layer: 'same' });
       if (created.error) return { ok: false, error: created.error };
       clip = created.clip;
     }
-    editor.value = code;
+    editor.value = nextCode;
     syncActiveClipFromEditor(true);
-    try { localStorage.setItem('clipacanvas.lastCode', code); } catch (error) { console.error(error); }
+    try { localStorage.setItem('clipacanvas.lastCode', nextCode); } catch (error) { console.error(error); }
     const requestedDuration = Number(args.duration);
     let sceneDuration = clip ? clip.duration : null;
     if (clip && Number.isFinite(requestedDuration) && requestedDuration > 0) {
@@ -9811,7 +10261,41 @@ async function executeChatTool(call) {
     }
     chatTurnWroteCode = true;
     runPreview();
-    return { ok: true, insertedCharacters: code.length, sceneDuration, previewStarted: true };
+    return {
+      ok: true,
+      insertedCharacters: nextCode.length,
+      preservedMedia: keptMedia.length,
+      sceneDuration,
+      previewStarted: true
+    };
+  }
+
+  if (name === 'put_media_in_scene') {
+    const asset = timelineState.assets.find(item => item.id === String(args.assetId || ''));
+    if (!asset || asset.kind === 'audio') {
+      return { ok: false, error: 'Choose an image or video asset from the project bin.' };
+    }
+    const requested = args.sceneId
+      ? timelineState.clips.find(item => item.id === String(args.sceneId))
+      : activeClip();
+    if (requested && clipIsMedia(requested)) {
+      return { ok: false, error: 'That target is an imported video clip. Use create_overlay with parentClipId to nest media there.' };
+    }
+    const scene = requested && requested.type !== 'audio' ? requested : null;
+    if (!scene) {
+      return { ok: false, error: 'Select a code scene or pass sceneId from get_app_state.' };
+    }
+    const x = Number.isFinite(Number(args.x)) ? Math.max(4, Math.min(96, Number(args.x))) : 50;
+    const y = Number.isFinite(Number(args.y)) ? Math.max(4, Math.min(96, Number(args.y))) : 50;
+    const positioned = Number.isFinite(Number(args.x)) || Number.isFinite(Number(args.y));
+    const embedded = embedAssetInScene(asset, positioned ? { x, y } : null, scene);
+    if (!embedded) return { ok: false, error: 'Could not put the asset into the scene.' };
+    return {
+      ok: true,
+      scene: { id: scene.id, name: scene.name, start: scene.start, duration: scene.duration },
+      asset: assetTechnicalSummary(asset),
+      timeline: timelineSummaryForChat()
+    };
   }
 
   if (name === 'add_scene') {
@@ -9876,6 +10360,7 @@ async function executeChatTool(call) {
           asset.name,
           asset.kind,
           asset.analysis?.user?.description || '',
+          asset.analysis?.visual?.description || '',
           asset.analysis?.semantic?.description || '',
           ...(asset.analysis?.semantic?.tags || []),
           ...(asset.analysis?.semantic?.subjects || []),
@@ -9888,6 +10373,36 @@ async function executeChatTool(call) {
       .slice(0, 12)
       .map(assetTechnicalSummary);
     return { ok: true, count: matches.length, assets: matches };
+  }
+
+  if (name === 'search_footage') {
+    const query = String(args.query || '').trim();
+    if (!query) return { ok: false, error: 'query is required' };
+    const limit = Math.max(1, Math.min(20, Number(args.limit) || 8));
+    try {
+      const response = await fetch('/api/media/search', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query, limit })
+      });
+      const payload = await response.json().catch(() => null);
+      if (!response.ok || !payload?.ok) {
+        return { ok: false, error: payload?.error || 'Footage search failed.' };
+      }
+      const results = (payload.results || []).map(result => {
+        const asset = findAssetByUrl(result.url);
+        return {
+          assetId: asset?.id || null,
+          name: asset?.name || result.filename,
+          timeSeconds: result.time,
+          score: result.score,
+          thumbUrl: result.thumb || ''
+        };
+      });
+      return { ok: true, query, count: results.length, results };
+    } catch (error) {
+      return { ok: false, error: String(error?.message || error).slice(0, 160) };
+    }
   }
 
   if (name === 'get_asset_analysis') {
@@ -10301,7 +10816,9 @@ const CHAT_TOOL_ACTIONS = {
   set_export_settings: 'Updating export settings…',
   insert_animation_code: 'Writing the animation code…',
   add_scene: 'Adding a new scene…',
+  put_media_in_scene: 'Putting the media inside the scene…',
   search_assets: 'Searching project assets…',
+  search_footage: 'Searching footage by meaning…',
   get_asset_analysis: 'Reading asset analysis…',
   update_asset_description: 'Saving asset notes…',
   create_overlay: 'Building the overlay…',
@@ -10342,7 +10859,7 @@ function setChatThinking(el, text) {
 // The elephant carries the conversation and drives tools. One provider request
 // per round; conversation state is rebuilt every time so tool effects are
 // current, then the tool-call turn and results are appended for the next round.
-async function runElephantTurn({ userText, provider, apiKey, resolved, editorCodeBefore, onProgress, stealth = false, maxSteps = CHAT_TOOL_MAX_STEPS }) {
+async function runElephantTurn({ userText, provider, apiKey, resolved, editorCodeBefore, onProgress, stealth = false, maxSteps = CHAT_TOOL_MAX_STEPS, purpose = 'chat' }) {
   const toolTurns = [];
   const toolsUsed = [];
   const toolTraces = [];
@@ -10358,7 +10875,9 @@ async function runElephantTurn({ userText, provider, apiKey, resolved, editorCod
         provider,
         apiKey,
         model: resolved.model.name,
+        purpose,
         allowFallback: !resolved.manual,
+        fallbackOnQuota: true,
         tools: true,
         messages: buildChatApiMessages(userText).concat(toolTurns)
       })
@@ -10372,6 +10891,7 @@ async function runElephantTurn({ userText, provider, apiKey, resolved, editorCod
         delete chatState.knownGood[provider][resolved.tier];
         saveChatState();
       }
+      if (response.status === 429) refreshModels(provider);
       const message = payload?.error || `Backend returned ${response.status}`;
       if (!stealth) addChatMessage('error', `Chat failed: ${message}`);
       outcome.error = message;
@@ -10382,6 +10902,7 @@ async function runElephantTurn({ userText, provider, apiKey, resolved, editorCod
       chatState.knownGood[provider][resolved.tier] = payload.model;
       saveChatState();
     }
+    if (payload.fallbackFrom) refreshModels(provider);
     if (!stealth && step === 0 && payload.toolsDisabled) {
       addChatMessage('error', 'This model rejected the editor tools, so it can only return plain code. Switch models to create multiple scenes.');
     }
@@ -10597,7 +11118,9 @@ async function generateProductionPlan({ userText, provider, apiKey, resolved }) 
       provider,
       apiKey,
       model: resolved.model.name,
+      purpose: 'plan',
       allowFallback: !resolved.manual,
+      fallbackOnQuota: true,
       tools: false,
       messages: [
         { role: 'system', content: PLAN_SYSTEM_PROMPT },
@@ -10664,7 +11187,8 @@ async function runPlannedTurn({ userText, provider, apiKey, resolved, editorCode
         editorCodeBefore,
         onProgress: report,
         stealth: true,
-        maxSteps: PLAN_STEP_TOOL_STEPS
+        maxSteps: PLAN_STEP_TOOL_STEPS,
+        purpose: 'plan-step'
       });
       if (outcome && !outcome.error) break;
       await sleep(900 + attempt * 1200);
@@ -10780,10 +11304,6 @@ async function sendChat() {
       });
       renderPending = chatTurnPendingRender;
     }
-    if (first.reply) {
-      generateChatTitle(activeSession(), provider, apiKey, first.modelName || resolved.model.name);
-    }
-
     if (!plannedMode && first.codeAfter) {
       // Fresh goldfish pass: stateless and read-only, then the elephant (which
       // remembers the conversation) applies at most one invisible fix turn.
@@ -10810,7 +11330,8 @@ async function sendChat() {
             resolved,
             editorCodeBefore: document.getElementById('codeInput')?.value || '',
             onProgress: reportAction,
-            stealth: true
+            stealth: true,
+            purpose: 'fix'
           });
         } catch (error) {
           console.error('goldfish fix failed:', error);
@@ -10836,6 +11357,12 @@ async function sendChat() {
       chatTurnRendered = false;
       await executeChatTool({ name: 'render_video', args: {} });
     }
+
+    // Title last: running it beside the review used to spend two same-model
+    // requests in the same second, which matters on 2-5 RPM free tiers.
+    if (first.reply) {
+      generateChatTitle(activeSession(), provider, apiKey, first.modelName || resolved.model.name);
+    }
   } catch (error) {
     if (!resolved.manual) {
       delete chatState.knownGood[provider][resolved.tier];
@@ -10851,6 +11378,7 @@ async function sendChat() {
     chatTurnRendered = false;
     document.querySelectorAll('.chat-thinking').forEach(el => el.remove());
     chatBusy = false;
+    refreshLlmUsage();
     if (sendBtn) sendBtn.disabled = false;
     scrollChatToBottom();
   }
@@ -10958,6 +11486,279 @@ function initChat() {
 
 initChat();
 
+// ── DICTATION (local faster-whisper small.en, English) ────
+const dictationState = {
+  status: 'idle',
+  startedAt: 0,
+  elapsed: 0,
+  maxSeconds: 120,
+  timer: 0,
+  poll: 0,
+  hideTimer: 0,
+  discard: false,
+  level: 0,
+  modelReady: false,
+  modelPct: null,
+};
+
+function dictationElements() {
+  return {
+    mic: document.getElementById('chatMic'),
+    strip: document.getElementById('chatDictation'),
+    text: document.getElementById('chatDictationText'),
+    cancel: document.getElementById('chatDictationCancel'),
+    input: document.getElementById('chatInput'),
+  };
+}
+
+function setDictationStrip(kind, message) {
+  const els = dictationElements();
+  if (!els.strip || !els.text) return;
+  clearTimeout(dictationState.hideTimer);
+  els.strip.hidden = false;
+  els.strip.classList.toggle('busy', kind === 'busy');
+  els.strip.classList.toggle('done', kind === 'done');
+  els.strip.classList.toggle('error', kind === 'error');
+  els.text.textContent = message;
+  if (els.cancel) els.cancel.hidden = kind === 'done' || kind === 'error';
+}
+
+function hideDictationStrip(delay = 0) {
+  const els = dictationElements();
+  clearTimeout(dictationState.hideTimer);
+  const hide = () => {
+    if (dictationState.status !== 'idle') return;
+    if (els.strip) els.strip.hidden = true;
+  };
+  if (delay > 0) dictationState.hideTimer = setTimeout(hide, delay);
+  else hide();
+}
+
+function renderDictationControls() {
+  const els = dictationElements();
+  if (!els.mic) return;
+  const recording = dictationState.status === 'recording';
+  const busy = dictationState.status === 'starting' || dictationState.status === 'transcribing';
+  els.mic.classList.toggle('recording', recording);
+  els.mic.classList.toggle('busy', busy);
+  els.mic.setAttribute('aria-pressed', String(recording));
+  els.mic.title = recording ? 'Stop dictation and transcribe' : 'Speak your prompt in English';
+  els.mic.style.setProperty('--mic-level', recording ? dictationState.level.toFixed(3) : '0');
+}
+
+function renderDictationRecordingStrip() {
+  if (dictationState.status !== 'recording') return;
+  const els = dictationElements();
+  if (!els.text) return;
+  const seconds = Math.max(0, Math.floor(dictationState.elapsed));
+  const clock = `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`;
+  let message = `Listening · ${clock} · speak English`;
+  if (!dictationState.modelReady && dictationState.modelPct !== null) {
+    message += ` · model ${Math.min(99, Math.max(0, dictationState.modelPct))}%`;
+  }
+  els.text.textContent = message;
+}
+
+function stopDictationPoll() {
+  clearInterval(dictationState.poll);
+  dictationState.poll = 0;
+}
+
+function startDictationPoll() {
+  stopDictationPoll();
+  dictationState.poll = setInterval(async () => {
+    if (!['starting', 'recording', 'transcribing'].includes(dictationState.status)) return;
+    try {
+      const response = await fetchWithTimeout(buildApiUrl('/api/stt/status'), { cache: 'no-store' }, 5000);
+      const status = await response.json().catch(() => null);
+      if (!response.ok || !status || !status.ok) return;
+      dictationState.modelReady = Boolean(status.modelReady);
+      const progress = status.progress || {};
+      if (dictationState.status === 'recording') {
+        const peak = Number(status.peak) || 0;
+        dictationState.level = Math.min(1, Math.sqrt(Math.max(0, peak)) * 2.4);
+        if (Number.isFinite(status.elapsed) && status.elapsed > 0) {
+          dictationState.elapsed = Math.max(dictationState.elapsed, status.elapsed);
+        }
+        dictationState.modelPct = progress.stage === 'download' ? (Number(progress.pct) || 0) : null;
+        renderDictationControls();
+        renderDictationRecordingStrip();
+      } else if (dictationState.status === 'transcribing' && !status.modelReady) {
+        if (progress.stage === 'download') {
+          setDictationStrip('busy', `Preparing English speech model · ${Number(progress.pct) || 0}% · first run only`);
+        } else if (progress.stage === 'load') {
+          setDictationStrip('busy', 'Loading English speech model…');
+        }
+      }
+    } catch (error) {
+      // Status polling is best-effort; the stop request reports real errors.
+    }
+  }, 700);
+}
+
+function startDictationTimer() {
+  clearInterval(dictationState.timer);
+  dictationState.timer = setInterval(() => {
+    if (dictationState.status !== 'recording') return;
+    dictationState.elapsed = (Date.now() - dictationState.startedAt) / 1000;
+    if (dictationState.elapsed >= dictationState.maxSeconds) {
+      dictationState.elapsed = dictationState.maxSeconds;
+      renderDictationRecordingStrip();
+      dictationStop();
+      return;
+    }
+    renderDictationRecordingStrip();
+  }, 250);
+}
+
+function dictationFail(message) {
+  dictationState.status = 'idle';
+  dictationState.discard = false;
+  clearInterval(dictationState.timer);
+  dictationState.timer = 0;
+  stopDictationPoll();
+  renderDictationControls();
+  setDictationStrip('error', message || 'Dictation failed.');
+  hideDictationStrip(8000);
+}
+
+function postDictationCancel() {
+  fetchWithTimeout(buildApiUrl('/api/stt/cancel'), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: '{}',
+  }, 8000).catch(() => {});
+}
+
+function dictationCancel() {
+  if (dictationState.status === 'idle') return;
+  const wasTranscribing = dictationState.status === 'transcribing';
+  dictationState.discard = true;
+  dictationState.status = 'idle';
+  clearInterval(dictationState.timer);
+  dictationState.timer = 0;
+  stopDictationPoll();
+  renderDictationControls();
+  hideDictationStrip();
+  if (!wasTranscribing) postDictationCancel();
+}
+
+function insertDictationText(text) {
+  const els = dictationElements();
+  if (!els.input) return;
+  const current = els.input.value;
+  const glue = current && !/\s$/.test(current) ? ' ' : '';
+  els.input.value = `${current}${glue}${text}`;
+  els.input.dispatchEvent(new Event('input', { bubbles: true }));
+  els.input.focus();
+  els.input.setSelectionRange(els.input.value.length, els.input.value.length);
+}
+
+async function dictationStart() {
+  if (dictationState.status !== 'idle') return;
+  dictationState.status = 'starting';
+  dictationState.discard = false;
+  dictationState.elapsed = 0;
+  dictationState.level = 0;
+  dictationState.modelReady = false;
+  dictationState.modelPct = null;
+  renderDictationControls();
+  setDictationStrip('busy', 'Starting dictation engine…');
+  startDictationPoll();
+  try {
+    const response = await fetchWithTimeout(buildApiUrl('/api/stt/start'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: '{}',
+    }, 180000);
+    const payload = await response.json().catch(() => null);
+    if (dictationState.discard) {
+      postDictationCancel();
+      return;
+    }
+    if (!response.ok || !payload || !payload.ok) {
+      throw new Error((payload && payload.error) || 'Could not start dictation.');
+    }
+    dictationState.status = 'recording';
+    dictationState.startedAt = Date.now();
+    dictationState.maxSeconds = Number(payload.maxSeconds) || 120;
+    renderDictationControls();
+    setDictationStrip('busy', 'Listening · 0:00 · speak English');
+    startDictationTimer();
+  } catch (error) {
+    if (dictationState.discard) return;
+    dictationFail(error && error.message ? error.message : String(error));
+  }
+}
+
+async function dictationStop() {
+  if (dictationState.status !== 'recording') return;
+  clearInterval(dictationState.timer);
+  dictationState.timer = 0;
+  dictationState.status = 'transcribing';
+  dictationState.elapsed = Math.max(dictationState.elapsed, (Date.now() - dictationState.startedAt) / 1000);
+  renderDictationControls();
+  setDictationStrip('busy', 'Transcribing…');
+  try {
+    const response = await fetchWithTimeout(buildApiUrl('/api/stt/stop'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ language: 'en' }),
+    }, 900000);
+    const payload = await response.json().catch(() => null);
+    if (dictationState.discard) return;
+    if (!response.ok || !payload || !payload.ok) {
+      throw new Error((payload && payload.error) || 'Transcription failed.');
+    }
+    stopDictationPoll();
+    dictationState.status = 'idle';
+    renderDictationControls();
+    if (payload.silent || !payload.text) {
+      setDictationStrip('error', 'Nothing was captured — check the microphone and try again.');
+      hideDictationStrip(7000);
+      return;
+    }
+    insertDictationText(payload.text);
+    const words = payload.text.trim().split(/\s+/).length;
+    setDictationStrip('done', `Added ${words} word${words === 1 ? '' : 's'} to the prompt · edit before sending`);
+    hideDictationStrip(3200);
+  } catch (error) {
+    if (dictationState.discard) return;
+    dictationFail(error && error.message ? error.message : String(error));
+  }
+}
+
+let dictationWarmed = false;
+function warmDictationEngine() {
+  if (dictationWarmed) return;
+  dictationWarmed = true;
+  fetchWithTimeout(buildApiUrl('/api/stt/warm'), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: '{}',
+  }, 8000).catch(() => {});
+}
+
+function initDictation() {
+  const els = dictationElements();
+  if (!els.mic) return;
+  renderDictationControls();
+  els.mic.addEventListener('click', () => {
+    if (dictationState.status === 'recording') dictationStop();
+    else if (dictationState.status === 'idle') dictationStart();
+  });
+  els.cancel?.addEventListener('click', dictationCancel);
+  document.addEventListener('keydown', (event) => {
+    if (event.key !== 'Escape') return;
+    if (['starting', 'recording', 'transcribing'].includes(dictationState.status)) {
+      event.preventDefault();
+      dictationCancel();
+    }
+  });
+}
+
+initDictation();
+
 // ── CONTROL ROOM ──────────────────────────────────────────
 const RIGHT_TABS = ['inspector', 'voice', 'assistant', 'recipe'];
 const RIGHT_TAB_PANELS = { inspector: 'inspectorPanel', voice: 'voicePanel', assistant: 'aiChat', recipe: 'recipePanel' };
@@ -10976,6 +11777,7 @@ function switchRightTab(name) {
     panel.hidden = !active;
   }
   closeComposerModelMenu();
+  if (name === 'assistant') warmDictationEngine();
   if (name === 'recipe') updateTimingSummary();
   if (name === 'inspector') renderInspector();
   if (name === 'voice') ensureVoiceStudio(true);
@@ -11091,7 +11893,7 @@ function initChatHistoryPopover() {
 
 // ── LOGIC BOX TIMELINE ───────────────────────────────────
 const TIMELINE_KEY = 'clipacanvas.timeline.v1';
-const TIMELINE_MAX_SECONDS = 60;
+const TIMELINE_MAX_SECONDS = 24 * 60 * 60;
 
 const AUDIO_TRACK_DEFS = [
   { id: 'A1', name: 'VOICEOVER', role: 'voiceover' },
@@ -11257,11 +12059,12 @@ let mediaImportBusy = false;
 let mediaPickerAt = 0;
 
 // One native picker per gesture: a double-click fires two clicks, and the
-// second must not reopen the dialog.
+// second must not reopen the dialog. Keep the window short so a deliberate
+// second click after cancelling still opens the picker.
 function openMediaPicker() {
   if (mediaImportBusy) return;
   const now = Date.now();
-  if (now - mediaPickerAt < 900) return;
+  if (now - mediaPickerAt < 450) return;
   mediaPickerAt = now;
   document.getElementById('mediaInput')?.click();
 }
@@ -11389,7 +12192,6 @@ function timelineTotalSeconds() {
 const TRANSITION_VERSION = 1;
 const TRANSITION_MAX_SECONDS = 3;
 const TRANSITION_MIN_SECONDS = 0.1;
-const TRANSITION_LIMIT = 40;
 
 function ccTransitionRuntime() {
   if (window.CCTransitions && window.CCTransitions.version === 1) return window.CCTransitions;
@@ -11882,28 +12684,6 @@ function transitionsAtTime(seconds) {
   });
 }
 
-function transitionHandlesError(from, to, duration, alignment) {
-  const outgoingExtension = alignment === 'start' ? duration : (alignment === 'end' ? 0 : duration / 2);
-  const incomingPreroll = alignment === 'end' ? duration : (alignment === 'start' ? 0 : duration / 2);
-  if (outgoingExtension > 0 && clipIsMedia(from) && from.type === 'video') {
-    const asset = clipAsset(from);
-    const total = Number(asset?.duration) || 0;
-    if (total > 0) {
-      const available = total - (clipSourceIn(from) + (Number(from.duration) || 0));
-      if (available + 0.02 < outgoingExtension) {
-        return `The outgoing clip has ${Math.max(0, available).toFixed(2)}s of footage after its out point; this transition needs ${outgoingExtension.toFixed(2)}s. Shorten it or change its alignment.`;
-      }
-    }
-  }
-  if (incomingPreroll > 0 && clipIsMedia(to) && to.type === 'video') {
-    const handle = clipSourceIn(to);
-    if (handle + 0.02 < incomingPreroll) {
-      return `The incoming clip has ${handle.toFixed(2)}s of handle before its in point; this transition needs ${incomingPreroll.toFixed(2)}s. Trim its in point earlier or shorten the transition.`;
-    }
-  }
-  return '';
-}
-
 function customTransitionCodeError(code) {
   const text = String(code || '');
   if (!/function\s+renderTransition\s*\(/.test(text)) {
@@ -11928,8 +12708,6 @@ function transitionSpecError(from, to, duration, alignment, ignoreId = '') {
   if (duration > (Number(from.duration) || 0) + 1e-6 || duration > (Number(to.duration) || 0) + 1e-6) {
     return 'The transition is longer than one of the clips.';
   }
-  const handleError = transitionHandlesError(from, to, duration, alignment);
-  if (handleError) return handleError;
   const candidate = transitionRuntime().windowFor({ cut: Number(to.start) || 0, duration, alignment });
   for (const existing of resolvedTransitions()) {
     if (existing.id === ignoreId) continue;
@@ -11977,9 +12755,6 @@ function transitionSummaryForChat() {
 }
 
 function addTransitionRecord(spec = {}) {
-  if (timelineState.transitions.length >= TRANSITION_LIMIT) {
-    return { ok: false, error: `Transition limit is ${TRANSITION_LIMIT}.` };
-  }
   let from = spec.fromClipId ? findClipById(String(spec.fromClipId)) : null;
   let to = spec.toClipId ? findClipById(String(spec.toClipId)) : null;
   if (!from || !to) {
@@ -12252,6 +13027,7 @@ function assetTechnicalSummary(asset) {
     id: asset.id,
     name: asset.name,
     type: asset.kind,
+    url: asset.url || '',
     durationSeconds: asset.duration ? Math.round(asset.duration * 10) / 10 : null,
     resolution: technical.width && technical.height ? `${technical.width}x${technical.height}` : null,
     fps: technical.fps || null,
@@ -12296,7 +13072,8 @@ function timelineSummaryForChat() {
       audioTrack: clip.type === 'audio' ? audioTrackForClip(clip) : '',
       audioGain: clip.type === 'audio' ? audioTrackGain(clip) : 1,
       empty: !clipIsMedia(clip) && !String(clip.code || '').trim(),
-      codeCharacters: String(clip.code || '').length
+      codeCharacters: String(clip.code || '').length,
+      embeddedMedia: clip.type === 'code' || !clip.type ? sceneMediaForTimeline(clip.code) : []
     }))
   };
 }
@@ -12358,8 +13135,8 @@ function saveTimelineState(immediate = false) {
         }))
       }));
       setSaveState('saved');
-      scheduleDurableProjectSave();
     } catch (error) { console.error(error); }
+    scheduleDurableProjectSave();
   };
   if (timelineSaveTimer) clearTimeout(timelineSaveTimer);
   timelineSaveTimer = null;
@@ -12367,10 +13144,8 @@ function saveTimelineState(immediate = false) {
   else timelineSaveTimer = setTimeout(write, 250);
 }
 
-const ASSET_ANALYSIS_VERSION = 3;
-const SEMANTIC_MAX_FRAMES = 6;
-let semanticProviderState = { loaded: false, loading: false, provider: null, error: '' };
-let semanticBusy = false;
+const ASSET_ANALYSIS_VERSION = 6;
+let contentBusy = false;
 
 function sanitizeAssetAnalysis(raw) {
   if (!raw || typeof raw !== 'object') return null;
@@ -12447,6 +13222,7 @@ function sanitizeAssetAnalysis(raw) {
       model: text(raw.visual.model, 60),
       device: text(raw.visual.device, 12),
       reason: text(raw.visual.reason, 300),
+      description: text(raw.visual.description, 600),
       tags: Array.isArray(raw.visual.tags)
         ? raw.visual.tags.slice(0, 16).map(tag => ({
           label: text(tag?.label, 60),
@@ -12454,8 +13230,9 @@ function sanitizeAssetAnalysis(raw) {
         })).filter(tag => tag.label)
         : [],
       frames: Array.isArray(raw.visual.frames)
-        ? raw.visual.frames.slice(0, 16).map(frame => ({
+        ? raw.visual.frames.slice(0, 32).map(frame => ({
           time: num(frame?.time),
+          thumb: text(frame?.thumb, 300),
           tags: Array.isArray(frame?.tags)
             ? frame.tags.slice(0, 8).map(tag => ({
               label: text(tag?.label, 60),
@@ -12585,7 +13362,9 @@ function loadTimelineState(persist = true, options = {}) {
         name: typeof clip.name === 'string' && clip.name.trim()
           ? clip.name.trim().slice(0, 24)
           : clipSceneName(index),
-        code: type === 'code' && typeof clip.code === 'string' ? clip.code : '',
+        code: type === 'code'
+          ? upgradeLegacySceneMedia(typeof clip.code === 'string' ? clip.code : '')
+          : '',
         duration: finalDuration,
         start,
         track,
@@ -12644,7 +13423,6 @@ function loadTimelineState(persist = true, options = {}) {
     : 0;
   const storedTransitions = stored && Array.isArray(stored.transitions) ? stored.transitions : [];
   timelineState.transitions = storedTransitions
-    .slice(0, TRANSITION_LIMIT)
     .map(sanitizeTransition)
     .filter(Boolean);
   pruneTransitions();
@@ -12696,6 +13474,9 @@ function previewSceneLocalTime(clip, at) {
   return Math.max(0, Math.min(Number(clip.duration) || 0, (Number(at) || 0) - (Number(clip.start) || 0)));
 }
 
+const COMPOSITE_MOUNT_LIMIT = 12;
+const COMPOSITE_MOUNT_WINDOW = 6;
+
 function compositeLayerPlan(at) {
   const participants = new Set();
   for (const transition of transitionsAtTime(at)) {
@@ -12713,22 +13494,45 @@ function compositeLayerPlan(at) {
   return { layers, participants };
 }
 
+// The mounted page set stays stable while the playhead moves: rebuilding the
+// iframe at every layer boundary blanks the monitor and breaks playback. The
+// page mounts every renderable clip when the edit is small, otherwise the
+// clips around the playhead; visibility is handled inside the page.
+function compositeMountPlan(at) {
+  const t = Math.max(0, Number(at) || 0);
+  const participants = new Set();
+  for (const transition of transitionsAtTime(t)) {
+    participants.add(transition.fromClipId);
+    participants.add(transition.toClipId);
+  }
+  const renderable = timelineState.clips
+    .filter(clip => clipIsRenderable(clip) && clip.type !== 'audio');
+  const mounted = renderable.length <= COMPOSITE_MOUNT_LIMIT
+    ? renderable.slice()
+    : renderable.filter(clip =>
+        participants.has(clip.id)
+        || (t >= Number(clip.start) - COMPOSITE_MOUNT_WINDOW && t < clipEnd(clip) + COMPOSITE_MOUNT_WINDOW)
+      );
+  mounted.sort((a, b) => (Number(a.track) || 0) - (Number(b.track) || 0));
+  return { layers: mounted, participants };
+}
+
 function buildCompositePreview(at, options = {}) {
   pendingCompositeCount = 0;
   const active = activeClip();
   const activeCode = options.activeCode;
-  const plan = compositeLayerPlan(at);
+  const plan = compositeMountPlan(at);
   const layers = [];
   for (const clip of plan.layers) {
     const track = Math.max(0, Math.min(3, Number(clip.track) || 0));
+    const start = Number(clip.start) || 0;
+    const duration = Number(clip.duration) || 0;
+    const live = at >= start - 1e-6 && at < start + duration - 1e-6;
     let html = '';
     if (clipIsMedia(clip)) {
-      const offset = Math.max(0, Math.min(Number(clip.duration) || 0, at - (Number(clip.start) || 0)));
-      const sourceIn = clipSourceIn(clip) + offset;
-      const duration = Math.max(0.05, (Number(clip.duration) || 0) - offset);
       html = mediaWrapperHtml(
-        { url: clipMediaUrl(clip), kind: clip.type, sourceIn, duration, fit: clip.fit },
-        { preview: true, autoplay: playbackState.playing, sourceIn, duration, fit: clip.fit }
+        { url: clipMediaUrl(clip), kind: clip.type, sourceIn: clipSourceIn(clip), duration, fit: clip.fit },
+        { preview: true, autoplay: live && playbackState.playing, sourceIn: clipSourceIn(clip), duration, fit: clip.fit }
       );
     } else {
       const code = clip.id === active?.id && activeCode != null
@@ -12737,7 +13541,7 @@ function buildCompositePreview(at, options = {}) {
       if (!code.trim()) continue;
       html = injectPreviewClock(injectPreviewReporter(injectSceneMediaTools(code)));
     }
-    layers.push({ clip, track, html });
+    layers.push({ clip, track, html, media: clipIsMedia(clip), live });
   }
   pendingCompositeCount = layers.length;
   if (!layers.length) return '';
@@ -12747,7 +13551,7 @@ function buildCompositePreview(at, options = {}) {
     pageIds.has(transition.fromClipId) && pageIds.has(transition.toClipId)
   );
   const tags = layers.map(layer =>
-    `<iframe class="cc-layer" sandbox="allow-scripts" data-clip-id="${escapeAttr(layer.clip.id)}" data-start="${Number(layer.clip.start) || 0}" data-duration="${Number(layer.clip.duration) || 0}" data-track="${layer.track}" style="z-index:${(layer.track + 1) * 100}" srcdoc="${escapeAttr(layer.html)}"></iframe>`
+    `<iframe class="cc-layer" sandbox="allow-scripts" data-clip-id="${escapeAttr(layer.clip.id)}" data-start="${Number(layer.clip.start) || 0}" data-duration="${Number(layer.clip.duration) || 0}" data-track="${layer.track}" data-media="${layer.media ? '1' : '0'}" style="z-index:${(layer.track + 1) * 100}" srcdoc="${escapeAttr(layer.html)}"></iframe>`
   );
   const transitionsJson = JSON.stringify(transitions).replace(/</g, '\\u003c');
   return [
@@ -12761,34 +13565,49 @@ function buildCompositePreview(at, options = {}) {
     '<script>',
     '(function(){',
     'var layers = Array.prototype.map.call(document.querySelectorAll(".cc-layer"), function(el){',
-    '  return { el: el, clipId: el.getAttribute("data-clip-id"), start: Number(el.getAttribute("data-start")), duration: Number(el.getAttribute("data-duration")), track: Number(el.getAttribute("data-track")) };',
+    '  return { el: el, clipId: el.getAttribute("data-clip-id"), start: Number(el.getAttribute("data-start")), duration: Number(el.getAttribute("data-duration")), track: Number(el.getAttribute("data-track")), media: el.getAttribute("data-media") === "1" };',
     '});',
     'var transitions = ' + (transitionsJson || '[]') + ';',
     'var current = ' + (Number(at) || 0).toFixed(4) + ';',
-    'function seekLayer(layer, seconds, live){',
+    'var previousActive = {};',
+    'function postLayer(layer, payload){',
     '  if (!layer || !layer.el.contentWindow) return;',
-    '  var local = Math.max(0, Math.min(layer.duration || 0, seconds - layer.start));',
-    '  try { layer.el.contentWindow.postMessage({ source: "clipacanvas-preview-host", type: "seek", seconds: local, seekMedia: !live }, "*"); } catch (error) {}',
+    '  payload = payload || {};',
+    '  try { layer.el.contentWindow.postMessage({ source: "clipacanvas-preview-host", type: "seek", seconds: Number(payload.seconds) || 0, seekMedia: Boolean(payload.seekMedia), play: Boolean(payload.play) }, "*"); } catch (error) {}',
     '}',
-    'function seekLayers(seconds, live){',
+    'function applyAt(seconds, live){',
     '  current = seconds;',
-    '  layers.forEach(function(layer){ seekLayer(layer, seconds, live); });',
+    '  var state = apply(seconds) || { active: [] };',
+    '  var activeNow = {};',
+    '  (state.active || []).forEach(function(entry){',
+    '    var layer = layers[entry.index];',
+    '    if (!layer) return;',
+    '    activeNow[entry.index] = true;',
+    '    var newlyActive = !previousActive[entry.index];',
+    '    postLayer(layer, { seconds: Math.max(0, Math.min(layer.duration || 0, seconds - layer.start)), seekMedia: newlyActive || !live, play: live });',
+    '  });',
+    '  Object.keys(previousActive).forEach(function(key){',
+    '    if (activeNow[key]) return;',
+    '    var layer = layers[Number(key)];',
+    '    if (layer) postLayer(layer, { seconds: 0, seekMedia: false, play: false });',
+    '  });',
+    '  previousActive = activeNow;',
     '}',
     'var apply = window.CCTransitions.mount(document.body, current, layers, transitions);',
-    'seekLayers(current, false);',
+    'applyAt(current, false);',
     'addEventListener("message", function(event){',
     '  var data = event.data;',
     '  if (!data) return;',
     '  if (data.source === "clipacanvas-preview" && data.kind === "clock-ready") {',
     '    layers.forEach(function(layer){',
-    '      if (layer.el.contentWindow === event.source) seekLayer(layer, current, false);',
+    '      if (layer.el.contentWindow === event.source) {',
+    '        postLayer(layer, { seconds: Math.max(0, Math.min(layer.duration || 0, current - layer.start)), seekMedia: true, play: false });',
+    '      }',
     '    });',
     '    return;',
     '  }',
     '  if (data.source !== "clipacanvas-composite" || data.type !== "time") return;',
-    '  var seconds = Number(data.seconds) || 0;',
-    '  apply(seconds);',
-    '  seekLayers(seconds, Boolean(data.live));',
+    '  applyAt(Number(data.seconds) || 0, Boolean(data.live));',
     '});',
     '})();',
     '<\/script>',
@@ -12797,9 +13616,9 @@ function buildCompositePreview(at, options = {}) {
 }
 
 function compositePreviewKey(at) {
-  const plan = compositeLayerPlan(at);
+  const plan = compositeMountPlan(at);
   const layerKey = plan.layers
-    .map(layer => `${layer.id}:${layer.type || 'code'}:${String(layer.code || '').length}:${layer.track}`)
+    .map(layer => `${layer.id}:${layer.type || 'code'}:${hashString(String(layer.code || ''))}:${layer.track}:${Number(layer.start) || 0}:${Number(layer.duration) || 0}`)
     .join('|');
   const pageIds = new Set(plan.layers.map(layer => layer.id));
   const transitionKey = resolvedTransitions()
@@ -12810,11 +13629,20 @@ function compositePreviewKey(at) {
       transition.duration,
       transition.alignment,
       transition.cut,
-      JSON.stringify(transition.params || {}),
-      String(transition.code || '').length
+      hashString(JSON.stringify(transition.params || {})),
+      hashString(String(transition.code || ''))
     ].join(':'))
     .join('|');
-  return `${layerKey}#${plan.participants.size}#${transitionKey}`;
+  return `${layerKey}#${transitionKey}`;
+}
+
+function hashString(value) {
+  let hash = 5381;
+  const text = String(value || '');
+  for (let index = 0; index < text.length; index += 1) {
+    hash = ((hash << 5) + hash + text.charCodeAt(index)) | 0;
+  }
+  return (hash >>> 0).toString(36);
 }
 
 function renderCompositePreview(html, key = '') {
@@ -13074,10 +13902,21 @@ function mediaWrapperHtml(source, options = {}) {
   const previewLoop = preview && autoplay && duration > 0
     ? `v.addEventListener('timeupdate',function(){var end=Math.min(b,(v.duration||b));if(v.currentTime>=end-0.04){try{v.currentTime=a;}catch(e){}}});`
     : '';
+  const previewSync = preview
+    ? `var pendingLocal=0;` +
+      `var applyLocal=function(local,seekMedia,play){pendingLocal=Math.max(0,Number(local)||0);` +
+      `var target=Math.min(Math.max(0,a+pendingLocal),Math.max(0,(v.duration||a+pendingLocal)-0.001));` +
+      `if(seekMedia){try{v.currentTime=target;}catch(e){}}` +
+      `if(play===true){v.play().catch(function(){});}else if(play===false){try{v.pause();}catch(e){}}};` +
+      `addEventListener('message',function(event){var data=event.data;` +
+      `if(!data||data.source!=='clipacanvas-preview-host'||data.type!=='seek')return;` +
+      `applyLocal(data.seconds,data.seekMedia!==false,data.play);});`
+    : '';
   const script = kind === 'video'
     ? `<script>(function(){var v=document.querySelector('video');if(!v)return;` +
       `var a=parseFloat(v.dataset.sourceIn)||0;var b=parseFloat(v.dataset.clipEnd)||0;` +
-      `var seek=function(){try{v.currentTime=Math.min(Math.max(0,a),Math.max(0,(v.duration||0)-0.001));}catch(e){}};` +
+      `${previewSync}` +
+      `var seek=function(){${preview ? 'applyLocal(pendingLocal,true,' + (autoplay ? 'true' : 'false') + ');' : 'try{v.currentTime=Math.min(Math.max(0,a),Math.max(0,(v.duration||0)-0.001));}catch(e){}'}};` +
       `if(v.readyState>=1)seek();else v.addEventListener('loadedmetadata',seek,{once:true});` +
       `${previewSeek}${previewLoop}})();<\/script>`
     : '';
@@ -13291,37 +14130,22 @@ function inspectedAssetForAnalysis() {
   return clip ? clipAsset(clip) : null;
 }
 
-function semanticFrameCount(asset) {
-  if (!asset || asset.kind === 'audio') return 0;
-  if (asset.kind === 'image') return 1;
-  const frames = (asset.analysis?.shots || []).filter(shot => shot.keyframe).length;
-  return frames ? Math.min(frames, SEMANTIC_MAX_FRAMES) : SEMANTIC_MAX_FRAMES;
-}
-
-function semanticHasAudio(asset) {
-  if (asset?.kind === 'audio') return true;
-  return asset?.kind === 'video' && Boolean(asset.analysis?.technical?.audioCodec);
-}
-
 function renderAssetContentAnalysis(asset) {
   const block = document.getElementById('miContentBlock');
   if (!block) return;
   block.hidden = !asset;
   if (!asset) return;
   const analysis = asset.analysis || null;
-  const semantic = analysis?.semantic || {};
+  const visual = analysis?.visual || {};
   const previews = Array.isArray(analysis?.shots) ? analysis.shots.filter(shot => shot.keyframe) : [];
   const shotsBox = document.getElementById('miShots');
   const shotsMeta = document.getElementById('miShotsMeta');
   const tagsBox = document.getElementById('miTags');
-  const semanticText = document.getElementById('miSemanticText');
-  const transcriptBox = document.getElementById('miTranscript');
+  const summaryText = document.getElementById('miSemanticText');
   const status = document.getElementById('miContentStatus');
   const hint = document.getElementById('miAnalyzeHint');
   const toggle = document.getElementById('miAnalyzeToggle');
   const userNote = document.getElementById('miUserNote');
-  const consentRow = document.getElementById('miConsentRow');
-  if (consentRow) consentRow.hidden = true;
   if (shotsBox) {
     shotsBox.hidden = !previews.length;
     shotsBox.innerHTML = previews.map(shot => {
@@ -13334,7 +14158,7 @@ function renderAssetContentAnalysis(asset) {
   }
   if (shotsMeta) {
     const total = Array.isArray(analysis?.shots) ? analysis.shots.length : 0;
-    const motionLabel = analysis?.visual?.motion?.label;
+    const motionLabel = visual.motion?.label;
     shotsMeta.hidden = !total;
     shotsMeta.textContent = total
       ? [
@@ -13346,149 +14170,63 @@ function renderAssetContentAnalysis(asset) {
       : '';
   }
   if (tagsBox) {
-    const tags = (semantic.tags || []).length
-      ? semantic.tags
-      : (analysis?.visual?.tags || []).map(tag => tag.label);
+    const tags = (visual.tags || []).map(tag => tag.label);
     tagsBox.hidden = !tags.length;
-    tagsBox.title = semantic.tags?.length ? '' : 'Local visual tags from EmbeddingGemma 2';
+    tagsBox.title = 'Local visual tags from EmbeddingGemma 2';
     tagsBox.innerHTML = tags.map(tag => `<span>${escapeHtml(tag)}</span>`).join('');
   }
-  if (semanticText) {
-    semanticText.hidden = !semantic.description;
-    semanticText.textContent = semantic.description || '';
-  }
-  if (transcriptBox) {
-    const transcript = semantic.transcript || [];
-    transcriptBox.hidden = !transcript.length;
-    transcriptBox.innerHTML = transcript.map(segment => {
-      const stamp = segment.start === null || segment.start === undefined
-        ? ''
-        : `<b>${Number(segment.start).toFixed(1)}s</b> `;
-      return `<p>${stamp}${escapeHtml(segment.text)}</p>`;
-    }).join('');
+  if (summaryText) {
+    summaryText.hidden = !visual.description;
+    summaryText.textContent = visual.description || '';
+    summaryText.title = 'Local summary built from EmbeddingGemma tags, shots and motion';
   }
   if (status) {
     if (!analysis?.technical) {
       status.textContent = asset.analysisError ? 'UNAVAILABLE' : 'PENDING';
-    } else if (semantic.status === 'analyzed') {
-      status.textContent = [
-        'ANALYZED',
-        String(semantic.provider || '').toUpperCase(),
-        semantic.framesSent ? `${semantic.framesSent} FRAME${semantic.framesSent === 1 ? '' : 'S'}` : '',
-        semantic.audioSent ? 'AUDIO' : ''
-      ].filter(Boolean).join(' · ');
-    } else if (analysis?.visual?.status === 'indexed') {
-      const tagCount = (analysis.visual.tags || []).length;
-      const frameCount = (analysis.visual.frames || []).length;
-      status.textContent = `LOCAL VISUAL INDEX · EMBEDDINGGEMMA2 · ${tagCount} TAG${tagCount === 1 ? '' : 'S'} · ${frameCount} FRAME${frameCount === 1 ? '' : 'S'}`;
+    } else if (visual.status === 'indexed') {
+      const tagCount = (visual.tags || []).length;
+      const frameCount = (visual.frames || []).length;
+      status.textContent = `LOCAL · EMBEDDINGGEMMA 2 · ${tagCount} TAG${tagCount === 1 ? '' : 'S'} · ${frameCount} FRAME${frameCount === 1 ? '' : 'S'}`;
+    } else if (visual.status === 'skipped') {
+      status.textContent = 'LOCAL INDEX · IMAGES AND VIDEO';
     } else {
-      status.textContent = 'NOT ANALYZED';
+      status.textContent = 'LOCAL INDEX ' + String(visual.status || 'UNAVAILABLE').toUpperCase();
     }
   }
-  if (toggle) toggle.disabled = !analysis?.technical || semanticBusy;
+  if (toggle) toggle.disabled = !analysis?.technical || contentBusy || asset.kind === 'audio';
   if (hint) {
-    if (semanticBusy) hint.textContent = 'ANALYZING…';
-    else if (semantic.status === 'analyzed') hint.textContent = semantic.model || 'SAVED';
-    else if (semanticProviderState.loaded && !semanticProviderState.provider?.available) {
-      hint.textContent = semanticProviderState.provider?.reason || semanticProviderState.error || 'NO PROVIDER';
-    } else hint.textContent = '';
+    if (contentBusy) hint.textContent = 'INDEXING LOCALLY…';
+    else if (visual.status === 'indexed') {
+      const tagCount = (visual.tags || []).length;
+      hint.textContent = `${String(visual.device || 'cpu').toUpperCase()} · ${tagCount} TAG${tagCount === 1 ? '' : 'S'} · NO UPLOAD`;
+    } else if (visual.reason) hint.textContent = visual.reason;
+    else hint.textContent = '';
   }
   if (userNote && document.activeElement !== userNote) {
     userNote.value = analysis?.user?.description || '';
   }
-  if (!semanticProviderState.loaded && !semanticProviderState.loading) loadSemanticProviders();
 }
 
-async function loadSemanticProviders() {
-  if (semanticProviderState.loading) return semanticProviderState.provider;
-  semanticProviderState.loading = true;
-  try {
-    const response = await fetch('/api/media/semantic/providers');
-    const payload = await response.json();
-    if (!payload.ok) throw new Error(payload.error || 'Provider check failed');
-    semanticProviderState.provider = (payload.providers || []).find(item => item.id === 'gemini') || null;
-    semanticProviderState.error = '';
-  } catch (error) {
-    semanticProviderState.provider = null;
-    semanticProviderState.error = String(error?.message || error).slice(0, 120);
-  } finally {
-    semanticProviderState.loaded = true;
-    semanticProviderState.loading = false;
-    renderAssetContentAnalysis(inspectedAssetForAnalysis());
-  }
-  return semanticProviderState.provider;
-}
-
-async function openSemanticConsent() {
+async function refreshLocalAssetAnalysis() {
   const asset = inspectedAssetForAnalysis();
-  if (!asset || semanticBusy) return;
+  if (!asset || contentBusy || asset.kind === 'audio') return;
   const hint = document.getElementById('miAnalyzeHint');
-  semanticProviderState.loaded = false;
-  const provider = await loadSemanticProviders();
-  if (!provider || !provider.available) {
-    if (hint) hint.textContent = provider?.reason || semanticProviderState.error || 'NO PROVIDER';
-    return;
-  }
-  const frameCount = semanticFrameCount(asset);
-  const framesText = asset.kind === 'audio'
-    ? 'This audio file'
-    : `${frameCount === 1 ? '1 still frame' : `up to ${frameCount} still frames`}`;
-  const audio = semanticHasAudio(asset);
-  const audioText = asset.kind === 'video' ? ' and its audio track (first 5 minutes)' : '';
-  const text = document.getElementById('miConsentText');
-  if (text) text.textContent = `${provider.terms} ${framesText}${audioText} will be sent to ${provider.label}.`;
-  const audioRow = document.getElementById('miConsentAudioRow');
-  if (audioRow) audioRow.hidden = !(audio && asset.kind === 'video');
-  const check = document.getElementById('miConsentCheck');
-  if (check) check.checked = false;
-  const run = document.getElementById('miAnalyzeRun');
-  if (run) {
-    run.disabled = true;
-    run.textContent = 'UPLOAD & ANALYZE';
-  }
-  const row = document.getElementById('miConsentRow');
-  if (row) row.hidden = false;
-  if (hint) hint.textContent = provider.models?.[0]?.id || '';
-}
-
-async function runSemanticAnalysis() {
-  const asset = inspectedAssetForAnalysis();
-  const check = document.getElementById('miConsentCheck');
-  const audioCheck = document.getElementById('miConsentAudioCheck');
-  const audioRow = document.getElementById('miConsentAudioRow');
-  const run = document.getElementById('miAnalyzeRun');
-  const hint = document.getElementById('miAnalyzeHint');
-  if (!asset || !check?.checked || semanticBusy) return;
-  const transcribe = asset.kind === 'audio' || Boolean(audioRow && !audioRow.hidden && audioCheck?.checked);
-  semanticBusy = true;
-  if (run) {
-    run.disabled = true;
-    run.textContent = 'ANALYZING…';
-  }
+  const toggle = document.getElementById('miAnalyzeToggle');
+  contentBusy = true;
+  if (toggle) toggle.disabled = true;
+  if (hint) hint.textContent = 'INDEXING LOCALLY…';
   try {
-    const response = await fetch('/api/media/semantic', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ url: asset.url, provider: 'gemini', consent: true, transcribe })
-    });
-    const payload = await response.json();
-    if (!payload.ok || !payload.manifest) throw new Error(payload.error || 'Content analysis failed');
-    const next = sanitizeAssetAnalysis(payload.manifest);
-    if (next) next.user = asset.analysis?.user || next.user;
-    asset.analysis = next;
-    asset.analysisError = '';
-    saveTimelineState(true);
+    const analysis = await analyzeProjectAsset(asset, true);
+    if (!analysis) throw new Error(asset.analysisError || 'Local indexing failed.');
     refreshMediaInspector();
     const savedHint = document.getElementById('miAnalyzeHint');
-    if (savedHint) savedHint.textContent = 'ANALYSIS SAVED';
+    if (savedHint) savedHint.textContent = 'INDEX SAVED';
   } catch (error) {
     if (hint) hint.textContent = String(error?.message || error).slice(0, 160);
   } finally {
-    semanticBusy = false;
-    if (run) {
-      run.textContent = 'UPLOAD & ANALYZE';
-      run.disabled = !check?.checked;
-    }
+    contentBusy = false;
+    const current = document.getElementById('miAnalyzeToggle');
+    if (current) current.disabled = false;
   }
 }
 
@@ -13546,14 +14284,14 @@ function renderAssetAnalysis(asset) {
   grid.innerHTML = rows.join('');
   box.hidden = false;
   if (status) status.textContent = `v${analysis.analyzer?.version || 1}`;
-  const semantic = analysis.semantic || {};
+  const visual = analysis.visual || {};
   const userDescription = analysis.user?.description || '';
   if (note) {
     note.textContent = userDescription
       ? `USER NOTE · ${userDescription}`
-      : (semantic.status === 'not_analyzed'
-        ? 'CONTENT ANALYSIS NOT RUN · technical metadata only.'
-        : `${String(semantic.status || 'ANALYZED').toUpperCase()}${semantic.description ? ` · ${semantic.description}` : ''}`);
+      : (visual.status === 'indexed'
+        ? `LOCAL CONTENT INDEX · EMBEDDINGGEMMA 2 · ${(visual.tags || []).length} TAGS · NO UPLOAD`
+        : (visual.reason ? `LOCAL INDEX UNAVAILABLE · ${visual.reason}` : 'CONTENT ANALYSIS NOT RUN · technical metadata only.'));
   }
 }
 
@@ -13735,7 +14473,7 @@ function showMediaInspectorForAsset(asset) {
   if (note) {
     note.textContent = asset.kind === 'audio'
       ? 'Project audio. INSERT AT PLAYHEAD adds it as a clip; drag it onto a track to place it.'
-      : 'INSERT INTO SCENE embeds the media in the scene (drag it on the preview to move it). REMOVE takes it back out. INSERT AT PLAYHEAD adds a separate clip/layer instead, or drop it straight onto the preview.';
+      : 'INSERT INTO SCENE embeds the media in the selected scene (drag it on the preview to move it); dropping the asset on a scene box in the timeline, or double-clicking the bin card (＋), does the same. REMOVE takes it back out. INSERT AT PLAYHEAD adds a separate clip/layer instead, or drop it on an empty lane.';
   }
   renderAssetAnalysis(asset);
   renderOverlayLink('mi', null);
@@ -13849,20 +14587,38 @@ function insertInspectedAsset() {
 
 function sceneTargetForEmbed() {
   const active = activeClip();
-  if (active && !clipIsMedia(active)) return active;
+  if (active && active.type !== 'audio') return active;
   const at = Number(timelineState.playhead) || 0;
   const covering = clipsAtTime(at)
-    .filter(clip => !clipIsMedia(clip))
+    .filter(clip => clip.type !== 'audio')
     .sort((a, b) => (Number(b.track) || 0) - (Number(a.track) || 0));
   return covering[0]
-    || timelineState.clips.find(clip => !clipIsMedia(clip))
+    || timelineState.clips.find(clip => clip.type !== 'audio')
     || null;
 }
 
+function clipsEmbeddingUrl(url) {
+  const value = String(url || '');
+  if (!value) return [];
+  return timelineState.clips.filter(clip => !clipIsMedia(clip) && String(clip.code || '').includes(value));
+}
+
 function scenesEmbeddingAsset(asset) {
-  const url = String(asset?.url || '');
-  if (!url) return [];
-  return timelineState.clips.filter(clip => !clipIsMedia(clip) && String(clip.code || '').includes(url));
+  return clipsEmbeddingUrl(asset?.url);
+}
+
+function sceneMediaOwner(url) {
+  const owners = clipsEmbeddingUrl(url);
+  const active = activeClip();
+  if (active && owners.some(clip => clip.id === active.id)) return active;
+  return owners[0] || null;
+}
+
+function embedOwnerLabel(clip) {
+  const parent = clip?.parentClipId
+    ? timelineState.clips.find(item => item.id === clip.parentClipId)
+    : null;
+  return String(parent?.name || clip?.name || 'SCENE');
 }
 
 function refreshEmbedActions(asset) {
@@ -13872,22 +14628,145 @@ function refreshEmbedActions(asset) {
   const target = asset && asset.kind !== 'audio' ? sceneTargetForEmbed() : null;
   if (target) {
     insert.hidden = false;
-    insert.textContent = `INSERT INTO ${String(target.name || 'SCENE').toUpperCase()}`;
+    insert.textContent = clipIsMedia(target)
+      ? `ADD PIP OVER ${String(target.name || 'CLIP').toUpperCase()}`
+      : `INSERT INTO ${String(target.name || 'SCENE').toUpperCase()}`;
   } else {
     insert.hidden = true;
   }
   const owners = scenesEmbeddingAsset(asset);
   if (owners.length) {
     remove.hidden = false;
-    remove.textContent = `REMOVE FROM ${String(owners[0].name || 'SCENE').toUpperCase()}${owners.length > 1 ? ` +${owners.length - 1}` : ''}`;
+    remove.textContent = `REMOVE FROM ${String(embedOwnerLabel(owners[0]) || 'SCENE').toUpperCase()}${owners.length > 1 ? ` +${owners.length - 1}` : ''}`;
   } else {
     remove.hidden = true;
   }
 }
 
-function sceneMediaElementHtml(asset, position = null) {
+// Media embedded in a scene's own HTML is part of that document. Used to tell
+// the agent what it must keep when it rewrites the scene around the media.
+function sceneMediaTags(code) {
+  const tags = String(code || '').match(/<(?:img|video)\b[^>]*>/gi) || [];
+  return tags
+    .filter(tag => /class\s*=\s*(?:"[^"]*\bcc-scene-media\b[^"]*"|'[^']*\bcc-scene-media\b[^']*')/i.test(tag))
+    .map(tag => {
+      const src = tag.match(/\bsrc\s*=\s*(?:"([^"]*)"|'([^']*)')/i);
+      return {
+        tag,
+        kind: /^<video\b/i.test(tag) ? 'video' : 'image',
+        src: (src && (src[1] || src[2])) || '',
+        fullFrame: /data-cc-fill\s*=\s*(?:"1"|'1'|1)/i.test(tag) || /inset\s*:\s*0/i.test(tag)
+      };
+    });
+}
+
+function assetForMediaUrl(url) {
+  const clean = String(url || '').split('?')[0].split('#')[0];
+  if (!clean) return null;
+  return timelineState.assets.find(asset => {
+    const assetUrl = String(asset.url || '').split('?')[0].split('#')[0];
+    if (!assetUrl) return false;
+    return assetUrl === clean || clean.endsWith(assetUrl) || assetUrl.endsWith(clean);
+  }) || null;
+}
+
+// What the clips embedded in a scene actually show. The model gets the local
+// visual index, not just a URL, so overlays and captions match the footage.
+function sceneMediaDetails(code) {
+  return sceneMediaTags(code).map(item => {
+    const asset = assetForMediaUrl(item.src);
+    const analysis = asset && asset.analysis ? asset.analysis : {};
+    const visual = analysis.visual || {};
+    const semantic = analysis.semantic || {};
+    const technical = analysis.technical || {};
+    const tags = (visual.tags || []).slice(0, 8).map(tag => tag.label);
+    const moments = (visual.frames || []).slice(0, 6).map(frame => ({
+      atSeconds: Math.round((Number(frame.time) || 0) * 10) / 10,
+      tags: (frame.tags || []).slice(0, 4).map(tag => tag.label)
+    }));
+    return {
+      kind: item.kind,
+      src: item.src,
+      assetId: asset ? asset.id : '',
+      name: asset ? asset.name : '',
+      durationSeconds: asset ? asset.duration ?? technical.duration ?? null : null,
+      resolution: technical.width && technical.height ? `${technical.width}x${technical.height}` : null,
+      fullFrame: item.fullFrame,
+      description: (analysis.user && analysis.user.description) || semantic.description || visual.description || '',
+      userNotes: (analysis.user && analysis.user.notes) || '',
+      visualTags: tags,
+      motion: (visual.motion && visual.motion.label) || '',
+      moments
+    };
+  });
+}
+
+function sceneMediaPrompt(details) {
+  return details.map((item, index) => {
+    const bits = [`${index + 1}. ${item.kind} "${item.name || item.src}"`];
+    bits.push(item.fullFrame ? 'full-frame background' : 'positioned element');
+    if (item.durationSeconds) bits.push(`${Math.round(Number(item.durationSeconds) * 10) / 10}s`);
+    if (item.resolution) bits.push(item.resolution);
+    if (item.description) bits.push(`shows: ${item.description}`);
+    if (item.visualTags.length) bits.push(`visual tags: ${item.visualTags.join(', ')}`);
+    if (item.motion) bits.push(`camera/action: ${item.motion}`);
+    if (item.moments.length) {
+      bits.push(`moments: ${item.moments.map(moment => `${moment.atSeconds}s ${moment.tags.join('/')}`).join('; ')}`);
+    }
+    if (item.userNotes) bits.push(`user notes: ${item.userNotes}`);
+    return bits.join(' · ');
+  }).join('\n');
+}
+
+// Compact form for the timeline JSON: enough to know what each scene shows.
+function sceneMediaForTimeline(code) {
+  return sceneMediaDetails(code).map(item => ({
+    assetId: item.assetId,
+    name: item.name || item.src.split('/').pop(),
+    kind: item.kind,
+    fullFrame: item.fullFrame,
+    show: item.description || item.visualTags.join(', '),
+    moments: item.moments.slice(0, 4).map(moment => `${moment.atSeconds}s ${moment.tags.join('/')}`)
+  }));
+}
+
+function mediaElementSources(code) {
+  const tags = String(code || '').match(/<(?:img|video)\b[^>]*>/gi) || [];
+  const sources = new Set();
+  tags.forEach(tag => {
+    const src = tag.match(/\bsrc\s*=\s*(?:"([^"]*)"|'([^']*)')/i);
+    const value = (src && (src[1] || src[2])) || '';
+    if (value) sources.add(value);
+  });
+  return sources;
+}
+
+// A rewritten scene keeps its media without the model copying the tag: the
+// elements go at the top of the body, behind whatever content the new code
+// adds. This is the default so user media cannot disappear by accident.
+function injectSceneMediaTags(code, items) {
+  if (!items.length) return code;
+  const block = items.map(item => item.tag).join('\n');
+  const body = code.search(/<body\b[^>]*>/i);
+  if (body !== -1) {
+    const open = code.indexOf('>', body);
+    if (open !== -1) return code.slice(0, open + 1) + block + code.slice(open + 1);
+  }
+  const close = code.toLowerCase().lastIndexOf('</html>');
+  if (close !== -1) return code.slice(0, close) + block + '\n' + code.slice(close);
+  return block + '\n' + code;
+}
+
+function sceneMediaElementHtml(asset, position = null, full = false) {
   const url = escapeHtml(asset.url);
   const label = escapeHtml(asset.name || 'MEDIA');
+  if (full) {
+    const style = 'position:fixed;inset:0;width:100%;height:100%;object-fit:contain;background:#000;z-index:20;';
+    if (asset.kind === 'video') {
+      return `<video class="cc-scene-media" src="${url}" data-media="${label}" data-cc-fill="1" muted playsinline autoplay loop style="${style}"></video>`;
+    }
+    return `<img class="cc-scene-media" src="${url}" alt="${label}" data-media="${label}" data-cc-fill="1" style="${style}">`;
+  }
   const left = position ? Math.max(4, Math.min(96, Number(position.x) || 50)) : 50;
   const top = position ? Math.max(4, Math.min(96, Number(position.y) || 50)) : 50;
   const width = position ? 40 : 72;
@@ -13899,21 +14778,84 @@ function sceneMediaElementHtml(asset, position = null) {
   return `<img class="cc-scene-media" src="${url}" alt="${label}" data-media="${label}" style="${style}">`;
 }
 
-// Put media inside the scene's own HTML instead of creating a separate track.
-function embedAssetInScene(asset = null, position = null) {
+function mediaOverlayCode(asset, position = null) {
+  return `<!doctype html><html><head><style>html,body{margin:0;width:100%;height:100%;background:transparent;overflow:hidden}</style></head><body>${sceneMediaElementHtml(asset, position)}</body></html>`;
+}
+
+// Older builds saved a lone scene-media fragment (a 72% "picture" element)
+// when media was added to an empty scene. Load those as full-frame content.
+function upgradeLegacySceneMedia(code) {
+  const value = String(code || '');
+  const trimmed = value.trim();
+  if (!trimmed || /<html[\s>]/i.test(trimmed) || /<body[\s>]/i.test(trimmed)) return value;
+  if (!/^<(?:video|img)\b/i.test(trimmed)) return value;
+  if (!/class="cc-scene-media"/.test(trimmed)) return value;
+  if ((trimmed.match(/<(?:video|img)\b/gi) || []).length !== 1) return value;
+  const srcMatch = trimmed.match(/\bsrc=(?:"([^"]+)"|'([^']+)')/i);
+  if (!srcMatch) return value;
+  const src = srcMatch[1] || srcMatch[2];
+  const labelMatch = trimmed.match(/\bdata-media=(?:"([^"]*)"|'([^']*)')/i);
+  const label = (labelMatch && (labelMatch[1] || labelMatch[2])) || 'MEDIA';
+  const isVideo = /^<video\b/i.test(trimmed);
+  const style = 'position:fixed;inset:0;width:100%;height:100%;object-fit:contain;background:#000;z-index:20;';
+  const tag = isVideo
+    ? `<video class="cc-scene-media" src="${src}" data-media="${label}" data-cc-fill="1" muted playsinline autoplay loop style="${style}"></video>`
+    : `<img class="cc-scene-media" src="${src}" alt="${label}" data-media="${label}" data-cc-fill="1" style="${style}">`;
+  return `<!doctype html><html><head><style>html,body{margin:0;width:100%;height:100%;background:#000;overflow:hidden}</style></head><body>${tag}</body></html>`;
+}
+
+// Put media inside the selected clip: code scenes receive the element in
+// their HTML, media clips get an attached overlay that follows their timing.
+function embedAssetInScene(asset = null, position = null, targetClip = null) {
   const direct = asset && asset.url ? asset : null;
   const target = direct || (mediaInspectorTarget?.mode === 'asset' ? findAsset(mediaInspectorTarget.id) : null);
-  const scene = target && target.kind !== 'audio' ? sceneTargetForEmbed() : null;
+  const explicit = targetClip
+    ? timelineState.clips.find(item => item.id === targetClip.id && item.type !== 'audio')
+    : null;
+  const scene = target && target.kind !== 'audio' ? (explicit || sceneTargetForEmbed()) : null;
   if (!target || !scene) {
-    setStatus('Select a code scene to put this media inside.', 'err');
+    setStatus('Select a scene or media clip to put this asset inside.', 'err');
     return null;
   }
-  const element = sceneMediaElementHtml(target, position);
+  if (clipIsMedia(scene)) {
+    const start = Number(scene.start) || 0;
+    const duration = Number(scene.duration) || 0;
+    const track = overlayTrackFor(start, duration, (Number(scene.track) || 0) + 1, '');
+    if (track < 0) {
+      setStatus('No free overlay track is available above this clip.', 'err');
+      return null;
+    }
+    const created = projectOps.createComposition({
+      code: mediaOverlayCode(target, position || { x: 50, y: 50 }),
+      name: `${target.name} PIP`,
+      duration,
+      start,
+      track
+    });
+    if (!created.ok) {
+      setStatus(created.error || 'Could not create the overlay.', 'err');
+      return null;
+    }
+    const attached = projectOps.attachOverlay(created.clipId, scene.id);
+    if (!attached.ok) {
+      projectOps.deleteClip(created.clipId);
+      setStatus(attached.error || 'Could not attach the overlay.', 'err');
+      return null;
+    }
+    setStatus(`${mediaKindTag(target.kind)} · ${target.name} placed inside ${scene.name} — drag it on the preview to move it`, 'ok');
+    return timelineState.clips.find(item => item.id === created.clipId) || scene;
+  }
+  const blank = !String(scene.code || '').trim();
+  const element = sceneMediaElementHtml(target, position, blank && !position);
   const code = String(scene.code || '');
-  const close = code.toLowerCase().lastIndexOf('</body>');
-  scene.code = close >= 0
-    ? code.slice(0, close) + element + '\n' + code.slice(close)
-    : code + '\n' + element;
+  if (blank) {
+    scene.code = `<!doctype html><html><head><style>html,body{margin:0;width:100%;height:100%;background:#000;overflow:hidden}</style></head><body>${element}</body></html>`;
+  } else {
+    const close = code.toLowerCase().lastIndexOf('</body>');
+    scene.code = close >= 0
+      ? code.slice(0, close) + element + '\n' + code.slice(close)
+      : code + '\n' + element;
+  }
   timelineState.activeId = scene.id;
   timelineState.selectedAssetId = null;
   saveTimelineState(true);
@@ -13946,16 +14888,24 @@ function removeAssetFromScene() {
     setStatus('This asset is not embedded in a scene.', 'err');
     return;
   }
-  for (const scene of owners) scene.code = stripSceneMedia(scene.code, asset.url);
-  const scene = owners.find(item => item.id === timelineState.activeId) || owners[0];
-  timelineState.activeId = scene.id;
+  const doomed = [];
+  for (const scene of owners) {
+    scene.code = stripSceneMedia(scene.code, asset.url);
+    if (scene.parentClipId && !String(scene.code).includes('cc-scene-media')) doomed.push(scene.id);
+  }
+  const parent = owners
+    .map(item => timelineState.clips.find(clip => clip.id === item.parentClipId))
+    .find(Boolean) || null;
+  if (doomed.length) removeTimelineClips(doomed, { ripple: false });
+  const focus = owners.find(item => !doomed.includes(item.id)) || parent || activeClip();
+  if (focus && timelineState.clips.some(item => item.id === focus.id)) timelineState.activeId = focus.id;
   timelineState.selectedAssetId = null;
   saveTimelineState(true);
   applyActiveClipToEditor({ preview: true });
   renderLogicBoxes();
   renderProjectBin();
   updateStageTimeline();
-  setStatus(`${asset.name} removed from ${owners.map(item => item.name).join(', ')}`, 'ok');
+  setStatus(`${asset.name} removed from ${owners.map(item => embedOwnerLabel(item)).join(', ')}`, 'ok');
 }
 
 function updateSceneMediaPosition(scene, src, left, top) {
@@ -14078,7 +15028,7 @@ function renderLogicBoxes() {
   const del = document.getElementById('boxDel');
   if (del) del.disabled = !timelineState.clips.length;
   const dup = document.getElementById('boxDup');
-  if (dup) dup.disabled = !timelineState.clips.length || timelineState.clips.length >= 40;
+  if (dup) dup.disabled = !timelineState.clips.length;
   const split = document.getElementById('boxSplit');
   if (split) split.disabled = !timelineState.clips.length;
   const layerBtn = document.getElementById('layerAdd');
@@ -14208,7 +15158,6 @@ function nextSceneName() {
 }
 
 function createSceneClip(options = {}) {
-  if (timelineState.clips.length >= 40) return { error: 'Scene limit is 40.' };
   const active = activeClip();
   const sameTrack = Math.max(0, Math.min(3, Number(active?.track) || 0));
   const above = String(options.layer || 'same') === 'above';
@@ -14441,11 +15390,12 @@ function addProjectAsset(info, duration) {
   return asset;
 }
 
-// Technical analysis is cached server-side by content hash; semantic analysis
-// is not run automatically and stays explicitly "not_analyzed".
-async function analyzeProjectAsset(asset) {
+// Technical analysis and the EmbeddingGemma visual index are cached
+// server-side by content hash; ANALYZE CONTENT forces a local re-index.
+async function analyzeProjectAsset(asset, force = false) {
   if (!asset?.url || !asset.url.startsWith('/media/')) return null;
-  if (asset.analysis?.technical
+  if (!force
+      && asset.analysis?.technical
       && Number(asset.analysis.analyzer?.version || 0) >= ASSET_ANALYSIS_VERSION) {
     return asset.analysis;
   }
@@ -14453,7 +15403,7 @@ async function analyzeProjectAsset(asset) {
     const response = await fetch('/api/media/analyze', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ url: asset.url })
+      body: JSON.stringify({ url: asset.url, refresh: force })
     });
     const payload = await response.json();
     if (!payload.ok || !payload.manifest) throw new Error(payload.error || 'Analysis failed');
@@ -14728,6 +15678,23 @@ function insertAssetAtPlayhead(assetId) {
   return insertAssetClip(asset, { track: preferred, at, duration, mode: 'ripple' });
 }
 
+// Adding from the bin or the media inspector: when a code scene is selected
+// and the playhead is inside it, the asset belongs to that scene's page, not
+// to a new layer above it. Other targets keep the normal insert behavior.
+function addAssetSmart(assetId) {
+  const asset = findAsset(assetId);
+  if (!asset) return null;
+  syncActiveClipFromEditor(true);
+  const active = activeClip();
+  const at = Number(timelineState.playhead) || 0;
+  if (asset.kind !== 'audio' && active && !clipIsMedia(active)
+    && at >= (Number(active.start) || 0) - 1e-6
+    && at < clipEnd(active) - 1e-6) {
+    return embedAssetInScene(asset, null, active);
+  }
+  return insertAssetAtPlayhead(assetId);
+}
+
 function placeAssetClipAt(asset, track, at, options = {}) {
   if (!asset) return null;
   syncActiveClipFromEditor(true);
@@ -14974,6 +15941,7 @@ const projectOps = Object.freeze({
       transitions: transitionSummaryForChat().filter(transition =>
         transition.fromClipId === clip.id || transition.toClipId === clip.id
       ),
+      embeddedMedia: clipIsMedia(clip) ? [] : sceneMediaDetails(clip.code),
       asset: assetTechnicalSummary(clipAsset(clip))
     };
   },
@@ -15231,7 +16199,6 @@ const projectOps = Object.freeze({
   duplicateClip(clipId) {
     const clip = timelineState.clips.find(item => item.id === clipId);
     if (!clip) return { ok: false, error: 'Clip not found.' };
-    if (timelineState.clips.length >= 40) return { ok: false, error: 'Scene limit is 40.' };
     selectLogicClip(clip.id, { preview: false });
     addLogicClip({ duplicate: true });
     const created = activeClip();
@@ -15279,20 +16246,22 @@ function beginRenameClip(id) {
 }
 
 // ── TIMELINE VIEW (zoom + horizontal scroll in time) ─────
+// A 100% view never squeezes the ruler down to the content length: short
+// sequences keep a working span so a 3s scene stays a small box instead of
+// filling the whole lane. Zooming out below 100% reveals time around it.
+const TIMELINE_MIN_VIEW_SECONDS = 30;
+const TIMELINE_MIN_ZOOM = 0.01;
+const TIMELINE_MAX_ZOOM = 8;
 const timelineView = { zoom: 1, start: 0 };
 
 function timelineViewSpan() {
-  return Math.max(0.5, timelineTotalSeconds() / timelineView.zoom);
+  const baseline = Math.max(TIMELINE_MIN_VIEW_SECONDS, timelineTotalSeconds());
+  return Math.max(0.5, baseline / timelineView.zoom);
 }
 
 function clampTimelineView() {
   const total = timelineTotalSeconds();
   const span = timelineViewSpan();
-  if (timelineView.zoom <= 1.001) {
-    timelineView.zoom = 1;
-    timelineView.start = 0;
-    return;
-  }
   timelineView.start = Math.max(0, Math.min(Math.max(0, total - span), timelineView.start));
 }
 
@@ -15328,6 +16297,13 @@ function timelineDropLane(event) {
   return (hit || rows[rows.length - 1]).querySelector('.et-lane');
 }
 
+function timelineClipAtPoint(clientX, clientY) {
+  const box = document.elementFromPoint(clientX, clientY)?.closest('.logic-box');
+  if (!box) return null;
+  const clip = timelineState.clips.find(item => item.id === box.dataset.id);
+  return clip ? { clip, box } : null;
+}
+
 // Shared by OS file drops and the pointer-based bin drag: resolves the lane,
 // insertion time and the overlay track a clip would land on.
 function resolveTimelineDrop(clientX, clientY, asset) {
@@ -15344,13 +16320,28 @@ function resolveTimelineDrop(clientX, clientY, asset) {
   const length = asset
     ? Math.max(0.5, Math.min(assetInsertDuration(asset), TIMELINE_MAX_SECONDS - at))
     : 0;
+  // Dropping a visual asset straight onto a code scene embeds it in that
+  // scene's HTML instead of stacking another clip on top of it.
+  if (asset && asset.kind !== 'audio') {
+    const hit = timelineClipAtPoint(clientX, clientY);
+    if (hit && !clipIsMedia(hit.clip)) {
+      return { lane, at, track, targetTrack: track, embedClip: hit.clip, invalid: false };
+    }
+  }
   const targetTrack = asset ? overlayTrackFor(at, length, track) : track;
   return { lane, at, track, targetTrack, invalid: asset ? targetTrack < 0 : false };
 }
 
 function showTimelineDropFeedback(drop, options = {}) {
   document.querySelectorAll('.et-lane.drop-over, .et-lane.drop-invalid').forEach(el => el.classList.remove('drop-over', 'drop-invalid'));
+  document.querySelectorAll('.logic-box.drop-embed').forEach(el => el.classList.remove('drop-embed'));
   if (!drop) { hideDropMarker(); return; }
+  if (drop.embedClip) {
+    const box = document.querySelector(`.logic-box[data-id="${drop.embedClip.id}"]`);
+    box?.classList.add('drop-embed');
+    hideDropMarker();
+    return;
+  }
   drop.lane.classList.add(drop.invalid ? 'drop-invalid' : 'drop-over');
   const label = formatTimelineTime(drop.at);
   const laneLabel = drop.audioTrack ? ` · ${drop.audioTrack}` : ` · V${drop.targetTrack + 1}`;
@@ -15387,7 +16378,7 @@ function setTimelineZoom(zoom) {
   const total = timelineTotalSeconds();
   const anchor = timelineState.playhead;
   const beforePct = total > 0 ? Math.max(0, Math.min(1, (anchor - timelineView.start) / timelineViewSpan())) : 0;
-  timelineView.zoom = Math.max(1, Math.min(8, Number(zoom) || 1));
+  timelineView.zoom = Math.max(TIMELINE_MIN_ZOOM, Math.min(TIMELINE_MAX_ZOOM, Number(zoom) || 1));
   const span = timelineViewSpan();
   timelineView.start = Math.max(0, Math.min(Math.max(0, total - span), anchor - beforePct * span));
   clampTimelineView();
@@ -15412,7 +16403,6 @@ function fitTimelineView() {
 }
 
 function ensurePlayheadVisible() {
-  if (timelineView.zoom <= 1.001) return false;
   const span = timelineViewSpan();
   const at = timelineState.playhead;
   if (at >= timelineView.start && at <= timelineView.start + span) return false;
@@ -15444,13 +16434,28 @@ function quantizeFrameTime(seconds, fps = timelineFrameRate()) {
   return Math.round((Math.round(safe * fps) / fps) * 1e6) / 1e6;
 }
 
+function syncMonitorFpsControl() {
+  const source = document.getElementById('frameRate');
+  const chip = document.getElementById('monitorFps');
+  if (!source || !chip) return;
+  if (chip.options.length !== source.options.length) {
+    chip.textContent = '';
+    for (const option of source.options) {
+      const copy = document.createElement('option');
+      copy.value = option.value;
+      copy.textContent = `${option.value} FPS`;
+      chip.append(copy);
+    }
+  }
+  chip.value = source.value;
+}
+
 function updateMonitorTime() {
   const time = document.getElementById('monitorTime');
   if (time) time.textContent = formatTimecode(timelineState.playhead);
   const duration = document.getElementById('monitorDuration');
   if (duration) duration.textContent = formatTimecode(timelineTotalSeconds());
-  const chip = document.getElementById('monitorFps');
-  if (chip) chip.textContent = `${document.getElementById('frameRate')?.value || '60'} FPS`;
+  syncMonitorFpsControl();
 }
 
 function playbackClipKey(at) {
@@ -15458,8 +16463,7 @@ function playbackClipKey(at) {
   const transitionKey = transitionsAtTime(at).map(transition => transition.id).join(',');
   if (!active.length) return transitionKey ? `tr:${transitionKey}` : 'none';
   const ids = active.map(clip => clip.id).join(',');
-  const mediaBucket = active.some(clip => clipIsMedia(clip)) ? Math.floor(at * 2) : '';
-  return `${ids}|tr:${transitionKey}|${mediaBucket}`;
+  return `${ids}|tr:${transitionKey}`;
 }
 
 function togglePlayback() {
@@ -15806,7 +16810,9 @@ function projectLibraryTime(iso) {
 async function refreshProjectLibrary() {
   const section = document.getElementById('projectLibrary');
   const list = document.getElementById('projectLibraryList');
-  if (!section || !list || !durableProjectsEnabled()) return;
+  // Project Home is the project switcher on desktop; the inline list would
+  // only duplicate it and push the media bin down.
+  if (!section || !list || !durableProjectsEnabled() || projectHomeEnabled()) return;
   try {
     const response = await fetch(buildApiUrl('/api/projects'));
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
@@ -16880,22 +17886,8 @@ function voiceSelectedProvider() {
   return voiceStudioState.providers.find(provider => provider.id === id) || null;
 }
 
-// Local neural voices load a model on first use; warm the runtime as soon as
-// the provider is selected so the first generate does not pay the cold start.
-const voiceWarmRequests = new Set();
-function warmVoiceProvider(provider) {
-  if (!provider || !provider.available) return;
-  const warmable = ['styletts2', 'kokoro', 'piper'];
-  if (provider.kind !== 'local' || !warmable.includes(provider.id)) return;
-  if (voiceWarmRequests.has(provider.id)) return;
-  voiceWarmRequests.add(provider.id);
-  fetchWithTimeout(buildApiUrl('/api/tts/warm'), {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ provider: provider.id })
-  }, 30000).catch(() => {});
-}
-
+// Local neural voices load on first synthesis and are unloaded after idle;
+// selecting a provider must not start a model on its own.
 function setVoiceStatus(text, tone = '') {
   const el = voiceEl('voiceStatus');
   if (!el) return;
@@ -16965,7 +17957,6 @@ function updateVoiceControls() {
     consent.classList.toggle('remote', provider.kind === 'remote');
   }
   if (generate) generate.disabled = !provider.available || voiceStudioState.busy;
-  warmVoiceProvider(provider);
   localStorage.setItem(VOICE_PROVIDER_KEY, provider.id);
 }
 
@@ -17397,7 +18388,10 @@ function initLogicTimeline() {
   renderProjectBin();
   updateStageTimeline();
   for (const asset of timelineState.assets) {
-    if (!asset.analysis?.technical) analyzeProjectAsset(asset);
+    if (!asset.analysis?.technical
+        || Number(asset.analysis.analyzer?.version || 0) < ASSET_ANALYSIS_VERSION) {
+      analyzeProjectAsset(asset);
+    }
   }
 
   document.getElementById('boxAdd')?.addEventListener('click', () => addLogicClip());
@@ -17428,16 +18422,7 @@ function initLogicTimeline() {
   document.getElementById('miEmbedScene')?.addEventListener('click', () => embedAssetInScene());
   document.getElementById('miRemoveScene')?.addEventListener('click', removeAssetFromScene);
   document.getElementById('miSelectInBin')?.addEventListener('click', showSelectedAssetInBin);
-  document.getElementById('miAnalyzeToggle')?.addEventListener('click', openSemanticConsent);
-  document.getElementById('miAnalyzeCancel')?.addEventListener('click', () => {
-    const row = document.getElementById('miConsentRow');
-    if (row) row.hidden = true;
-  });
-  document.getElementById('miConsentCheck')?.addEventListener('change', (event) => {
-    const run = document.getElementById('miAnalyzeRun');
-    if (run) run.disabled = !event.target.checked;
-  });
-  document.getElementById('miAnalyzeRun')?.addEventListener('click', runSemanticAnalysis);
+  document.getElementById('miAnalyzeToggle')?.addEventListener('click', refreshLocalAssetAnalysis);
   document.getElementById('miUserNoteSave')?.addEventListener('click', saveAssetUserNote);
   document.getElementById('miAttachBtn')?.addEventListener('click', () => attachInspectedOverlay('mi'));
   document.getElementById('miDetachBtn')?.addEventListener('click', () => detachInspectedOverlay('mi'));
@@ -17449,6 +18434,22 @@ function initLogicTimeline() {
     const files = Array.from(mediaInput.files || []);
     mediaInput.value = '';
     importMediaFiles(files);
+  });
+  const footageInput = document.getElementById('footageSearchInput');
+  footageInput?.addEventListener('input', () => {
+    clearTimeout(footageSearchTimer);
+    footageSearchTimer = setTimeout(runFootageSearch, 350);
+  });
+  footageInput?.addEventListener('keydown', (event) => {
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      clearTimeout(footageSearchTimer);
+      runFootageSearch();
+    } else if (event.key === 'Escape') {
+      footageInput.value = '';
+      clearTimeout(footageSearchTimer);
+      runFootageSearch();
+    }
   });
 
   document.getElementById('zoomIn')?.addEventListener('click', () => setTimelineZoom(timelineView.zoom * 1.5));
@@ -17473,7 +18474,7 @@ function initLogicTimeline() {
       event.preventDefault();
       const rect = event.currentTarget.getBoundingClientRect();
       const pct = rect.width > 0 ? Math.max(0, Math.min(1, (event.clientX - rect.left) / rect.width)) : 0.5;
-      const anchor = timelinePctToTime(pct * 100);
+      const anchor = timelineView.start + pct * timelineViewSpan();
       setTimelineZoom(timelineView.zoom * (event.deltaY < 0 ? 1.25 : 0.8));
       const span = timelineViewSpan();
       timelineView.start = Math.max(0, Math.min(Math.max(0, timelineTotalSeconds() - span), anchor - pct * span));
@@ -17492,6 +18493,7 @@ function initLogicTimeline() {
 
   // Project bin: click to inspect, double-click or + to insert, drag to place.
   const binsRow = document.getElementById('binsRow');
+  let lastBinClick = { id: '', at: 0 };
   binsRow?.addEventListener('click', (event) => {
     const tile = event.target.closest('.dock-bin');
     if (!tile) {
@@ -17501,9 +18503,19 @@ function initLogicTimeline() {
     if (!tile.dataset.assetId) return;
     if (event.target.closest('.bin-insert')) {
       event.stopPropagation();
-      insertAssetAtPlayhead(tile.dataset.assetId);
+      lastBinClick = { id: '', at: 0 };
+      addAssetSmart(tile.dataset.assetId);
       return;
     }
+    // The tile is re-rendered when it becomes selected, so a native dblclick
+    // never lands on the same element; count two clicks on the same asset.
+    const now = Date.now();
+    if (lastBinClick.id === tile.dataset.assetId && now - lastBinClick.at < 450) {
+      lastBinClick = { id: '', at: 0 };
+      addAssetSmart(tile.dataset.assetId);
+      return;
+    }
+    lastBinClick = { id: tile.dataset.assetId, at: now };
     selectAsset(tile.dataset.assetId);
   });
   binsRow?.addEventListener('keydown', (event) => {
@@ -17513,12 +18525,10 @@ function initLogicTimeline() {
     openMediaPicker();
   });
   binsRow?.addEventListener('dblclick', (event) => {
-    const tile = event.target.closest('.dock-bin');
-    if (tile?.dataset.assetId) {
-      insertAssetAtPlayhead(tile.dataset.assetId);
-      return;
-    }
-    if (event.target.closest('.bins-empty')) openMediaPicker();
+    // Tiles consume their double-click to insert; any empty bin space is an
+    // import target even after the first assets arrived.
+    if (event.target.closest('.dock-bin')) return;
+    openMediaPicker();
   });
   // WebView2 strips custom MIME data from in-page drags and never delivers
   // dragover/drop for them, so assets are dragged with pointer events instead
@@ -17533,6 +18543,7 @@ function initLogicTimeline() {
 
   const clearAssetDropFeedback = () => {
     document.querySelectorAll('.et-lane.drop-over, .et-lane.drop-invalid').forEach(el => el.classList.remove('drop-over', 'drop-invalid'));
+    document.querySelectorAll('.logic-box.drop-embed').forEach(el => el.classList.remove('drop-embed'));
     hideDropMarker();
     clearStageDropFeedback();
   };
@@ -17610,6 +18621,11 @@ function initLogicTimeline() {
     suppressAssetClick = true;
     if (target.type === 'stage') {
       embedAssetInScene(asset, target.position);
+      return;
+    }
+    if (target.drop.embedClip) {
+      const scene = timelineState.clips.find(item => item.id === target.drop.embedClip.id);
+      if (scene) embedAssetInScene(asset, null, scene);
       return;
     }
     if (target.drop.audioTrack) {
@@ -18051,6 +19067,7 @@ function initLogicTimeline() {
 
   const clearDropFeedback = () => {
     document.querySelectorAll('.et-lane.drop-over, .et-lane.drop-invalid').forEach(el => el.classList.remove('drop-over', 'drop-invalid'));
+    document.querySelectorAll('.logic-box.drop-embed').forEach(el => el.classList.remove('drop-embed'));
   };
   wrap?.addEventListener('dragover', (event) => {
     if (!event.dataTransfer?.types?.includes('Files')) return;
@@ -18069,10 +19086,20 @@ function initLogicTimeline() {
     const drop = resolveTimelineDrop(event.clientX, event.clientY, null);
     if (!drop) return;
     event.preventDefault();
+    const hit = drop.audioTrack ? null : timelineClipAtPoint(event.clientX, event.clientY);
     importMediaFiles(files).then(assets => {
       if (!Array.isArray(assets) || !assets.length) return;
+      let queue = assets;
+      if (hit && !clipIsMedia(hit.clip)) {
+        const scene = timelineState.clips.find(item => item.id === hit.clip.id);
+        const first = queue.find(item => item.kind !== 'audio');
+        if (scene && first) {
+          embedAssetInScene(first, null, scene);
+          queue = queue.filter(item => item !== first);
+        }
+      }
       let cursor = drop.at;
-      for (const asset of assets) {
+      for (const asset of queue) {
         if (drop.audioTrack && asset.kind !== 'audio') continue;
         const clip = drop.audioTrack
           ? insertAssetClip(asset, {
@@ -18340,6 +19367,127 @@ function binAudioHtml(asset) {
   return `<span class="bin-wave real">${bars}</span>`;
 }
 
+let footageSearchTimer = null;
+let footageSearchBusy = false;
+
+function formatFootageTime(seconds) {
+  const total = Math.max(0, Number(seconds) || 0);
+  const minutes = Math.floor(total / 60);
+  const rest = total - minutes * 60;
+  return `${String(minutes).padStart(2, '0')}:${rest.toFixed(1).padStart(4, '0')}`;
+}
+
+function footageAssetForResult(result) {
+  return timelineState.assets.find(asset => asset.url === result.url) || null;
+}
+
+function renderFootageResults(payload) {
+  const box = document.getElementById('footageSearchResults');
+  const status = document.getElementById('footageSearchStatus');
+  if (!box) return;
+  const results = Array.isArray(payload?.results) ? payload.results : [];
+  box.hidden = false;
+  if (status) {
+    status.textContent = results.length
+      ? `${results.length} MOMENT${results.length === 1 ? '' : 'S'}`
+      : 'NO MATCHES';
+  }
+  if (!results.length) {
+    box.innerHTML = '<div class="footage-empty">NO LOCAL MATCH — import or index more media, then search again.</div>';
+    return;
+  }
+  box.innerHTML = results.map((result, index) => {
+    const asset = footageAssetForResult(result);
+    const name = asset ? asset.name : result.filename;
+    const art = result.thumb
+      ? `<img class="fr-thumb" src="${escapeHtml(result.thumb)}" alt="" loading="lazy">`
+      : '<span class="fr-thumb"></span>';
+    return `<button type="button" class="footage-result" data-result-index="${index}">` +
+      art +
+      '<span class="fr-body">' +
+      `<span class="fr-name">${escapeHtml(name)}</span>` +
+      `<span class="fr-meta">${escapeHtml(formatFootageTime(result.time))} IN SOURCE</span>` +
+      '</span>' +
+      `<span class="fr-score">${Math.round(Number(result.score) * 100)}%</span>` +
+      '</button>';
+  }).join('');
+  box.querySelectorAll('.footage-result').forEach(button => {
+    button.addEventListener('click', () => {
+      const result = results[Number(button.dataset.resultIndex)];
+      if (result) revealFootageMoment(result);
+    });
+  });
+}
+
+function revealFootageMoment(result) {
+  const asset = footageAssetForResult(result);
+  if (!asset) return;
+  const moment = Math.max(0, Number(result.time) || 0);
+  const clip = timelineState.clips.find(item => {
+    if (!clipIsMedia(item) || clipMediaUrl(item) !== asset.url) return false;
+    return moment >= clipSourceIn(item)
+      && moment <= clipSourceIn(item) + (Number(item.duration) || 0);
+  });
+  if (clip) {
+    const at = clip.start + Math.max(0, moment - clipSourceIn(clip));
+    timelineState.activeId = clip.id;
+    setPlayhead(at);
+    applyActiveClipToEditor({ preview: true, timing: true });
+    showMediaInspectorForClip(clip);
+  } else {
+    selectAsset(asset.id);
+    previewMediaSource({
+      url: asset.url,
+      kind: asset.kind,
+      sourceIn: moment,
+      duration: asset.kind === 'image' ? 0 : Math.max(1, (Number(asset.duration) || 0) - moment),
+      fit: mediaInsertFit,
+      name: `${asset.name} · ${formatFootageTime(moment)}`,
+      autoplay: true
+    });
+    const preview = document.querySelector('#miPreview video');
+    if (preview) {
+      try { preview.currentTime = moment; } catch (error) { console.error(error); }
+    }
+  }
+  setStatus(`FOOTAGE · ${asset.name} · ${formatFootageTime(moment)}`, '');
+}
+
+async function runFootageSearch() {
+  const input = document.getElementById('footageSearchInput');
+  const status = document.getElementById('footageSearchStatus');
+  const box = document.getElementById('footageSearchResults');
+  const query = String(input?.value || '').trim();
+  if (footageSearchBusy) return;
+  if (!query) {
+    if (box) { box.hidden = true; box.innerHTML = ''; }
+    if (status) status.textContent = 'LOCAL INDEX';
+    return;
+  }
+  footageSearchBusy = true;
+  if (status) status.textContent = 'SEARCHING…';
+  try {
+    const response = await fetch('/api/media/search', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ query, limit: 10 })
+    });
+    const payload = await response.json().catch(() => null);
+    if (!response.ok || !payload || !payload.ok) {
+      throw new Error(payload?.error || 'Footage search failed.');
+    }
+    renderFootageResults(payload);
+  } catch (error) {
+    if (box) {
+      box.hidden = false;
+      box.innerHTML = `<div class="footage-empty">${escapeHtml(String(error?.message || error).slice(0, 160))}</div>`;
+    }
+    if (status) status.textContent = 'SEARCH ERROR';
+  } finally {
+    footageSearchBusy = false;
+  }
+}
+
 function renderProjectBin() {
   const row = document.getElementById('binsRow');
   if (!row) return;
@@ -18369,7 +19517,7 @@ function renderProjectBin() {
     const shortName = String(asset.name || 'MEDIA').replace(/\.[a-z0-9]+$/i, '');
     return `<div class="dock-bin${selected ? ' selected' : ''}" data-asset-id="${escapeHtml(asset.id)}" draggable="false" title="${escapeHtml(asset.name)} · ${escapeHtml(duration)}">` +
       `<div class="bin-art">${art}<span class="bin-kind">${kindLabel}</span>` +
-      `<button type="button" class="bin-insert" title="Insert at playhead">＋</button></div>` +
+      `<button type="button" class="bin-insert" title="Add to the selected scene at the playhead">＋</button></div>` +
       `<div class="bin-label"><span title="${escapeHtml(asset.name)}">${escapeHtml(shortName)}</span><em>${escapeHtml(duration)}</em></div>` +
       '</div>';
   }).join('');
@@ -18420,6 +19568,13 @@ function initControlRoom() {
     if (!row) return;
     selectLogicClip(row.dataset.sceneId);
     switchLeftTab('code');
+  });
+  document.getElementById('monitorFps')?.addEventListener('change', (event) => {
+    const frameRate = document.getElementById('frameRate');
+    if (!frameRate) return;
+    frameRate.value = event.target.value;
+    frameRate.dispatchEvent(new Event('change', { bubbles: true }));
+    setStatus(`FRAME RATE · ${event.target.value} FPS`, '');
   });
   document.getElementById('playToggle')?.addEventListener('click', togglePlayback);
   document.getElementById('fitToggle')?.addEventListener('click', togglePreviewFit);
@@ -18691,7 +19846,9 @@ function updateComposerModelLabel() {
     label.textContent = 'AUTO · ' + (provider === 'mistral' ? 'Mistral' : 'Gemini');
   } else {
     const found = (chatState.models[provider] || []).find(m => m.name === selected);
-    label.textContent = found ? (found.displayName || modelShortName(found.name)) : modelShortName(selected);
+    const quota = found ? modelQuotaNote(found) : '';
+    label.textContent = (found ? (found.displayName || modelShortName(found.name)) : modelShortName(selected))
+      + (quota ? ` · ${quota}` : '');
   }
   syncAssistantModelLabels();
   updateComposerHealth();
@@ -18722,10 +19879,11 @@ function renderComposerMenu() {
   const current = currentProvider();
   const selected = chatState.modelPrefs[current] || 'auto';
   menu.innerHTML = '';
+  const currentCalls = Number(llmUsage.usage && llmUsage.usage[current] && llmUsage.usage[current].calls) || 0;
 
   menu.appendChild(composerModelRow(
     'AUTO · Smart routing',
-    current === 'mistral' ? 'Mistral' : 'Gemini',
+    (current === 'mistral' ? 'Mistral' : 'Gemini') + (currentCalls ? ` · ${currentCalls} calls` : ''),
     selected === 'auto',
     () => selectComposerModel(current, 'auto')
   ));
@@ -18770,15 +19928,136 @@ function renderComposerMenu() {
 
     for (const model of models) {
       const context = formatTokenCount(model.inputTokenLimit);
-      const output = formatTokenCount(model.outputTokenLimit);
-      const meta = (context ? 'ctx ' + context : '') + (output ? (context ? ' · ' : '') + 'out ' + output : '');
+      const usage = usageForModel(provider, model.name);
+      const live = usage && usage.limits
+        ? Object.assign({}, model, {
+            limits: usage.limits,
+            headroom: usage.headroom,
+            rateLimit: usage.rateLimit || model.rateLimit,
+            serviceTier: usage.serviceTier || model.serviceTier
+          })
+        : model;
+      const quota = modelQuotaNote(live);
+      const calls = Math.max(Number(usage && usage.calls) || 0, Number(model.callsToday) || 0);
+      const callNote = live.limits ? '' : (calls ? `${calls} call${calls === 1 ? '' : 's'}` : '');
+      const limitNote = modelLimitNote(live);
+      const meta = [
+        context ? 'ctx ' + context : '',
+        callNote,
+        limitNote,
+        quota
+      ].filter(Boolean).join(' · ');
       const active = provider === current && selected === model.name;
       const row = composerModelRow(model.displayName || modelShortName(model.name), meta, active,
         () => selectComposerModel(provider, model.name));
-      row.title = model.description || model.name;
+      const usageTitle = calls
+        ? `${calls} request${calls === 1 ? '' : 's'} today${usage && usage.remaining != null ? ` · ~${usage.remaining} left` : ''}`
+        : '';
+      row.title = [
+        model.description || model.name,
+        model.maxOutputTokens ? `max output ${formatTokenCount(model.maxOutputTokens)}` : '',
+        usageTitle,
+        modelLimitsTitle(live),
+        quota ? `quota exhausted · resets in ~${formatCooldown(model.cooldownSeconds)}` : ''
+      ].filter(Boolean).join('\n');
+      if (quota) row.classList.add('cooled');
       menu.appendChild(row);
     }
   }
+  renderComposerUsage(menu);
+}
+
+function renderComposerUsage(menu) {
+  const providers = ['gemini', 'mistral'].filter(provider => (chatState.keys[provider] || '').trim());
+  if (!providers.length) return;
+  const block = document.createElement('div');
+  block.className = 'chat-usage';
+  const title = document.createElement('div');
+  title.className = 'chat-usage-title';
+  title.textContent = llmUsage.today ? `Today · ${llmUsage.today}` : 'Today';
+  block.appendChild(title);
+  let counted = 0;
+  for (const provider of providers) {
+    const bucket = (llmUsage.usage && llmUsage.usage[provider]) || {};
+    const calls = Number(bucket.calls) || 0;
+    counted += calls;
+    const row = document.createElement('div');
+    row.className = 'chat-usage-row';
+    const name = document.createElement('span');
+    name.className = 'u-provider';
+    name.textContent = provider === 'mistral' ? 'Mistral' : 'Gemini';
+    const count = document.createElement('span');
+    count.className = 'u-count';
+    count.textContent = `${calls} call${calls === 1 ? '' : 's'}`;
+    row.append(name, count);
+    block.appendChild(row);
+    const tokens = (Number(bucket.promptTokens) || 0) + (Number(bucket.completionTokens) || 0);
+    const purposes = Object.entries(bucket.purposes || {})
+      .sort((a, b) => Number(b[1]) - Number(a[1]))
+      .map(([purpose, count]) => `${purpose} ${count}`)
+      .join(' · ');
+    const detailText = [
+      tokens ? `${formatTokenCount(tokens)} tokens` : '',
+      purposes,
+      bucket.serviceTier ? `tier ${bucket.serviceTier}` : ''
+    ].filter(Boolean).join(' · ');
+    if (detailText) {
+      const detail = document.createElement('div');
+      detail.className = 'chat-usage-purposes';
+      detail.textContent = detailText;
+      block.appendChild(detail);
+    }
+    const limits = bucket.limits;
+    const headroom = bucket.headroom || {};
+    if (limits) {
+      const limitRow = document.createElement('div');
+      limitRow.className = 'chat-usage-purposes';
+      limitRow.textContent = [
+        limits.rpm != null
+          ? `${modelUsed(limits.rpm, headroom.rpm) != null ? modelUsed(limits.rpm, headroom.rpm) : '?'}/${limits.rpm} req/min`
+          : '',
+        limits.tpm != null
+          ? `${modelUsed(limits.tpm, headroom.tpm) != null ? formatTokenCount(modelUsed(limits.tpm, headroom.tpm)) : '?'}/${formatTokenCount(limits.tpm)} tok/min`
+          : '',
+        limits.rpd != null
+          ? `${modelUsed(limits.rpd, headroom.rpd) != null ? modelUsed(limits.rpd, headroom.rpd) : '?'}/${limits.rpd} req/day`
+          : ''
+      ].filter(Boolean).join(' · ');
+      if (limitRow.textContent) block.appendChild(limitRow);
+    }
+    const rate = bucket.rateLimit || {};
+    const rateLimit = Number(rate['x-ratelimit-limit-req-minute']) || 0;
+    const rateRemaining = Number(rate['x-ratelimit-remaining-req-minute']);
+    const tokenLimit = Number(rate['x-ratelimit-limit-tokens-minute']) || 0;
+    const tokenRemaining = Number(rate['x-ratelimit-remaining-tokens-minute']);
+    if (!limits && rateLimit && Number(rate.updatedAt) && Date.now() / 1000 - Number(rate.updatedAt) <= 70) {
+      const rateRow = document.createElement('div');
+      rateRow.className = 'chat-usage-purposes';
+      rateRow.textContent = [
+        `${Math.max(0, rateLimit - (Number.isFinite(rateRemaining) ? rateRemaining : rateLimit))}/${rateLimit} req/min`,
+        tokenLimit ? `${formatTokenCount(Math.max(0, tokenLimit - (Number.isFinite(tokenRemaining) ? tokenRemaining : tokenLimit)))}/${formatTokenCount(tokenLimit)} tok/min` : ''
+      ].filter(Boolean).join(' · ');
+      block.appendChild(rateRow);
+    }
+    const lastTokens = (Number(bucket.lastPromptTokens) || 0) + (Number(bucket.lastCompletionTokens) || 0);
+    if (bucket.lastAt && lastTokens) {
+      const last = document.createElement('div');
+      last.className = 'chat-usage-purposes';
+      last.textContent = `last call ${formatTokenCount(lastTokens)} tokens${bucket.lastEstimatedTokens ? ` · sent ~${formatTokenCount(bucket.lastEstimatedTokens)}` : ''}`;
+      block.appendChild(last);
+    }
+  }
+  if (!counted) {
+    const empty = document.createElement('div');
+    empty.className = 'chat-usage-purposes';
+    empty.textContent = 'No provider calls recorded yet today.';
+    block.appendChild(empty);
+  }
+  const note = document.createElement('div');
+  note.className = 'chat-usage-note';
+  note.textContent = 'Counted locally per request (a code turn is usually tool + summary + review, plus title/fix). Gemini limits come from the AI Studio free-tier table; Mistral limits are live headers. A 429 overrides them.';
+  block.appendChild(note);
+  menu.appendChild(block);
 }
 
 function openComposerModelMenu() {
@@ -18797,6 +20076,7 @@ function openComposerModelMenu() {
     Promise.all(missing.map(p => refreshModels(p)))
       .then(() => { if (isComposerMenuOpen()) renderComposerMenu(); });
   }
+  refreshLlmUsage();
 }
 
 function closeComposerModelMenu() {

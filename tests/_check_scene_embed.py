@@ -8,6 +8,7 @@ from pathlib import Path
 
 ROOT = Path(r"C:\Users\Savyasachi Mishra\Desktop\clipacanvas")
 sys.path.insert(0, str(ROOT))
+os.environ["APPDATA"] = tempfile.mkdtemp(prefix="cc-scene-embed-")
 from serve import resolve_ffmpeg_exe, server_url, start_server, stop_server
 
 try:
@@ -48,6 +49,10 @@ with tempfile.TemporaryDirectory() as tmp_name:
             page.on("pageerror", lambda err: errors.append(str(err)))
             page.goto(f"{base}/clipacanvas.html", wait_until="load")
             page.wait_for_timeout(1200)
+            page.evaluate("""() => {
+                if (!timelineState.clips.some(c => c.type === 'code')) createSceneClip({ layer: 'same' });
+            }""")
+            page.wait_for_timeout(300)
             page.evaluate("""() => {
                 setResolutionValue('540x960');
                 const fps = document.getElementById('frameRate');
@@ -194,6 +199,214 @@ with tempfile.TemporaryDirectory() as tmp_name:
             assert page.locator("#mediaInspector").is_visible()
             assert page.locator("#inspectorTag").inner_text() == "MEDIA"
             assert page.locator("#miRemoveScene").is_visible()
+
+            # Dropping the bin asset onto Scene 01's timeline box embeds it in
+            # that scene's HTML instead of stacking a new layer on top.
+            page.evaluate("""() => {
+                const first = timelineState.clips.find(c => c.type === 'code');
+                first.code = '<!doctype html><html><head><style>html,body{margin:0;height:100%;background:#00c040}</style></head><body></body></html>';
+                const second = JSON.parse(JSON.stringify(first));
+                second.id = 'scene-two';
+                second.name = 'SCENE 02';
+                second.start = first.start + first.duration;
+                second.code = '<!doctype html><html><head><style>html,body{margin:0;height:100%;background:#0040c0}</style></head><body></body></html>';
+                timelineState.clips.push(second);
+                timelineState.activeId = first.id;
+                saveTimelineState(true); renderLogicBoxes(); updateStageTimeline();
+            }""")
+            page.wait_for_timeout(400)
+            page.evaluate(f"selectAsset('{asset_id}')")
+            page.wait_for_timeout(200)
+            box = page.locator(".logic-box.code").first.bounding_box()
+            page.drag_and_drop(
+                ".dock-bin",
+                ".logic-box.code",
+                target_position={"x": box["width"] * 0.5, "y": box["height"] * 0.5},
+            )
+            page.wait_for_timeout(900)
+            dropped = page.evaluate("""() => {
+                const first = timelineState.clips.find(c => c.id === document.querySelector('.logic-box.code').dataset.id);
+                return {
+                    count: timelineState.clips.length,
+                    layers: timelineState.layers,
+                    first: first.code,
+                    second: timelineState.clips.find(c => c.name === 'SCENE 02').code,
+                    active: timelineState.activeId === first.id
+                };
+            }""")
+            print("scene drop clips/layers:", dropped["count"], dropped["layers"])
+            assert dropped["count"] == 2 and dropped["layers"] == 1, dropped
+            assert asset_url in dropped["first"] and "<img" in dropped["first"], dropped["first"][-300:]
+            assert asset_url not in dropped["second"], dropped["second"][-200:]
+            assert dropped["active"], dropped
+            assert "inside" in page.locator("#statusBar").inner_text()
+
+            # The agent path uses the same embedding: sceneId + assetId, no layer.
+            page.evaluate("""() => {
+                const second = timelineState.clips.find(c => c.name === 'SCENE 02');
+                second.code = '<!doctype html><html><head><style>html,body{margin:0;height:100%;background:#0040c0}</style></head><body></body></html>';
+                timelineState.activeId = second.id;
+                saveTimelineState(true); renderLogicBoxes(); updateStageTimeline();
+            }""")
+            tool = page.evaluate(
+                "async ([assetId]) => executeChatTool({name: 'put_media_in_scene', args: {assetId, sceneId: 'scene-two', x: 30, y: 40}})",
+                [asset_id],
+            )
+            print("agent put_media_in_scene:", tool.get("ok"), tool.get("scene"))
+            assert tool["ok"], tool
+            assert tool["scene"]["id"] == "scene-two", tool
+            after_tool = page.evaluate("""() => {
+                const second = timelineState.clips.find(c => c.id === 'scene-two');
+                return {
+                    count: timelineState.clips.length,
+                    layers: timelineState.layers,
+                    code: second.code,
+                    active: timelineState.activeId === second.id
+                };
+            }""")
+            assert after_tool["count"] == 2 and after_tool["layers"] == 1, after_tool
+            assert asset_url in after_tool["code"] and "<img" in after_tool["code"], after_tool["code"][-300:]
+            assert "left:30.0%" in after_tool["code"] and "top:40.0%" in after_tool["code"], after_tool["code"][-300:]
+            assert after_tool["active"], after_tool
+            missing = page.evaluate(
+                "async () => executeChatTool({name: 'put_media_in_scene', args: {assetId: 'missing-asset'}})"
+            )
+            assert missing["ok"] is False, missing
+
+            # Double-clicking the bin card adds the image to the selected
+            # scene, not to a new layer above it.
+            page.evaluate("""() => {
+                const second = timelineState.clips.find(c => c.id === 'scene-two');
+                second.code = '<!doctype html><html><head><style>html,body{margin:0;height:100%;background:#0040c0}</style></head><body></body></html>';
+                timelineState.activeId = second.id;
+                timelineState.playhead = second.start + 1;
+                saveTimelineState(true);
+                applyActiveClipToEditor({ preview: false });
+                renderLogicBoxes();
+                updateStageTimeline();
+            }""")
+            page.wait_for_timeout(400)
+            page.locator(".dock-bin").first.dblclick()
+            page.wait_for_timeout(800)
+            binned = page.evaluate("""() => {
+                const second = timelineState.clips.find(c => c.id === 'scene-two');
+                return {
+                    count: timelineState.clips.length,
+                    layers: timelineState.layers,
+                    code: second.code,
+                    active: timelineState.activeId === second.id
+                };
+            }""")
+            print("bin double-click scene embed:", binned["count"], binned["layers"])
+            assert binned["count"] == 2 and binned["layers"] == 1, binned
+            assert asset_url in binned["code"] and "<img" in binned["code"], binned["code"][-300:]
+            assert binned["active"], binned
+
+            # An EMPTY scene adopts the media as full-frame content instead of
+            # showing a small picture floating on a blank page.
+            page.evaluate("""() => {
+                const two = timelineState.clips.find(c => c.id === 'scene-two');
+                two.code = '';
+                timelineState.activeId = two.id;
+                timelineState.playhead = two.start + 1;
+                saveTimelineState(true);
+                applyActiveClipToEditor({ preview: false });
+                renderLogicBoxes();
+                updateStageTimeline();
+            }""")
+            page.wait_for_timeout(400)
+            page.locator(".dock-bin").first.dblclick()
+            page.wait_for_timeout(900)
+            full = page.evaluate("() => timelineState.clips.find(c => c.id === 'scene-two').code")
+            print("empty scene full-frame:", full[:240])
+            assert full.strip().lower().startswith("<!doctype html"), full[:240]
+            assert asset_url in full and 'data-cc-fill="1"' in full, full[:300]
+            assert "width:100%;height:100%" in full, full[:300]
+            shot_path = tmp / "full-scene.png"
+            page.locator("#previewStage").screenshot(path=str(shot_path))
+            full_shot = Image.open(shot_path).convert("RGB")
+            fw, fh = full_shot.size
+            f_corner = full_shot.getpixel((int(fw * 0.03), int(fh * 0.03)))
+            f_center = full_shot.getpixel((int(fw * 0.5), int(fh * 0.5)))
+            print("full-frame corner/center:", f_corner, f_center)
+            assert f_corner[0] < 40 and f_corner[1] < 40 and f_corner[2] < 40, f_corner
+            assert f_center[0] > 150 and f_center[1] < 100 and f_center[2] > 150, f_center
+
+            # The agent must extend the selected scene in place when it already
+            # contains embedded media, instead of adding an overlay layer.
+            agent_state = page.evaluate("""() => {
+                const two = timelineState.clips.find(c => c.id === 'scene-two');
+                timelineState.activeId = two.id;
+                timelineState.playhead = two.start + 1;
+                const app = chatToolAppState();
+                const msgs = buildChatApiMessages('add a title over it');
+                return {
+                    media: app.selectedClip.embeddedMedia,
+                    cue: msgs.some(m => m.role === 'system' && m.content.includes('belong INSIDE this same document'))
+                };
+            }""")
+            print("agent scene media:", agent_state)
+            assert agent_state["media"] and agent_state["media"][0]["src"] == asset_url, agent_state
+            assert agent_state["cue"], agent_state
+
+            preserved = page.evaluate("""async () => {
+                const two = timelineState.clips.find(c => c.id === 'scene-two');
+                const before = { count: timelineState.clips.length, layers: timelineState.layers };
+                const result = await executeChatTool({name: 'insert_animation_code', args: {
+                    code: '<!doctype html><html><head><style>html,body{margin:0;background:#000;overflow:hidden}</style></head><body><h1 style="position:fixed;top:10%;left:50%;transform:translateX(-50%);color:#fff;z-index:30">TITLE</h1></body></html>'
+                }});
+                return { result, before, after: { count: timelineState.clips.length, layers: timelineState.layers, code: two.code, editor: document.getElementById('codeInput').value } };
+            }""")
+            print("agent omitted media -> kept:", preserved["result"])
+            assert preserved["result"]["ok"] is True, preserved
+            assert preserved["result"]["preservedMedia"] == 1, preserved
+            assert preserved["after"]["count"] == preserved["before"]["count"], preserved
+            assert preserved["after"]["layers"] == preserved["before"]["layers"], preserved
+            assert "cc-scene-media" in preserved["after"]["code"] and "TITLE" in preserved["after"]["code"], preserved
+            assert preserved["after"]["code"].index("cc-scene-media") < preserved["after"]["code"].index("TITLE"), "kept media must be the background layer"
+            assert preserved["after"]["code"] == preserved["after"]["editor"], "editor did not receive the scene update"
+
+            extended = page.evaluate("""async () => {
+                const two = timelineState.clips.find(c => c.id === 'scene-two');
+                const mediaTag = (two.code.match(/<img\\b[^>]*cc-scene-media[^>]*>/i) || [])[0];
+                const code = '<!doctype html><html><head><style>html,body{margin:0;background:#000;overflow:hidden}</style></head><body>' + mediaTag + '<h1 style="position:fixed;left:50%;top:12%;transform:translateX(-50%);color:#fff;z-index:30">TITLE TWO</h1></body></html>';
+                const result = await executeChatTool({name: 'insert_animation_code', args: { code }});
+                return { result, count: timelineState.clips.length, layers: timelineState.layers, code: two.code, editor: document.getElementById('codeInput').value };
+            }""")
+            print("agent in-scene title:", extended["result"])
+            assert extended["result"]["ok"] is True, extended
+            assert extended["result"]["preservedMedia"] == 0, extended
+            assert extended["count"] == 2 and extended["layers"] == 1, extended
+            assert "cc-scene-media" in extended["code"] and "TITLE TWO" in extended["code"], extended
+            assert extended["code"] == extended["editor"], "editor did not receive the scene update"
+
+            removed = page.evaluate("""async () => {
+                const two = timelineState.clips.find(c => c.id === 'scene-two');
+                const result = await executeChatTool({name: 'insert_animation_code', args: {
+                    code: '<!doctype html><html><head><style>html,body{margin:0;background:#000}</style></head><body><h1>ONLY TITLE</h1></body></html>',
+                    removeMedia: true
+                }});
+                return { result, code: two.code, count: timelineState.clips.length };
+            }""")
+            print("agent explicit remove:", removed["result"])
+            assert removed["result"]["ok"] is True, removed
+            assert removed["result"]["preservedMedia"] == 0, removed
+            assert "cc-scene-media" not in removed["code"], removed
+            assert removed["count"] == 2, removed
+
+            # Old projects saved a lone 72% media fragment; loading upgrades it
+            # to the full-frame scene document without touching rich scenes.
+            legacy = (
+                '<video class="cc-scene-media" src="' + asset_url + '" data-media="wide" muted '
+                'playsinline autoplay loop style="position:fixed;left:50.0%;top:50.0%;width:72%;'
+                'height:auto;max-height:72%;transform:translate(-50%,-50%);object-fit:contain;z-index:20;"></video>'
+            )
+            upgraded = page.evaluate("(code) => upgradeLegacySceneMedia(code)", legacy)
+            print("legacy upgrade:", upgraded[:180])
+            assert upgraded.lower().startswith("<!doctype html"), upgraded[:200]
+            assert 'data-cc-fill="1"' in upgraded and "width:100%;height:100%" in upgraded, upgraded[:300]
+            rich = '<!doctype html><html><body style="background:#00c040"><img class="cc-scene-media" src="' + asset_url + '" style="width:72%"></body></html>'
+            assert page.evaluate("(code) => upgradeLegacySceneMedia(code)", rich) == rich
 
             browser.close()
             assert not errors, errors

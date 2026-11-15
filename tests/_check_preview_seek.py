@@ -1,6 +1,10 @@
 """The program monitor must draw the same time the timeline is parked on."""
+import os
 import sys
+import tempfile
 from pathlib import Path
+
+os.environ["APPDATA"] = tempfile.mkdtemp(prefix="cc-preview-seek-")
 
 ROOT = Path(r"C:\Users\Savyasachi Mishra\Desktop\clipacanvas")
 sys.path.insert(0, str(ROOT))
@@ -23,12 +27,29 @@ html,body{margin:0;background:transparent;overflow:hidden}
 
 
 def serve_frame(page, element_id):
+    candidates = []
     for frame in page.frames:
         try:
-            if frame.evaluate(f"() => !!document.getElementById('{element_id}')"):
-                return frame
+            if frame.is_detached():
+                continue
+            if not frame.evaluate(f"() => !!document.getElementById('{element_id}')"):
+                continue
+            candidates.append(frame)
         except Exception:
             continue
+    if len(candidates) > 1:
+        visible = []
+        for frame in candidates:
+            try:
+                handle = frame.frame_element()
+                if handle and handle.evaluate("el => el.style.visibility !== 'hidden'"):
+                    visible.append(frame)
+            except Exception:
+                continue
+        if visible:
+            return visible[0]
+    if candidates:
+        return candidates[0]
     raise AssertionError(f"frame with #{element_id} not found")
 
 

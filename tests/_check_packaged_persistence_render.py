@@ -138,6 +138,7 @@ with tempfile.TemporaryDirectory() as tmp_name:
             assert page.evaluate("activeProject && activeProject.id === 'packaged-film'"), "project id missing"
             assert page.evaluate("typeof undoTimeline === 'function' && typeof redoTimeline === 'function'"), "undo not packaged"
             assert page.evaluate("Boolean(document.getElementById('projectLibrary') && document.getElementById('boxUndo'))"), "project library/undo UI missing"
+            assert page.evaluate("document.getElementById('projectLibrary').hidden === true"), "inline library duplicates Project Home"
             print("attached:", page.title())
 
             page.set_input_files("#mediaInput", [str(p) for p in stills] + [str(music), str(sfx)])
@@ -192,11 +193,17 @@ with tempfile.TemporaryDirectory() as tmp_name:
                   "clips:", len(saved["timeline"]["clips"]))
             assert saved.get("projectId") == "packaged-film", saved.get("projectId")
             page.evaluate("saveProjectToLibrary()")
-            page.wait_for_function(
-                "() => document.querySelectorAll('#projectLibraryList .project-row').length >= 1",
-                timeout=15000,
-            )
-            print("library rows:", page.evaluate("document.querySelectorAll('#projectLibraryList .project-row').length"))
+            deadline = time.time() + 20
+            projects = []
+            while time.time() < deadline:
+                projects = page.evaluate(
+                    "async () => { const r = await fetch('/api/projects'); const d = await r.json(); return d.projects || []; }"
+                )
+                if any(p.get("id") == "packaged-film" for p in projects):
+                    break
+                page.wait_for_timeout(250)
+            assert any(p.get("id") == "packaged-film" for p in projects), projects
+            print("library projects:", [p.get("id") for p in projects])
 
             page.click("#btnConvert")
             deadline = time.time() + 420

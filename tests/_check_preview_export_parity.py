@@ -1,9 +1,12 @@
 """The exported frame at t must match the frame the Program Monitor draws at t."""
 import base64
+import os
 import subprocess
 import sys
 import tempfile
 from pathlib import Path
+
+os.environ["APPDATA"] = tempfile.mkdtemp(prefix="cc-parity-")
 
 ROOT = Path(r"C:\Users\Savyasachi Mishra\Desktop\clipacanvas")
 sys.path.insert(0, str(ROOT))

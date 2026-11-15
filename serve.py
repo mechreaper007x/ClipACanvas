@@ -124,8 +124,8 @@ LLM_TOOL_DECLARATIONS = [
             "type": "object",
             "properties": {
                 "resolution": {"type": "string", "description": "Exact pixel size as WxH, e.g. 1920x1080 or 1080x1920. Keep the user's current resolution tier and aspect ratio; never downgrade it."},
-                "fps": {"type": "string", "description": "Frame rate: 24, 25, 30, 48, 50, 60 or 120."},
-                "duration": {"type": "number", "description": "Clip length in seconds, 0.5 to 60."},
+                "fps": {"type": "string", "description": "Frame rate: 24, 25, 30, 48, 50, 60, 90, 120, 144 or 240."},
+                "duration": {"type": "number", "description": "Clip length in seconds, 0.5 or longer."},
                 "format": {"type": "string", "enum": ["mp4", "webm", "mov", "gif"]},
                 "bitrate": {"type": "string", "enum": ["1M", "2M", "5M", "10M", "20M"]},
             },
@@ -133,12 +133,13 @@ LLM_TOOL_DECLARATIONS = [
     },
     {
         "name": "insert_animation_code",
-        "description": "Fill or replace the SELECTED scene (the editor) with a complete self-contained HTML animation; the live preview refreshes immediately. Use this for the current scene only, never for additional scenes.",
+        "description": "Write or replace the SELECTED code scene with a complete self-contained HTML document; the live preview refreshes immediately. When the scene already contains embedded media (an <img>/<video class=\"cc-scene-media\"> added with put_media_in_scene), the app keeps those elements automatically: if your HTML omits them they are inserted at the top of the body behind your content, so you can write the title or effect without copying the media tag. Include them yourself when you need precise placement. Compose titles, captions, effects or animation inside the same document; never create a separate overlay layer or scene for content that belongs to this scene. To intentionally remove the embedded media, pass removeMedia:true. Use this for the current scene only, never for additional scenes.",
         "parameters": {
             "type": "object",
             "properties": {
                 "code": {"type": "string", "description": "Complete single-file HTML document, no markdown fences."},
-                "duration": {"type": "number", "description": "Optional scene length in seconds, 0.5 to 60, matching the animation; omit to keep the box length."},
+                "duration": {"type": "number", "description": "Optional scene length in seconds, 0.5 or longer, matching the animation; omit to keep the box length."},
+                "removeMedia": {"type": "boolean", "description": "Set true only when the user explicitly asks to remove the scene's embedded images or videos; otherwise the new code must keep every existing cc-scene-media element."},
             },
             "required": ["code"],
         },
@@ -151,8 +152,8 @@ LLM_TOOL_DECLARATIONS = [
             "properties": {
                 "code": {"type": "string", "description": "Complete single-file HTML document for this scene, no markdown fences."},
                 "name": {"type": "string", "description": "Short scene name, up to 24 characters, e.g. INTRO or TITLE."},
-                "duration": {"type": "number", "description": "Scene length in seconds, 0.5 to 60. Match the animation length."},
-                "layer": {"type": "string", "enum": ["same", "above"], "description": "same appends after the last scene on the selected scene's track; above creates an upper track for overlays, titles or captions that need a transparent page background."},
+                "duration": {"type": "number", "description": "Scene length in seconds, 0.5 or longer. Match the animation length."},
+                "layer": {"type": "string", "enum": ["same", "above"], "description": "same appends after the last scene on the selected scene's track; above creates an upper track only for a separate overlay scene above an imported video/image clip or when the user explicitly asks for an independent overlay scene. For content on a code scene (titles, captions, effects around its embedded media), rewrite that scene in place with insert_animation_code instead of adding a layer."},
                 "start": {"type": "number", "description": "Optional exact start time in seconds; omit to append automatically."},
                 "transition": {
                     "type": "object",
@@ -173,6 +174,20 @@ LLM_TOOL_DECLARATIONS = [
         },
     },
     {
+        "name": "put_media_in_scene",
+        "description": "Put a project bin image or video INSIDE a code scene's own HTML (for example Scene 01 or Scene 02). Use this when the user asks to add a clip into a scene; it does not create a new timeline layer. An empty scene adopts the media as its full-frame content; in a scene that already has content the media is added as a positioned element (use x/y to place it). Pass sceneId from get_app_state, or omit it to use the selected scene. For an imported video clip (which has no HTML of its own) use create_overlay with parentClipId instead.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "assetId": {"type": "string", "description": "Project bin asset id from search_assets or get_app_state."},
+                "sceneId": {"type": "string", "description": "Target code scene clip id; defaults to the selected scene."},
+                "x": {"type": "number", "description": "Optional horizontal center in percent, 4-96, for a positioned element in a non-empty scene."},
+                "y": {"type": "number", "description": "Optional vertical center in percent, 4-96, for a positioned element in a non-empty scene."},
+            },
+            "required": ["assetId"],
+        },
+    },
+    {
         "name": "search_assets",
         "description": "Search the project bin and return concise asset summaries with cached technical metadata. Use this before composing around imported media; omit query to list all assets.",
         "parameters": {
@@ -183,8 +198,20 @@ LLM_TOOL_DECLARATIONS = [
         },
     },
     {
+        "name": "search_footage",
+        "description": "Find the best matching moments in the project's footage by meaning using the local EmbeddingGemma 2 frame index. No image or video is uploaded. Returns the asset id, asset name, timestamp in the source file, similarity score and a thumbnail for each match. Use this to find B-roll for narration or to answer what footage shows before placing media; never ask to upload a video.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "query": {"type": "string", "description": "What the shot should show, e.g. 'wing above clouds at sunset'."},
+                "limit": {"type": "integer", "description": "Maximum moments to return, 1-20. Defaults to 8."},
+            },
+            "required": ["query"],
+        },
+    },
+    {
         "name": "get_asset_analysis",
-        "description": "Read one asset's cached analysis manifest: technical metadata, the locally detected shot list (with keyframe URLs), the local visual index (EmbeddingGemma 2 zero-shot tags with scores, per-keyframe tags, motion score and label — images and videos), semantic status, AI description and user notes. The visual index is computed on this machine without consent; use its tags and motion to describe the footage honestly and to write overlays that fit it. Semantic analysis only exists after the user ran it with explicit consent; when it is 'not_analyzed', never invent visual or audio content that is not in the manifest.",
+        "description": "Read one asset's cached analysis manifest: technical metadata, the locally detected shot list (with keyframe URLs), the local visual index (EmbeddingGemma 2 zero-shot tags with scores, per-indexed-frame tags and thumbnails, motion score and label — images and videos), semantic status, AI description and user notes. The visual index is computed on this machine without consent; use its tags and motion to describe the footage honestly and to write overlays that fit it. For content questions use search_footage. Semantic analysis only exists after the user ran it with explicit consent; when it is 'not_analyzed', never invent visual or audio content that is not in the manifest.",
         "parameters": {
             "type": "object",
             "properties": {
@@ -208,13 +235,13 @@ LLM_TOOL_DECLARATIONS = [
     },
     {
         "name": "create_overlay",
-        "description": "Create an independent HTML overlay clip above existing footage on the timeline. The page must have a fully transparent background so the footage below stays visible. Optionally attach it to a parent clip. The overlay stays separately selectable and editable; this is not motion tracking.",
+        "description": "Create an independent HTML overlay clip above existing footage on the timeline. The page must have a fully transparent background so the footage below stays visible. Optionally attach it to a parent clip. The overlay stays separately selectable and editable; this is not motion tracking. Use this to put a bin asset inside an imported VIDEO clip (picture-in-picture) by writing a transparent overlay containing a <video>/<img> whose src is the asset url from search_assets, matching the parent clip's start and duration and passing parentClipId. For a code scene, do NOT use an overlay: put the media element inside that scene's HTML instead.",
         "parameters": {
             "type": "object",
             "properties": {
                 "code": {"type": "string", "description": "Complete single-file HTML document with a transparent page background, no markdown fences."},
                 "name": {"type": "string", "description": "Short overlay name, up to 24 characters."},
-                "duration": {"type": "number", "description": "Overlay length in seconds, 0.5 to 60. Defaults to the parent clip length."},
+                "duration": {"type": "number", "description": "Overlay length in seconds, 0.5 or longer. Defaults to the parent clip length."},
                 "start": {"type": "number", "description": "Start time in seconds. Defaults to the parent clip start."},
                 "track": {"type": "integer", "description": "Optional V-track index 0-3. Defaults to one track above the parent."},
                 "parentClipId": {"type": "string", "description": "Optional clip id this overlay belongs to."},
@@ -231,7 +258,7 @@ LLM_TOOL_DECLARATIONS = [
                 "clipId": {"type": "string", "description": "Overlay clip id."},
                 "code": {"type": "string", "description": "New complete HTML document, no markdown fences."},
                 "name": {"type": "string", "description": "New short name, up to 24 characters."},
-                "duration": {"type": "number", "description": "New length in seconds, 0.5 to 60."},
+                "duration": {"type": "number", "description": "New length in seconds, 0.5 or longer."},
             },
             "required": ["clipId"],
         },
@@ -283,7 +310,7 @@ LLM_TOOL_DECLARATIONS = [
     },
     {
         "name": "add_transition",
-        "description": "Add or update a saved visual transition on an existing cut where two clips touch on the same track. Presets: dissolve, fade-black, fade-white, dip-color, wipe, push, slide, zoom-in, zoom-out, zoom-blur, glitch, rgb-split, blur-dissolve. Defaults to the touching cut of the selected clip. Set all:true to apply the same transition at every touching cut in one call. For a custom transition use type \"custom\" and provide code declaring function renderTransition(ctx) that returns {outgoing, incoming, overlay} style objects for ctx.progress 0→1 (opacity, transform, filter, clipPath, backgroundColor, mixBlendMode). Custom code is validated and runs only inside the isolated preview/export page. Video clips must have enough footage handles for the requested alignment.",
+        "description": "Add or update a saved visual transition on an existing cut where two clips touch on the same track. Presets: dissolve, fade-black, fade-white, dip-color, wipe, push, slide, zoom-in, zoom-out, zoom-blur, glitch, rgb-split, blur-dissolve. Defaults to the touching cut of the selected clip. Set all:true to apply the same transition at every touching cut in one call. For a custom transition use type \"custom\" and provide code declaring function renderTransition(ctx) that returns {outgoing, incoming, overlay} style objects for ctx.progress 0→1 (opacity, transform, filter, clipPath, backgroundColor, mixBlendMode). Custom code is validated and runs only inside the isolated preview/export page. Clips without extra source footage still work: the transition holds the outgoing last frame and the incoming first frame.",
         "parameters": {
             "type": "object",
             "properties": {
@@ -303,7 +330,7 @@ LLM_TOOL_DECLARATIONS = [
     },
     {
         "name": "update_transition",
-        "description": "Change a saved transition's type, duration, alignment, parameters or custom code. Defaults to the transition on the selected clip's cut when transitionId is omitted. The same handle validation applies.",
+        "description": "Change a saved transition's type, duration, alignment, parameters or custom code. Defaults to the transition on the selected clip's cut when transitionId is omitted.",
         "parameters": {
             "type": "object",
             "properties": {
@@ -443,41 +470,523 @@ def _tool_result_value(text: str):
     return parsed if parsed is not None else text
 
 
-def _retry_delay_seconds(detail: str) -> int:
-    match = re.search(r'"retryDelay"\s*:\s*"(\d+(?:\.\d+)?)s"', detail or '')
-    if not match:
-        return 0
-    try:
-        return max(1, int(float(match.group(1)) + 0.5))
-    except ValueError:
-        return 0
+def _retry_delay_seconds(detail: str, headers=None) -> int:
+    if headers is not None:
+        value = headers.get('Retry-After') or headers.get('retry-after')
+        if value:
+            try:
+                return max(1, int(float(value)))
+            except (TypeError, ValueError):
+                pass
+    patterns = (
+        r'"retryDelay"\s*:\s*"(\d+(?:\.\d+)?)s"',
+        r'"retry_after"\s*:\s*"?(\d+(?:\.\d+)?)',
+        r'retry\s+after\s+(\d+(?:\.\d+)?)',
+    )
+    for pattern in patterns:
+        match = re.search(pattern, detail or '', re.IGNORECASE)
+        if not match:
+            continue
+        try:
+            return max(1, int(float(match.group(1)) + 0.5))
+        except ValueError:
+            continue
+    return 0
 
 
 def _rate_limit_message(provider: str, model: str, retry_seconds: int, tried_fallback: bool) -> str:
     label = str(model or '').replace('models/', '')
     if tried_fallback:
         head = f'{provider.capitalize()} is out of free-tier quota for every model it tried (429).'
+        tail = ', or switch to another provider.'
     else:
         head = f'{provider.capitalize()} is out of free-tier quota for {label} (429).'
-    body = ' Free-tier keys allow only a small number of requests per model per day, and tool calls use extra requests.'
+        tail = ', pick another model, or switch providers.'
+    body = ' Free-tier keys allow only a small number of requests per model per minute/day, and tool calls use extra requests.'
     if retry_seconds:
         body += f' Retry in about {_human_duration(retry_seconds)}'
     else:
         body += ' Retry in about a minute'
-    return head + body + ', or switch to another model.'
+    return head + body + tail
 
 
 _MODEL_COOLDOWNS: dict = {}
 
 
+def _model_cooldowns_path() -> Path:
+    return _keys_dir() / "llm-quota.json"
+
+
+def _load_model_cooldowns() -> None:
+    try:
+        raw = json.loads(_model_cooldowns_path().read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return
+    if not isinstance(raw, dict):
+        return
+    now = time.time()
+    for key, until in raw.items():
+        if not isinstance(key, str) or not isinstance(until, (int, float)):
+            continue
+        provider, _, model = key.partition(":")
+        if provider not in ("gemini", "mistral") or not model or until <= now:
+            continue
+        _MODEL_COOLDOWNS[(provider, model)] = float(until)
+
+
+def _save_model_cooldowns() -> None:
+    try:
+        now = time.time()
+        raw = {
+            f"{provider}:{model}": int(until)
+            for (provider, model), until in _MODEL_COOLDOWNS.items()
+            if until > now
+        }
+        path = _model_cooldowns_path()
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps(raw), encoding="utf-8")
+    except OSError:
+        pass
+
+
 def _set_model_cooldown(provider: str, model: str, seconds: int) -> None:
     if seconds > 0:
         _MODEL_COOLDOWNS[(provider, model)] = time.time() + seconds
+        _save_model_cooldowns()
 
 
 def _model_cooldown_remaining(provider: str, model: str) -> int:
     until = _MODEL_COOLDOWNS.get((provider, model), 0)
     return max(0, int(until - time.time()))
+
+
+_LLM_USAGE_LOCK = threading.Lock()
+
+
+class _LLMQuotaError(RuntimeError):
+    """The selected model has no free-tier capacity left in the active window."""
+
+
+def _llm_usage_path() -> Path:
+    return _keys_dir() / "llm-usage.json"
+
+
+def _usage_today() -> str:
+    return time.strftime("%Y-%m-%d", time.localtime())
+
+
+def _load_llm_usage() -> dict:
+    try:
+        raw = json.loads(_llm_usage_path().read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return {}
+    return raw if isinstance(raw, dict) else {}
+
+
+def _save_llm_usage(data: dict) -> None:
+    try:
+        path = _llm_usage_path()
+        path.parent.mkdir(parents=True, exist_ok=True)
+        tmp = path.with_suffix(".tmp")
+        tmp.write_text(json.dumps(data, separators=(",", ":")), encoding="utf-8")
+        os.replace(tmp, path)
+    except OSError:
+        pass
+
+
+def _usage_model_bucket(provider_bucket: dict, model: str) -> dict:
+    models = provider_bucket.setdefault("models", {})
+    return models.setdefault(model or "unknown", {
+        "calls": 0, "ok": 0, "promptTokens": 0, "completionTokens": 0, "limit": 0
+    })
+
+
+def _record_llm_usage(provider: str, model: str, purpose: str, usage=None, status: int = 200,
+                      limit: int = 0, quota=None, rate=None, estimated: int = 0) -> None:
+    usage = usage if isinstance(usage, dict) else {}
+    quota = quota if isinstance(quota, dict) else {}
+    rate = rate if isinstance(rate, dict) else {}
+    prompt = max(0, int(usage.get("prompt") or 0))
+    completion = max(0, int(usage.get("completion") or 0))
+    service_tier = str(usage.get("serviceTier") or usage.get("service_tier") or "")
+    ok = 200 <= int(status) < 300
+    purpose = (str(purpose or "chat").strip()[:24] or "chat")
+    if ok:
+        _record_minute_event(provider, model, prompt + completion)
+    if rate:
+        _record_rate_limits(provider, model, rate)
+    with _LLM_USAGE_LOCK:
+        data = _load_llm_usage()
+        day = _usage_today()
+        provider_bucket = data.setdefault(day, {}).setdefault(provider, {
+            "calls": 0, "ok": 0, "promptTokens": 0, "completionTokens": 0,
+            "purposes": {}, "models": {}
+        })
+        provider_bucket["calls"] = int(provider_bucket.get("calls") or 0) + 1
+        if ok:
+            provider_bucket["ok"] = int(provider_bucket.get("ok") or 0) + 1
+        provider_bucket["promptTokens"] = int(provider_bucket.get("promptTokens") or 0) + prompt
+        provider_bucket["completionTokens"] = int(provider_bucket.get("completionTokens") or 0) + completion
+        purposes = provider_bucket.setdefault("purposes", {})
+        purposes[purpose] = int(purposes.get(purpose) or 0) + 1
+        provider_bucket["lastModel"] = str(model or "")
+        provider_bucket["lastAt"] = int(time.time())
+        provider_bucket["lastStatus"] = int(status)
+        provider_bucket["lastPromptTokens"] = prompt
+        provider_bucket["lastCompletionTokens"] = completion
+        provider_bucket["lastEstimatedTokens"] = int(estimated or 0)
+        if service_tier:
+            provider_bucket["serviceTier"] = service_tier
+        if rate:
+            provider_bucket["rateLimit"] = dict(rate)
+        model_bucket = _usage_model_bucket(provider_bucket, str(model or ""))
+        model_bucket["calls"] = int(model_bucket.get("calls") or 0) + 1
+        if ok:
+            model_bucket["ok"] = int(model_bucket.get("ok") or 0) + 1
+        model_bucket["promptTokens"] = int(model_bucket.get("promptTokens") or 0) + prompt
+        model_bucket["completionTokens"] = int(model_bucket.get("completionTokens") or 0) + completion
+        model_bucket["lastPromptTokens"] = prompt
+        model_bucket["lastCompletionTokens"] = completion
+        model_bucket["lastAt"] = int(time.time())
+        model_bucket["lastStatus"] = int(status)
+        model_bucket["lastEstimatedTokens"] = int(estimated or 0)
+        if service_tier:
+            model_bucket["serviceTier"] = service_tier
+        if rate:
+            model_bucket["rateLimit"] = dict(rate)
+        quota_limit = int(quota.get("limit") or limit or 0)
+        if quota_limit > 0:
+            model_bucket["limit"] = max(int(model_bucket.get("limit") or 0), quota_limit)
+            if quota.get("window"):
+                model_bucket["limitWindow"] = str(quota.get("window"))[:8]
+            if quota.get("quotaId"):
+                model_bucket["limitId"] = str(quota.get("quotaId"))[:120]
+            if quota.get("type"):
+                model_bucket["limitType"] = str(quota.get("type"))[:12]
+        for old in sorted(data)[:-14]:
+            data.pop(old, None)
+        _save_llm_usage(data)
+
+
+def _llm_usage_today() -> dict:
+    with _LLM_USAGE_LOCK:
+        return _load_llm_usage().get(_usage_today(), {})
+
+
+def _quota_details_from_error(detail: str) -> dict:
+    """Gemini 429 bodies carry QuotaFailure violations and RetryInfo."""
+    try:
+        payload = json.loads(detail or "{}")
+    except json.JSONDecodeError:
+        return {}
+    error = payload.get("error") if isinstance(payload, dict) else None
+    if not isinstance(error, dict):
+        return {}
+    retry_seconds = _retry_delay_seconds(detail)
+    found = []
+    for item in error.get("details") or []:
+        if not isinstance(item, dict):
+            continue
+        kind = str(item.get("@type") or "")
+        if not kind.endswith("QuotaFailure"):
+            continue
+        for violation in item.get("violations") or []:
+            if not isinstance(violation, dict):
+                continue
+            quota_id = str(violation.get("quotaId") or "")
+            quota_metric = str(violation.get("quotaMetric") or "")
+            try:
+                limit = int(float(violation.get("quotaValue") or 0))
+            except (TypeError, ValueError):
+                limit = 0
+            lowered = (quota_id + " " + quota_metric).lower()
+            if "perday" in lowered:
+                window = "day"
+            elif "perminute" in lowered:
+                window = "minute"
+            elif "persecond" in lowered:
+                window = "second"
+            else:
+                window = ""
+            found.append({
+                "limit": limit,
+                "quotaId": quota_id,
+                "quotaMetric": quota_metric,
+                "window": window,
+                "type": "tokens" if "token" in lowered else "requests",
+                "retrySeconds": retry_seconds,
+            })
+    if not found:
+        return {"retrySeconds": retry_seconds} if retry_seconds else {}
+    for candidate in found:
+        if candidate.get("window") == "day":
+            return candidate
+    return found[0]
+
+
+def _gemini_quota_limit(detail: str) -> int:
+    return int(_quota_details_from_error(detail).get("limit") or 0)
+
+
+_MODEL_RATE_STATE: dict = {}
+_MODEL_CATALOG: dict = {}
+_MODEL_CATALOG_TTL = 300
+
+
+def _rate_limits_from_headers(headers) -> dict:
+    out = {}
+    if headers is None:
+        return out
+    try:
+        items = list(headers.items())
+    except AttributeError:
+        return out
+    for key, value in items:
+        lowered = str(key).lower()
+        if not lowered.startswith("x-ratelimit-"):
+            continue
+        try:
+            out[lowered] = int(float(value))
+        except (TypeError, ValueError):
+            out[lowered] = str(value)
+    if out:
+        out["updatedAt"] = int(time.time())
+    return out
+
+
+def _record_rate_limits(provider: str, model: str, rate: dict) -> dict:
+    if not isinstance(rate, dict) or not rate:
+        return {}
+    previous = _MODEL_RATE_STATE.get((provider, model), {})
+    merged = dict(previous)
+    for key, value in rate.items():
+        # A 429 body often reports limit 0; keep the last real limit.
+        if key == "x-ratelimit-limit-req-minute" and value == 0 and int(previous.get(key) or 0) > 0:
+            continue
+        merged[key] = value
+    _MODEL_RATE_STATE[(provider, model)] = merged
+    return merged
+
+
+def _model_rate_state(provider: str, model: str) -> dict:
+    return dict(_MODEL_RATE_STATE.get((provider, model), {}))
+
+
+def _rate_remaining(provider: str, model: str) -> int:
+    state = _MODEL_RATE_STATE.get((provider, model), {})
+    updated = int(state.get("updatedAt") or 0)
+    if not updated or time.time() - updated > 70:
+        return -1
+    try:
+        return int(state.get("x-ratelimit-remaining-req-minute") or 0)
+    except (TypeError, ValueError):
+        return -1
+
+
+def _estimate_prompt_tokens(messages, tools: bool = False) -> int:
+    try:
+        raw = json.dumps(messages, ensure_ascii=False)
+    except (TypeError, ValueError):
+        raw = str(messages)
+    return max(1, int(len(raw) / 3.2)) + (2000 if tools else 0)
+
+
+def _model_input_limit(models, name: str) -> int:
+    for model in models or []:
+        if str(model.get('name') or '') == name:
+            try:
+                return int(model.get('inputTokenLimit') or 0)
+            except (TypeError, ValueError):
+                return 0
+    return 0
+
+
+# AI Studio > Rate limits (free tier, standard service tier), observed on the
+# user's key on 2026-11-15. Gemini exposes these only in the AI Studio UI:
+# models.list has context/output limits, success responses carry no quota
+# headers, and a 429 only reports the single exhausted metric. Values are
+# overridden per model/timeframe by any 429 QuotaFailure the API returns.
+FREE_TIER_LIMITS_VERIFIED = "2026-11-15"
+_FREE_TIER_LIMITS = {
+    "gemini-2.5-flash": {"rpm": 5, "tpm": 250000, "rpd": 20},
+    "gemini-2.5-flash-lite": {"rpm": 10, "tpm": 250000, "rpd": 20},
+    "gemini-3-flash-preview": {"rpm": 5, "tpm": 250000, "rpd": 20},
+    "gemini-3.1-flash-lite": {"rpm": 15, "tpm": 250000, "rpd": 500},
+    "gemini-3.1-flash-lite-preview": {"rpm": 15, "tpm": 250000, "rpd": 500},
+    "gemini-3.5-flash-lite": {"rpm": 15, "tpm": 250000, "rpd": 500},
+    "gemini-3.6-flash": {"rpm": 5, "tpm": 250000, "rpd": 20},
+    "gemini-3.8-flash": {"rpm": 5, "tpm": 250000, "rpd": 20},
+    "gemini-4-hydrogen": {"rpm": 5, "tpm": 250000, "rpd": 20},
+    "gemini-4-argon": {"rpm": 0, "tpm": 0, "rpd": 0},
+    "gemini-4-carbon": {"rpm": 0, "tpm": 0, "rpd": 0},
+    "gemini-2.5-pro": {"rpm": 0, "tpm": 0, "rpd": 0},
+    "gemini-3.1-pro-preview": {"rpm": 0, "tpm": 0, "rpd": 0},
+    "gemini-pro-latest": {"rpm": 0, "tpm": 0, "rpd": 0},
+    "gemma-4-26b-it": {"rpm": 30, "tpm": 16000, "rpd": 14400},
+    "gemma-4-26b-a4b-it": {"rpm": 30, "tpm": 16000, "rpd": 14400},
+    "gemma-4-31b-it": {"rpm": 30, "tpm": 16000, "rpd": 14400},
+    "gemini-robotics-er-2-preview": {"rpm": 5, "tpm": 250000, "rpd": 20},
+}
+
+_MODEL_MINUTE_EVENTS: dict = {}
+_MINUTE_WINDOW = 60
+
+
+def _normalize_model_name(name: str) -> str:
+    return str(name or '').strip().split('/')[-1].lower()
+
+
+def _model_tier(provider: str, model: str) -> str:
+    name = _normalize_model_name(model)
+    if provider == 'gemini':
+        if 'flash-lite' in name or name.startswith('gemma'):
+            return 'lite'
+        if 'pro' in name and 'flash' not in name:
+            return 'pro'
+        if 'flash' in name:
+            return 'flash'
+        return 'other'
+    if 'large' in name:
+        return 'pro'
+    if 'small' in name or 'ministral' in name:
+        return 'lite'
+    if 'medium' in name or 'codestral' in name or 'code' in name:
+        return 'flash'
+    return 'other'
+
+
+def _free_tier_limits(provider: str, model: str):
+    if provider != 'gemini':
+        return None
+    entry = _FREE_TIER_LIMITS.get(_normalize_model_name(model))
+    return dict(entry) if entry else None
+
+
+def _record_minute_event(provider: str, model: str, tokens) -> None:
+    key = (provider, _normalize_model_name(model))
+    now = time.time()
+    events = [item for item in _MODEL_MINUTE_EVENTS.get(key, []) if now - item[0] < _MINUTE_WINDOW]
+    events.append((now, max(0, int(tokens or 0))))
+    _MODEL_MINUTE_EVENTS[key] = events
+
+
+def _minute_usage(provider: str, model: str):
+    key = (provider, _normalize_model_name(model))
+    now = time.time()
+    events = [item for item in _MODEL_MINUTE_EVENTS.get(key, []) if now - item[0] < _MINUTE_WINDOW]
+    _MODEL_MINUTE_EVENTS[key] = events
+    return len(events), sum(item[1] for item in events)
+
+
+def _minute_wait_seconds(provider: str, model: str) -> int:
+    key = (provider, _normalize_model_name(model))
+    events = _MODEL_MINUTE_EVENTS.get(key, [])
+    if not events:
+        return 0
+    oldest = min(item[0] for item in events)
+    return max(1, int(oldest + _MINUTE_WINDOW - time.time()))
+
+
+def _model_headroom(provider: str, model: str, bucket=None):
+    """Remaining free-tier RPM/TPM/RPD for a model, or None when unknown."""
+    bucket = bucket if isinstance(bucket, dict) else {}
+    limits = None
+    source = ''
+    if provider == 'gemini':
+        table = _free_tier_limits(provider, model)
+        if table:
+            limits = dict(table)
+            source = 'free-table'
+    rate = _model_rate_state(provider, model) or bucket.get('rateLimit') or {}
+    if provider == 'mistral' and rate:
+        # Headers describe a one-minute window; stale values mean "unknown",
+        # not "still exhausted".
+        if time.time() - int(rate.get('updatedAt') or 0) > 70:
+            rate = {}
+        else:
+            limits = {
+                'rpm': int(rate.get('x-ratelimit-limit-req-minute') or 0) or None,
+                'tpm': int(rate.get('x-ratelimit-limit-tokens-minute') or 0) or None,
+                'rpd': None,
+            }
+            source = 'headers'
+    quota_limit = int(bucket.get('limit') or 0)
+    if quota_limit > 0:
+        window = str(bucket.get('limitWindow') or 'day')
+        quota_type = str(bucket.get('limitType') or 'requests')
+        if not limits:
+            limits = {'rpm': None, 'tpm': None, 'rpd': None}
+        if window == 'day':
+            if quota_type == 'tokens':
+                limits['tpd'] = quota_limit
+            else:
+                limits['rpd'] = quota_limit
+            if source == 'free-table':
+                source = 'free-table+429'
+            elif source == 'headers':
+                source = 'headers+429'
+            else:
+                source = '429'
+        elif window == 'minute':
+            if quota_type == 'tokens':
+                limits['tpm'] = quota_limit
+            else:
+                limits['rpm'] = quota_limit
+            if source == 'headers':
+                source = 'headers+429'
+            else:
+                source = '429'
+    if not limits:
+        return None
+    remaining = {}
+    if provider == 'gemini':
+        minute_calls, minute_tokens = _minute_usage(provider, model)
+        if limits.get('rpm') is not None:
+            remaining['rpm'] = max(0, limits['rpm'] - minute_calls)
+        if limits.get('tpm') is not None:
+            remaining['tpm'] = max(0, limits['tpm'] - minute_tokens)
+        if limits.get('rpd') is not None:
+            remaining['rpd'] = max(0, limits['rpd'] - int(bucket.get('ok') or 0))
+    else:
+        try:
+            if 'x-ratelimit-remaining-req-minute' in rate:
+                remaining['rpm'] = max(0, int(rate.get('x-ratelimit-remaining-req-minute') or 0))
+            if 'x-ratelimit-remaining-tokens-minute' in rate:
+                remaining['tpm'] = max(0, int(rate.get('x-ratelimit-remaining-tokens-minute') or 0))
+        except (TypeError, ValueError):
+            pass
+    return {
+        'limits': limits,
+        'remaining': remaining,
+        'source': source,
+        'verifiedAt': FREE_TIER_LIMITS_VERIFIED if source.startswith('free') else '',
+    }
+
+
+def _headroom_blocked(provider: str, model: str, bucket=None) -> bool:
+    info = _model_headroom(provider, model, bucket)
+    if not info:
+        return False
+    remaining = info.get('remaining') or {}
+    limits = info.get('limits') or {}
+    for key in ('rpd', 'rpm', 'tpm'):
+        if limits.get(key) is not None and remaining.get(key) == 0:
+            return True
+    return False
+
+
+def _model_fits_tokens(provider: str, model: str, bucket, estimated: int) -> bool:
+    info = _model_headroom(provider, model, bucket)
+    if not info:
+        return True
+    estimated = max(0, int(estimated or 0))
+    tpm = info.get('limits', {}).get('tpm')
+    if tpm and estimated > int(tpm):
+        return False
+    remaining_tpm = (info.get('remaining') or {}).get('tpm')
+    if remaining_tpm is not None and estimated > int(remaining_tpm):
+        return False
+    return True
 
 
 def _human_duration(seconds: int) -> str:
@@ -647,7 +1156,7 @@ PROJECT_SESSION_NAME = "session.json"
 PROJECT_AUTOSAVE_SUFFIX = ".autosave.ccproj.json"
 PROJECT_FILE_RE = re.compile(r"^(?!autosave)[a-z0-9][a-z0-9-]{0,63}\.ccproj\.json$")
 PROJECT_ID_RE = re.compile(r"^[a-z0-9][a-z0-9-]{0,63}$")
-PROJECT_MAX_BYTES = 8 * 1024 * 1024
+PROJECT_MAX_BYTES = 64 * 1024 * 1024
 
 
 def _projects_dir() -> Path:
@@ -690,8 +1199,6 @@ def _validate_project_doc(doc) -> str:
     timeline = doc.get("timeline")
     if not isinstance(timeline, dict) or not isinstance(timeline.get("clips"), list):
         return "Project payload has no timeline."
-    if len(timeline["clips"]) > 400:
-        return "Project has too many clips."
     return ""
 
 
@@ -819,44 +1326,22 @@ def _write_session(project_id: str, name: str, saved_at: str) -> None:
     }, ensure_ascii=False))
 
 
-ANALYSIS_VERSION = 3
-SEMANTIC_DEFAULT_MODEL = "gemini-2.5-flash"
-SEMANTIC_MAX_FRAMES = 6
-SEMANTIC_MAX_INLINE_BYTES = 19 * 1024 * 1024
-SEMANTIC_MAX_TRANSCRIPT_SECONDS = 300
+ANALYSIS_VERSION = 6
 SEMANTIC_SHOT_SCAN_SECONDS = 180
 SEMANTIC_SHOT_LIMIT = 24
 SEMANTIC_KEYFRAME_LIMIT = 12
-SEMANTIC_SCHEMA = {
-    "type": "object",
-    "properties": {
-        "description": {"type": "string"},
-        "subjects": {"type": "array", "items": {"type": "string"}},
-        "tags": {"type": "array", "items": {"type": "string"}},
-        "suggestedUses": {"type": "array", "items": {"type": "string"}},
-        "confidence": {"type": "number"},
-        "transcript": {
-            "type": "array",
-            "items": {
-                "type": "object",
-                "properties": {
-                    "start": {"type": "number"},
-                    "text": {"type": "string"},
-                },
-                "required": ["text"],
-            },
-        },
-    },
-    "required": ["description", "tags"],
-}
 VISUAL_MODEL = "google/embeddinggemma-2"
+VISUAL_RUNTIME = "litert"
 VISUAL_DEVICE_DEFAULT = "auto"
-VISUAL_KEYFRAME_LIMIT = 3
+VISUAL_FRAME_FPS = 1.0
+VISUAL_FRAME_LIMIT = 24
+VISUAL_SEARCH_LIMIT = 12
+VISUAL_SEARCH_MIN_SCORE = 0.2
 VISUAL_TAGS_PER_FRAME = 4
 VISUAL_TAG_LIMIT = 6
 VISUAL_TAG_THRESHOLD = 0.55
 VISUAL_TAG_MARGIN = 0.045
-VISUAL_ASSET_FILES = ("config.json", "model.safetensors", "tokenizer.json")
+VISUAL_MODEL_FILE = "embeddinggemma-2-740m.litertlm"
 VISUAL_LABELS = [
     "person", "people", "crowd", "woman", "man", "child", "hands", "face", "interview",
     "car", "truck", "bus", "motorcycle", "bicycle", "train", "airplane", "boat",
@@ -891,6 +1376,7 @@ def _probe_media_technical(path: Path) -> dict:
     proc = subprocess.run(
         [FFMPEG_EXE, "-hide_banner", "-i", str(path)],
         capture_output=True, text=True, errors="replace", timeout=30,
+        creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
     )
     output = proc.stderr or ""
     technical: dict = {
@@ -1121,6 +1607,7 @@ class _LocalTtsWorker:
         self.device = ""
         self.boots = 0
         self.last_stderr = ""
+        self.last_used = 0.0
 
     def alive(self) -> bool:
         return bool(self.proc and self.proc.poll() is None)
@@ -1191,14 +1678,19 @@ class _LocalTtsWorker:
             raise RuntimeError(f"{self.name} runtime failed to load: {detail[-300:]}")
         self.device = str(ready.get("device") or "")
         self.boots += 1
+        self.last_used = time.time()
+        _ensure_model_idle_watchdog()
         print(f"  [{self.name}] worker ready ({self.device or 'unknown device'})")
 
     def request(self, payload: dict, timeout: int = LOCAL_WORKER_TIMEOUT) -> dict:
         if not self.alive():
             raise OSError(f"{self.name} worker is not running")
+        self.last_used = time.time()
         self.proc.stdin.write(json.dumps(payload) + "\n")
         self.proc.stdin.flush()
-        return self.queue.get(timeout=timeout)
+        response = self.queue.get(timeout=timeout)
+        self.last_used = time.time()
+        return response
 
 
 _STYLETTS2_WORKER = _LocalTtsWorker("StyleTTS2")
@@ -1206,6 +1698,49 @@ _KOKORO_WORKER = _LocalTtsWorker("Kokoro")
 _PIPER_WORKER = _LocalTtsWorker("Piper")
 _ZONOS_WORKER = _LocalTtsWorker("ZONOS3-Mini")
 _EMBEDDING_WORKER = _LocalTtsWorker("EmbeddingGemma")
+
+
+def _model_idle_seconds() -> float:
+    try:
+        return float(os.environ.get("CLIPACANVAS_MODEL_IDLE_SECONDS", "120"))
+    except ValueError:
+        return 120.0
+
+
+MODEL_IDLE_SECONDS = _model_idle_seconds()
+_IDLE_MANAGED_WORKERS = (
+    _STYLETTS2_WORKER, _KOKORO_WORKER, _PIPER_WORKER, _ZONOS_WORKER, _EMBEDDING_WORKER,
+)
+_IDLE_WATCH_STARTED = False
+_IDLE_WATCH_LOCK = threading.Lock()
+
+
+def _model_idle_watchdog() -> None:
+    if MODEL_IDLE_SECONDS <= 0:
+        return
+    while True:
+        time.sleep(5.0)
+        now = time.time()
+        for worker in _IDLE_MANAGED_WORKERS:
+            if not worker.alive() or now - worker.last_used < MODEL_IDLE_SECONDS:
+                continue
+            if not worker.lock.acquire(blocking=False):
+                continue
+            try:
+                if worker.alive() and now - worker.last_used >= MODEL_IDLE_SECONDS:
+                    print(f"  [{worker.name}] unloading idle model")
+                    worker.stop()
+            finally:
+                worker.lock.release()
+
+
+def _ensure_model_idle_watchdog() -> None:
+    global _IDLE_WATCH_STARTED
+    with _IDLE_WATCH_LOCK:
+        if _IDLE_WATCH_STARTED:
+            return
+        _IDLE_WATCH_STARTED = True
+    threading.Thread(target=_model_idle_watchdog, name="model-idle-watch", daemon=True).start()
 
 
 def _tts_dir() -> Path:
@@ -1878,11 +2413,190 @@ def _local_engine(provider_id: str) -> dict | None:
 
 
 def _stop_local_workers() -> None:
-    for worker in (_STYLETTS2_WORKER, _KOKORO_WORKER, _PIPER_WORKER, _ZONOS_WORKER, _EMBEDDING_WORKER):
+    for worker in (_STYLETTS2_WORKER, _KOKORO_WORKER, _PIPER_WORKER, _ZONOS_WORKER, _EMBEDDING_WORKER, _STT_WORKER):
         worker.stop()
 
 
 atexit.register(_stop_local_workers)
+
+
+# ── Local dictation (speech-to-text) ──────────────────────────────
+
+STT_MAX_RECORD_SECONDS = 120
+STT_MAX_AUDIO_BYTES = 40 * 1024 * 1024
+
+_STT_WORKER = _LocalTtsWorker("SpeechToText")
+_IDLE_MANAGED_WORKERS = (*_IDLE_MANAGED_WORKERS, _STT_WORKER)
+_STT_LOCK = threading.RLock()
+_STT_BOOT_LOCK = threading.Lock()
+_STT_STATE_LOCK = threading.Lock()
+_STT_STATE = {
+    "phase": "idle",
+    "modelState": "idle",
+    "modelError": "",
+    "progress": {"stage": "", "pct": 0, "detail": ""},
+    "error": "",
+    "startedAt": 0.0,
+    "lastText": "",
+    "input": "",
+    "device": "",
+    "peak": 0.0,
+}
+
+
+def _stt_dir() -> Path:
+    directory = _keys_dir() / "stt"
+    directory.mkdir(parents=True, exist_ok=True)
+    return directory
+
+
+def _stt_model_id() -> str:
+    model = (os.environ.get("CLIPACANVAS_STT_MODEL") or "").strip()
+    return model or "faster-whisper-small.en"
+
+
+def _stt_locate() -> tuple[str, str, str]:
+    config = _local_runtime_config("stt")
+    python = _local_python("stt", "CLIPACANVAS_STT_PYTHON", config)
+    assets = (
+        (os.environ.get("CLIPACANVAS_STT_ASSETS") or "").strip()
+        or str(config.get("assets") or "").strip()
+        or str(_local_runtime_dir("stt") / "assets")
+    )
+    if not python:
+        return "", assets, (
+            "The local dictation runtime was not found. Install Python 3.11 with "
+            "faster-whisper, sounddevice and soundfile, or set CLIPACANVAS_STT_PYTHON."
+        )
+    return python, assets, ""
+
+
+def _stt_model_ready() -> bool:
+    try:
+        data = json.loads((Path(_stt_locate()[1]) / "model-ready.json").read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return False
+    return str(data.get("model") or "") == _stt_model_id()
+
+
+def _stt_update(**fields) -> None:
+    with _STT_STATE_LOCK:
+        _STT_STATE.update(fields)
+
+
+def _stt_snapshot() -> dict:
+    with _STT_STATE_LOCK:
+        state = dict(_STT_STATE)
+        state["progress"] = dict(_STT_STATE.get("progress") or {})
+    phase = str(state.get("phase") or "idle")
+    recording = phase == "recording"
+    elapsed = 0.0
+    if recording and state.get("startedAt"):
+        elapsed = round(max(0.0, time.time() - float(state["startedAt"])), 1)
+    return {**state, "phase": phase, "recording": recording, "elapsed": elapsed}
+
+
+def _stt_request(payload: dict, timeout: float = 180.0) -> dict:
+    """Send a request and consume progress events until the final answer."""
+    worker = _STT_WORKER
+    if not worker.alive() or worker.proc is None or worker.queue is None:
+        raise OSError("The dictation engine is not running.")
+    # Hold the worker lock for real work so the idle watchdog cannot unload the
+    # model mid-recording or mid-transcription. Status probes stay lock-free.
+    locked = str(payload.get("op") or "") != "status"
+    if locked:
+        worker.lock.acquire()
+    try:
+        worker.last_used = time.time()
+        worker.proc.stdin.write(json.dumps(payload) + "\n")
+        worker.proc.stdin.flush()
+        deadline = time.time() + timeout
+        while True:
+            remaining = max(0.5, deadline - time.time())
+            message = worker.queue.get(timeout=remaining)
+            if not isinstance(message, dict):
+                continue
+            event = message.get("event")
+            if event == "closed":
+                return {"ok": False, "closed": True, "error": "The dictation engine stopped unexpectedly."}
+            if event == "progress":
+                _stt_update(progress={
+                    "stage": str(message.get("stage") or ""),
+                    "pct": int(message.get("pct") or 0),
+                    "detail": str(message.get("detail") or ""),
+                })
+                continue
+            if event == "model":
+                state = str(message.get("state") or "")
+                if state == "ready":
+                    _stt_update(modelState="ready", modelError="")
+                elif state == "error":
+                    _stt_update(modelState="error", modelError=str(message.get("error") or "Speech model failed to load."))
+                continue
+            return message
+    finally:
+        if locked:
+            worker.lock.release()
+
+
+def _ensure_stt_worker() -> None:
+    python, assets, error = _stt_locate()
+    if error:
+        raise RuntimeError(error)
+    with _STT_BOOT_LOCK:
+        if _STT_WORKER.alive():
+            return
+        script = _local_worker_path("stt_worker.py")
+        if not script:
+            raise RuntimeError("The dictation worker is missing from this build.")
+        device = (os.environ.get("CLIPACANVAS_STT_DEVICE") or "auto").strip().lower()
+        if device not in ("cpu", "cuda"):
+            device = "auto"
+        Path(assets).mkdir(parents=True, exist_ok=True)
+        _STT_WORKER.start(
+            python, script,
+            ["--assets", assets, "--model", _stt_model_id(), "--device", device],
+            timeout=300,
+        )
+        _stt_update(device=_STT_WORKER.device)
+
+
+def _stt_live_status() -> dict:
+    state = _stt_snapshot()
+    python, _assets, reason = _stt_locate()
+    state.update({
+        "available": bool(python),
+        "reason": reason,
+        "engine": "faster-whisper small.en (local, English)",
+        "model": _stt_model_id(),
+        "maxSeconds": STT_MAX_RECORD_SECONDS,
+        "languages": ["en"],
+    })
+    worker = _STT_WORKER
+    if worker.alive() and state["phase"] in ("preparing", "recording", "transcribing"):
+        worker.last_used = time.time()
+    if worker.alive() and state["phase"] != "transcribing" and _STT_LOCK.acquire(blocking=False):
+        try:
+            message = _stt_request({"op": "status"}, timeout=2.0)
+            if message.get("ok"):
+                state["modelState"] = str(message.get("modelState") or state["modelState"])
+                state["modelError"] = str(message.get("modelError") or "")
+                if isinstance(message.get("progress"), dict):
+                    state["progress"] = dict(message["progress"])
+                state["input"] = str(message.get("input") or state.get("input") or "")
+                state["device"] = str(message.get("device") or state.get("device") or "")
+                if message.get("recording"):
+                    state["phase"] = "recording"
+                    state["recording"] = True
+                    state["elapsed"] = float(message.get("elapsed") or 0.0)
+                    state["peak"] = float(message.get("peak") or 0.0)
+        except (queue.Empty, OSError):
+            pass
+        finally:
+            _STT_LOCK.release()
+    state["modelReady"] = _stt_model_ready() or state.get("modelState") == "ready"
+    return state
+
 
 
 def synthesize_speech(payload: dict) -> dict:
@@ -2026,7 +2740,8 @@ def _detect_media_shots(path: Path, filename: str, technical: dict) -> list[dict
         "-f", "null", "-",
     ]
     try:
-        proc = subprocess.run(args, capture_output=True, text=True, errors="replace", timeout=120)
+        proc = subprocess.run(args, capture_output=True, text=True, errors="replace", timeout=120,
+                              creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
     except (OSError, subprocess.TimeoutExpired) as exc:
         print(f"  [SERVER] shot detection failed: {exc}")
         return []
@@ -2067,6 +2782,7 @@ def _detect_media_shots(path: Path, filename: str, technical: dict) -> list[dict
                      "-ss", f"{moment:.3f}", "-i", str(path), "-frames:v", "1",
                      "-vf", "scale=640:-2", "-q:v", "4", str(target)],
                     capture_output=True, text=True, errors="replace", timeout=30,
+                    creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
                 )
             except (OSError, subprocess.TimeoutExpired):
                 extract = None
@@ -2085,43 +2801,56 @@ def _write_analysis_manifest(filename: str, manifest: dict) -> None:
     os.replace(temp_path, cache_path)
 
 
+def _embedding_model_path(roots: list[str]) -> str:
+    for root in roots:
+        if not root:
+            continue
+        candidate = Path(root)
+        if candidate.is_file() and candidate.suffix == ".litertlm":
+            return str(candidate)
+        if candidate.is_dir():
+            preferred = candidate / VISUAL_MODEL_FILE
+            if preferred.exists():
+                return str(preferred)
+            matches = sorted(candidate.glob("*.litertlm"))
+            if matches:
+                return str(matches[0])
+    return ""
+
+
 def _embedding_locate() -> tuple[str, str, str]:
-    """Resolve the optional EmbeddingGemma 2 runtime: (python, assets root, error)."""
-    config = _local_runtime_config("embedgemma2")
-    python = _local_python("embedgemma2", "CLIPACANVAS_EMBEDDING_PYTHON", config)
-    runtime_dir = _local_runtime_dir("embedgemma2")
-    asset_roots = [
+    """Resolve the LiteRT EmbeddingGemma 2 runtime: (python, model file, error)."""
+    config = _local_runtime_config(VISUAL_RUNTIME)
+    python = _local_python(VISUAL_RUNTIME, "CLIPACANVAS_EMBEDDING_PYTHON", config)
+    runtime_dir = _local_runtime_dir(VISUAL_RUNTIME)
+    model = _embedding_model_path([
+        os.environ.get("CLIPACANVAS_EMBEDDING_MODEL", ""),
         os.environ.get("CLIPACANVAS_EMBEDDING_ASSETS", ""),
         str(config.get("assets") or ""),
         str(runtime_dir / "assets"),
-    ]
-    assets = next(
-        (root for root in asset_roots
-         if root and all((Path(root) / name).exists() for name in VISUAL_ASSET_FILES)),
-        "",
-    )
+    ])
     if not python:
-        return "", "", "EmbeddingGemma runtime is not installed."
-    if not assets:
-        return python, "", "EmbeddingGemma model assets are missing from the runtime folder."
-    if not _local_worker_path("embedding_worker.py"):
-        return python, assets, "The EmbeddingGemma worker is missing from this build."
-    return python, assets, ""
+        return "", "", "EmbeddingGemma LiteRT runtime is not installed."
+    if not model:
+        return python, "", "EmbeddingGemma LiteRT model is missing from the runtime folder."
+    if not _local_worker_path("embedding_litert_worker.py"):
+        return python, model, "The EmbeddingGemma worker is missing from this build."
+    return python, model, ""
 
 
 def _embedding_device() -> str:
     device = os.environ.get("CLIPACANVAS_EMBEDDING_DEVICE", VISUAL_DEVICE_DEFAULT).strip().lower()
-    return device if device in ("cpu", "cuda", "auto") else VISUAL_DEVICE_DEFAULT
+    return device if device in ("cpu", "cuda", "gpu", "auto") else VISUAL_DEVICE_DEFAULT
 
 
 def _embedding_request(payload: dict, timeout: int = 600) -> dict:
-    python, assets, error = _embedding_locate()
+    python, model, error = _embedding_locate()
     if error:
         raise RuntimeError(error)
-    script = _local_worker_path("embedding_worker.py")
+    script = _local_worker_path("embedding_litert_worker.py")
     if not script:
         raise RuntimeError("The EmbeddingGemma worker is missing from this build.")
-    args = ["--assets", assets, "--device", _embedding_device()]
+    args = ["--model", model, "--device", _embedding_device()]
     with _EMBEDDING_WORKER.lock:
         for attempt in (0, 1):
             if not _EMBEDDING_WORKER.alive():
@@ -2149,7 +2878,8 @@ def _embedding_request(payload: dict, timeout: int = 600) -> dict:
     raise RuntimeError("EmbeddingGemma failed.")
 
 
-def _visual_keyframes(path: Path, filename: str, kind: str, shots: list[dict]) -> list[tuple[float, Path]]:
+def _visual_frames(path: Path, filename: str, kind: str, technical: dict) -> list[tuple[float, Path]]:
+    """Frames for the retrieval index: one still for images, ~1 fps samples for video."""
     frame_dir = _analysis_frame_dir(filename)
     if kind == "image":
         target = frame_dir / "image.jpg"
@@ -2159,19 +2889,38 @@ def _visual_keyframes(path: Path, filename: str, kind: str, shots: list[dict]) -
                     [FFMPEG_EXE, "-y", "-hide_banner", "-loglevel", "error", "-i", str(path),
                      "-frames:v", "1", "-vf", "scale=640:-2", "-q:v", "4", str(target)],
                     capture_output=True, text=True, errors="replace", timeout=30,
+                    creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
                 )
             except (OSError, subprocess.TimeoutExpired):
                 pass
         return [(0.0, target)] if target.exists() and target.stat().st_size > 128 else []
+    duration = float(technical.get("duration") or 0)
+    if duration <= 0:
+        return []
+    interval = max(1.0 / VISUAL_FRAME_FPS, duration / VISUAL_FRAME_LIMIT)
+    for stale in frame_dir.glob("index-*.jpg"):
+        try:
+            stale.unlink()
+        except OSError:
+            pass
+    limit_time = min(duration, interval * VISUAL_FRAME_LIMIT)
+    try:
+        subprocess.run(
+            [FFMPEG_EXE, "-y", "-hide_banner", "-loglevel", "error",
+             "-t", f"{limit_time:.3f}", "-i", str(path),
+             "-vf", f"fps={1.0 / interval:.6f},scale=640:-2",
+             "-q:v", "4", str(frame_dir / "index-%02d.jpg")],
+            capture_output=True, text=True, errors="replace", timeout=240,
+            creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        pass
     entries: list[tuple[float, Path]] = []
-    for shot in shots:
-        match = re.search(r"/(\d+)\.jpg$", str(shot.get("keyframe") or ""))
-        if not match:
+    for index, target in enumerate(sorted(frame_dir.glob("index-*.jpg"))):
+        if not target.exists() or target.stat().st_size < 128:
             continue
-        target = frame_dir / f"shot-{int(match.group(1)):02d}.jpg"
-        if target.exists() and target.stat().st_size > 128:
-            entries.append((float(shot.get("start") or 0.0), target))
-        if len(entries) >= VISUAL_KEYFRAME_LIMIT:
+        entries.append((round(index * interval, 3), target))
+        if len(entries) >= VISUAL_FRAME_LIMIT:
             break
     return entries
 
@@ -2189,6 +2938,7 @@ def _motion_profile(path: Path, duration: float | None) -> dict:
              "-vf", f"scale={width}:{height},format=gray", "-r", str(fps),
              "-f", "rawvideo", "-"],
             capture_output=True, timeout=90,
+            creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
         )
     except (OSError, subprocess.TimeoutExpired):
         return {"score": 0.0, "label": "unknown", "profile": []}
@@ -2218,6 +2968,33 @@ def _motion_profile(path: Path, duration: float | None) -> dict:
     return {"score": score, "peak": peak, "label": label, "profile": profile[:60]}
 
 
+def _visual_content_summary(kind: str, technical: dict, shots: list[dict],
+                            tags: list[dict], motion: dict) -> str:
+    """Plain-language summary built only from local measurements."""
+    labels = [str(tag.get("label") or "") for tag in tags if tag.get("label")]
+    bits: list[str] = []
+    if kind == "image":
+        bits.append("Still image")
+    else:
+        duration = float(technical.get("duration") or 0)
+        bits.append(f"{duration:.1f} s video" if duration > 0 else "Video")
+        shot_count = len(shots) or 1
+        bits.append(f"{shot_count} shot" + ("" if shot_count == 1 else "s"))
+        motion_label = str(motion.get("label") or "")
+        if motion_label and motion_label not in ("still", "unknown"):
+            bits.append(f"{motion_label} motion")
+    width = technical.get("width")
+    height = technical.get("height")
+    if width and height:
+        shape = "portrait" if height > width else ("landscape" if width > height else "square")
+        bits.append(f"{width}×{height} {shape}")
+    bits.append("with audio" if technical.get("audioCodec") else "silent")
+    summary = ", ".join(bits) + "."
+    if labels:
+        return summary + " Local visual index: " + ", ".join(labels) + "."
+    return summary + " No visual labels passed the confidence floor."
+
+
 def _visual_analyze_media(path: Path, filename: str, technical: dict, shots: list[dict]) -> dict:
     """Local EmbeddingGemma pass: zero-shot content tags, keyframe vectors, motion."""
     kind = _media_kind_for(filename)
@@ -2226,10 +3003,10 @@ def _visual_analyze_media(path: Path, filename: str, technical: dict, shots: lis
     python, assets, error = _embedding_locate()
     if error:
         return {"status": "unavailable", "provider": VISUAL_MODEL, "reason": error}
-    frames = _visual_keyframes(path, filename, kind, shots)
+    frames = _visual_frames(path, filename, kind, technical)
     if not frames:
         return {"status": "unavailable", "provider": VISUAL_MODEL,
-                "reason": "No keyframe stills could be extracted for visual indexing."}
+                "reason": "No frames could be extracted for the retrieval index."}
     payload = {
         "kind": "tags",
         "paths": [str(target) for _, target in frames],
@@ -2247,7 +3024,7 @@ def _visual_analyze_media(path: Path, filename: str, technical: dict, shots: lis
     aggregate: dict[str, float] = {}
     frame_records = []
     vectors = []
-    for (moment, _), result in zip(frames, results):
+    for index, ((moment, _), result) in enumerate(zip(frames, results), start=1):
         ranked = result.get("tags") or []
         top_score = float(ranked[0].get("score") or 0) if ranked else 0.0
         floor = max(VISUAL_TAG_THRESHOLD, top_score - VISUAL_TAG_MARGIN)
@@ -2256,36 +3033,47 @@ def _visual_analyze_media(path: Path, filename: str, technical: dict, shots: lis
             for tag in ranked[:VISUAL_TAGS_PER_FRAME]
             if float(tag.get("score") or 0) >= floor
         ]
-        frame_records.append({"time": round(moment, 3), "tags": tags})
+        thumb = f"/api/media/frames/{filename}/index-{index:02d}.jpg"
+        frame_records.append({"time": round(moment, 3), "thumb": thumb, "tags": tags})
         for tag in tags:
             aggregate[tag["label"]] = max(aggregate.get(tag["label"], 0.0), tag["score"])
         vector = result.get("vector") or []
         if vector:
-            vectors.append({"time": round(moment, 3), "vector": vector})
+            vectors.append({"time": round(moment, 3), "thumb": thumb, "vector": vector})
     ordered = sorted(aggregate.items(), key=lambda item: -item[1])[:VISUAL_TAG_LIMIT]
     motion = _motion_profile(path, technical.get("duration")) if kind == "video" else {
         "score": 0.0, "peak": 0.0, "label": "still", "profile": []}
     if vectors:
         try:
             (_analysis_dir() / f"embeddings-{Path(filename).stem}.json").write_text(
-                json.dumps({"model": VISUAL_MODEL, "dim": message.get("dim"), "frames": vectors}),
+                json.dumps({
+                    "model": VISUAL_MODEL,
+                    "runtime": VISUAL_RUNTIME,
+                    "dim": message.get("dim"),
+                    "filename": filename,
+                    "frames": vectors,
+                    "indexedAt": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+                }),
                 encoding="utf-8",
             )
         except OSError as exc:
             print(f"  [SERVER] embedding sidecar write failed: {exc}")
+    ordered_tags = [{"label": label, "score": round(score, 3)} for label, score in ordered]
     return {
         "status": "indexed",
         "provider": "embeddinggemma-2",
         "model": VISUAL_MODEL,
+        "runtime": VISUAL_RUNTIME,
         "device": _embedding_device(),
-        "tags": [{"label": label, "score": round(score, 3)} for label, score in ordered],
+        "description": _visual_content_summary(kind, technical, shots, ordered_tags, motion),
+        "tags": ordered_tags,
         "frames": frame_records,
         "motion": motion,
         "indexedAt": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
     }
 
 
-def analyze_media_file(filename: str) -> dict:
+def analyze_media_file(filename: str, refresh: bool = False) -> dict:
     """Return a cached technical analysis manifest for a stored media file."""
     if not MEDIA_NAME_RE.match(filename or ""):
         raise ValueError("Unknown media file.")
@@ -2299,7 +3087,8 @@ def analyze_media_file(filename: str) -> dict:
             cached = json.loads(cache_path.read_text(encoding="utf-8"))
         except (OSError, ValueError):
             cached = None
-    if (isinstance(cached, dict)
+    if (not refresh
+            and isinstance(cached, dict)
             and cached.get("analyzer", {}).get("version") == ANALYSIS_VERSION
             and cached.get("asset", {}).get("bytes") == path.stat().st_size):
         return cached
@@ -2334,266 +3123,14 @@ def analyze_media_file(filename: str) -> dict:
             "analyzedAt": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
         },
     }
+    if isinstance(cached, dict) and isinstance(cached.get("user"), dict):
+        manifest["user"] = cached["user"]
     try:
         _write_analysis_manifest(filename, manifest)
     except OSError as exc:
         print(f"  [SERVER] analysis cache write failed: {exc}")
     return manifest
 
-
-def semantic_provider_registry() -> dict:
-    keys = _load_saved_keys()
-    return {"providers": [{
-        "id": "gemini",
-        "label": "Google Gemini",
-        "kind": "remote",
-        "available": bool(keys.get("gemini")),
-        "reason": "" if keys.get("gemini") else "Add a Gemini API key in Settings.",
-        "models": [{"id": SEMANTIC_DEFAULT_MODEL, "label": "Gemini 2.5 Flash"}],
-        "capabilities": {"vision": True, "transcript": True, "shotDetection": "local"},
-        "maxInlineBytes": SEMANTIC_MAX_INLINE_BYTES,
-        "terms": (
-            "Uploads still frames of this asset (and its audio when transcription is enabled) "
-            "to Google generativelanguage.googleapis.com. Keys stay in the backend; the original "
-            "file never leaves this machine."
-        ),
-    }]}
-
-
-def _semantic_frame_bytes(path: Path, filename: str, manifest: dict, kind: str) -> list[bytes]:
-    frame_dir = _analysis_frame_dir(filename)
-    frames: list[bytes] = []
-    if kind == "image":
-        target = frame_dir / "image.jpg"
-        if not target.exists():
-            subprocess.run(
-                [FFMPEG_EXE, "-y", "-hide_banner", "-loglevel", "error", "-i", str(path),
-                 "-frames:v", "1", "-vf", "scale=640:-2", "-q:v", "4", str(target)],
-                capture_output=True, text=True, errors="replace", timeout=30,
-            )
-        if target.exists() and target.stat().st_size > 128:
-            frames.append(target.read_bytes())
-        return frames
-    for shot in manifest.get("shots") or []:
-        match = re.search(r"/(\d+)\.jpg$", str(shot.get("keyframe") or ""))
-        if not match:
-            continue
-        target = frame_dir / f"shot-{int(match.group(1)):02d}.jpg"
-        if target.exists() and target.stat().st_size > 128:
-            frames.append(target.read_bytes())
-        if len(frames) >= SEMANTIC_MAX_FRAMES:
-            break
-    if not frames and kind == "video":
-        target = frame_dir / "shot-00.jpg"
-        if target.exists() and target.stat().st_size > 128:
-            frames.append(target.read_bytes())
-    return frames
-
-
-def _semantic_audio_bytes(path: Path, kind: str, technical: dict) -> tuple[dict | None, str]:
-    if kind == "audio":
-        mime = {".mp3": "audio/mp3", ".wav": "audio/wav", ".flac": "audio/flac"}.get(path.suffix.lower())
-        if not mime:
-            raise ValueError("Transcription supports mp3, wav and flac audio files.")
-        if path.stat().st_size > SEMANTIC_MAX_INLINE_BYTES:
-            raise ValueError("This audio file is larger than the 20 MB inline limit; trim it first.")
-        return {"bytes": path.read_bytes(), "mime": mime}, ""
-    if kind != "video":
-        return None, ""
-    if not technical.get("audioCodec"):
-        return None, "No audio track in this video."
-    with tempfile.TemporaryDirectory() as tmp_name:
-        output = Path(tmp_name) / "speech.mp3"
-        try:
-            proc = subprocess.run(
-                [FFMPEG_EXE, "-y", "-hide_banner", "-loglevel", "error", "-i", str(path),
-                 "-vn", "-t", str(SEMANTIC_MAX_TRANSCRIPT_SECONDS), "-ac", "1", "-ar", "24000",
-                 "-b:a", "48k", "-f", "mp3", str(output)],
-                capture_output=True, text=True, errors="replace", timeout=180,
-            )
-        except (OSError, subprocess.TimeoutExpired):
-            return None, "Audio could not be extracted from this video."
-        if proc.returncode != 0 or not output.exists() or output.stat().st_size < 256:
-            return None, "Audio could not be extracted from this video."
-        note = ""
-        if float(technical.get("duration") or 0) > SEMANTIC_MAX_TRANSCRIPT_SECONDS:
-            note = "Transcribed the first 5 minutes of audio."
-        return {"bytes": output.read_bytes(), "mime": "audio/mp3"}, note
-
-
-def _semantic_prompt(kind: str, frame_count: int, has_audio: bool, audio_note: str) -> str:
-    parts = ["Analyze this media for a video editor's asset library and return JSON matching the schema."]
-    if frame_count:
-        parts.append(f"{frame_count} still frame(s) are attached in chronological order.")
-    if has_audio:
-        parts.append(
-            "The audio track is attached; transcribe speech verbatim in the transcript array, "
-            "using start seconds when you can estimate them (otherwise omit the start)."
-        )
-    if audio_note:
-        parts.append(audio_note)
-    parts.append(
-        "Describe only what is visible or audible; do not invent brands, names or events. "
-        "Use lowercase 1-3 word tags. confidence is a number from 0 to 1."
-    )
-    return " ".join(parts)
-
-
-def _parse_semantic_result(data: dict) -> dict:
-    texts: list[str] = []
-    for step in data.get("steps") or []:
-        if not isinstance(step, dict) or step.get("type") not in (None, "model_output"):
-            continue
-        for item in step.get("content") or []:
-            if isinstance(item, dict) and item.get("type") == "text" and isinstance(item.get("text"), str):
-                texts.append(item["text"])
-    text = "\n".join(texts).strip()
-    if not text and isinstance(data.get("output_text"), str):
-        text = data["output_text"].strip()
-    if not text:
-        raise RuntimeError("Gemini returned no analysis text.")
-    text = re.sub(r"^```(?:json)?\s*|\s*```$", "", text.strip())
-    try:
-        raw = json.loads(text)
-    except ValueError as exc:
-        raise RuntimeError("Gemini returned content analysis that was not valid JSON.") from exc
-    if not isinstance(raw, dict):
-        raise RuntimeError("Gemini returned an unexpected content analysis shape.")
-
-    def clean_text(value, limit: int) -> str:
-        return str(value or "").strip()[:limit]
-
-    def clean_list(value, limit: int, item_limit: int = 120) -> list[str]:
-        return [
-            item.strip()[:item_limit]
-            for item in (value if isinstance(value, list) else [])
-            if isinstance(item, str) and item.strip()
-        ][:limit]
-
-    transcript = []
-    for segment in raw.get("transcript") or []:
-        if isinstance(segment, str) and segment.strip():
-            transcript.append({"start": None, "text": segment.strip()[:500]})
-            continue
-        if not isinstance(segment, dict):
-            continue
-        segment_text = clean_text(segment.get("text"), 500)
-        if not segment_text:
-            continue
-        start = segment.get("start")
-        try:
-            start = round(float(start), 2) if start is not None and float(start) >= 0 else None
-        except (TypeError, ValueError):
-            start = None
-        transcript.append({"start": start, "text": segment_text})
-        if len(transcript) >= 200:
-            break
-    confidence = raw.get("confidence")
-    try:
-        confidence = max(0.0, min(1.0, float(confidence)))
-    except (TypeError, ValueError):
-        confidence = 0.0
-    return {
-        "description": clean_text(raw.get("description"), 2000),
-        "subjects": clean_list(raw.get("subjects"), 12),
-        "tags": clean_list(raw.get("tags"), 24),
-        "suggestedUses": clean_list(raw.get("suggestedUses"), 12),
-        "transcript": transcript,
-        "confidence": confidence,
-    }
-
-
-def semantic_media_file(filename: str, *, transcribe: bool) -> dict:
-    """Run consent-gated hosted content analysis and merge it into the manifest."""
-    if not MEDIA_NAME_RE.match(filename or ""):
-        raise ValueError("Unknown media file.")
-    path = _media_dir() / filename
-    if not path.exists():
-        raise FileNotFoundError("Media file not found.")
-    api_key = _load_saved_keys().get("gemini", "")
-    if not api_key:
-        raise PermissionError("Add a Gemini API key in Settings to run content analysis.")
-    manifest = analyze_media_file(filename)
-    kind = _media_kind_for(filename)
-    if kind == "audio" and not transcribe:
-        raise ValueError("Audio assets are analyzed through transcription; enable it for this request.")
-    frames = _semantic_frame_bytes(path, filename, manifest, kind)
-    if not frames and kind != "audio":
-        raise RuntimeError("No frames could be extracted from this asset.")
-    audio_payload = None
-    audio_note = ""
-    if transcribe:
-        audio_payload, audio_note = _semantic_audio_bytes(path, kind, manifest.get("technical") or {})
-    content: list[dict] = [{
-        "type": "text",
-        "text": _semantic_prompt(kind, len(frames), bool(audio_payload), audio_note),
-    }]
-    for frame in frames:
-        content.append({
-            "type": "image",
-            "data": base64.b64encode(frame).decode("ascii"),
-            "mime_type": "image/jpeg",
-        })
-    if audio_payload:
-        content.append({
-            "type": "audio",
-            "data": base64.b64encode(audio_payload["bytes"]).decode("ascii"),
-            "mime_type": audio_payload["mime"],
-        })
-    body = {
-        "model": SEMANTIC_DEFAULT_MODEL,
-        "input": [{"type": "user_input", "content": content}],
-        "response_format": {
-            "type": "text",
-            "mime_type": "application/json",
-            "schema": SEMANTIC_SCHEMA,
-        },
-    }
-    try:
-        data = ClipACanvasHandler._llm_http_post(
-            "https://generativelanguage.googleapis.com/v1beta/interactions",
-            body,
-            {"Content-Type": "application/json", "x-goog-api-key": api_key},
-            timeout=90,
-        )
-    except urllib.error.HTTPError as exc:
-        detail = ""
-        try:
-            detail = exc.read().decode("utf-8", errors="replace")[:400]
-        except Exception:
-            pass
-        raise RuntimeError(f"Gemini rejected the content analysis ({exc.code}): {detail or exc.reason}") from exc
-    except urllib.error.URLError as exc:
-        raise RuntimeError(f"Could not reach Gemini: {exc.reason}") from exc
-    result = _parse_semantic_result(data)
-    now = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
-    manifest["semantic"] = {
-        "status": "analyzed",
-        "provider": "gemini",
-        "providerLabel": "Google Gemini",
-        "model": SEMANTIC_DEFAULT_MODEL,
-        "description": result["description"],
-        "subjects": result["subjects"],
-        "tags": result["tags"],
-        "shots": [],
-        "transcript": result["transcript"],
-        "suggestedUses": result["suggestedUses"],
-        "confidence": result["confidence"],
-        "framesSent": len(frames),
-        "audioSent": bool(audio_payload),
-        "audioNote": audio_note,
-        "consentAt": now,
-        "analyzedAt": now,
-        "terms": (
-            "Frames%s uploaded to Google Gemini with explicit user consent."
-            % (" and audio" if audio_payload else "")
-        ),
-    }
-    try:
-        _write_analysis_manifest(filename, manifest)
-    except OSError as exc:
-        raise RuntimeError(f"Analysis finished but could not be saved: {exc}") from exc
-    return manifest
 
 
 
@@ -3112,14 +3649,16 @@ class ClipACanvasHandler(SimpleHTTPRequestHandler):
                 return self._handle_projects_get()
             if self.path == '/api/llm/keys':
                 return self._handle_llm_keys_get()
+            if self.path == '/api/llm/usage':
+                return self._handle_llm_usage()
             if urllib.parse.urlparse(self.path).path == '/api/llm/chatlog':
                 return self._handle_chatlog_get(urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query))
             if self.path == '/api/prefs':
                 return self._handle_prefs_get()
             if self.path == '/api/tts/providers':
                 return self._handle_tts_providers()
-            if self.path == '/api/media/semantic/providers':
-                return self._handle_semantic_providers()
+            if self.path == '/api/stt/status':
+                return self._handle_stt_status()
             if self.path == '/health':
                 return self._send_json({'ok': True})
             parsed = urllib.parse.urlparse(self.path)
@@ -3174,12 +3713,24 @@ class ClipACanvasHandler(SimpleHTTPRequestHandler):
                 self._handle_media_upload()
             elif self.path == '/api/media/analyze':
                 self._handle_media_analyze()
-            elif self.path == '/api/media/semantic':
-                self._handle_media_semantic()
+            elif self.path == '/api/media/search':
+                self._handle_media_search()
             elif self.path == '/api/tts/generate':
                 self._handle_tts_generate()
-            elif self.path == '/api/tts/warm':
-                self._handle_tts_warm()
+            elif self.path == '/api/stt/status':
+                self._handle_stt_status()
+            elif self.path == '/api/stt/prepare':
+                self._handle_stt_prepare()
+            elif self.path == '/api/stt/warm':
+                self._handle_stt_warm()
+            elif self.path == '/api/stt/start':
+                self._handle_stt_start()
+            elif self.path == '/api/stt/stop':
+                self._handle_stt_stop()
+            elif self.path == '/api/stt/cancel':
+                self._handle_stt_cancel()
+            elif urllib.parse.urlparse(self.path).path == '/api/stt/transcribe':
+                self._handle_stt_transcribe()
             elif self.path == '/api/llm/chat':
                 self._handle_llm_chat()
             elif self.path == '/api/llm/models':
@@ -3280,7 +3831,8 @@ class ClipACanvasHandler(SimpleHTTPRequestHandler):
                         env=env,
                         capture_output=True,
                         text=True,
-                        timeout=600
+                        timeout=600,
+                        creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
                     )
                 except FileNotFoundError:
                     render_errors.append(f'Missing runtime for command: {" ".join(cmd[:2])}')
@@ -3375,6 +3927,10 @@ class ClipACanvasHandler(SimpleHTTPRequestHandler):
         model = str(payload.get('model', '')).strip()
         messages = payload.get('messages')
         allow_fallback = bool(payload.get('allowFallback', False))
+        # A manual model pick may still switch to a sibling of the SAME provider
+        # when that model is out of quota; never to another provider.
+        fallback_on_quota = bool(payload.get('fallbackOnQuota', False))
+        purpose = str(payload.get('purpose') or 'chat').strip().lower()[:24] or 'chat'
 
         if provider not in ('mistral', 'gemini'):
             self._send_json({'ok': False, 'error': 'Provider must be "mistral" or "gemini".'}, 400)
@@ -3393,6 +3949,21 @@ class ClipACanvasHandler(SimpleHTTPRequestHandler):
         tools_dropped = False
 
         try:
+            catalog = self._catalog_models(provider, api_key)
+        except Exception:
+            catalog = []
+        estimated_tokens = _estimate_prompt_tokens(messages, use_tools)
+        input_limit = _model_input_limit(catalog, requested_model)
+        if input_limit and estimated_tokens > max(1024, input_limit - 16384):
+            self._send_json({
+                'ok': False,
+                'error': f'This request needs about {estimated_tokens} tokens, above the {input_limit}-token context of {requested_model}. Pick a model with a larger context or shorten the scene code.',
+                'estimatedPromptTokens': estimated_tokens,
+                'inputTokenLimit': input_limit,
+            }, 400)
+            return
+
+        try:
             text = ''
             tool_calls = []
             used_model = None
@@ -3401,21 +3972,61 @@ class ClipACanvasHandler(SimpleHTTPRequestHandler):
             attempt = 0
             model_retries = 0
             last_error = None
-            # Skip a model that recently hit its daily quota instead of spending
-            # another request on a guaranteed 429.
-            if allow_fallback and _model_cooldown_remaining(provider, current) > 0:
-                try:
-                    candidates = self._mistral_models(api_key) if provider == 'mistral' else self._gemini_models(api_key)
-                    candidate_names = [str(cand.get('name', '')) for cand in candidates]
-                except Exception:
-                    candidate_names = []
-                for name in candidate_names:
-                    if _model_cooldown_remaining(provider, name) <= 0:
-                        print(f"  [SERVER] {current} is rate-limited, switching to {name}")
-                        current = name
-                        break
+            quota_search = False
+            quota_retry = False
+            # Skip a model that recently hit its quota or has no free-tier
+            # headroom left instead of spending a request on a guaranteed 429.
+            usage_models = ((_llm_usage_today().get(provider) or {}).get('models') or {})
+            if allow_fallback or fallback_on_quota:
+                bucket = usage_models.get(current) or {}
+                if (
+                    _model_cooldown_remaining(provider, current) > 0
+                    or _headroom_blocked(provider, current, bucket)
+                    or not _model_fits_tokens(provider, current, bucket, estimated_tokens)
+                ):
+                    sibling = self._capacity_sibling(provider, api_key, current, [], use_tools, estimated_tokens)
+                    if sibling:
+                        print(f"  [SERVER] {current} has no capacity left, switching to {sibling}")
+                        current = sibling
+                        if fallback_on_quota:
+                            quota_search = True
             while attempt < 4:
+                bucket = usage_models.get(current) or {}
+                fits_request = _model_fits_tokens(provider, current, bucket, estimated_tokens)
+                if (allow_fallback or fallback_on_quota) and (
+                    not fits_request
+                    or _headroom_blocked(provider, current, bucket)
+                    or _model_cooldown_remaining(provider, current) > 0
+                ):
+                    sibling = self._capacity_sibling(provider, api_key, current, tried, use_tools, estimated_tokens)
+                    if sibling:
+                        print(f"  [SERVER] {current} has no free-tier headroom, switching to sibling {sibling}")
+                        current = sibling
+                        if fallback_on_quota:
+                            quota_search = True
+                        if current not in tried:
+                            tried.append(current)
+                    else:
+                        info = _model_headroom(provider, current, bucket) or {}
+                        limits = info.get('limits') or {}
+                        remaining = info.get('remaining') or {}
+                        if not fits_request:
+                            raise _LLMQuotaError(
+                                f'This request needs about {estimated_tokens} tokens, above the '
+                                f'{limits.get("tpm")} tokens/minute limit of {_normalize_model_name(current)}. '
+                                'Pick a larger model or shorten the scene code.'
+                            )
+                        if limits.get('rpd') == 0 or remaining.get('rpd') == 0:
+                            raise _LLMQuotaError(
+                                f'{_normalize_model_name(current)} has no free-tier requests left today '
+                                f'(RPD {limits.get("rpd") or 0}). Pick another model or wait for the daily reset.'
+                            )
+                        wait = _minute_wait_seconds(provider, current)
+                        if wait > 0:
+                            print(f"  [SERVER] waiting {wait}s for {current} per-minute window")
+                            time.sleep(wait)
                 tried.append(current)
+                quota_retry = quota_search
                 try:
                     if provider == 'mistral':
                         result = self._mistral_chat(api_key, messages, current, use_tools)
@@ -3423,6 +4034,9 @@ class ClipACanvasHandler(SimpleHTTPRequestHandler):
                         result = self._gemini_chat(api_key, messages, current, use_tools)
                     text = str(result.get('text') or '').strip()
                     tool_calls = result.get('toolCalls') or []
+                    rate = result.get('rateLimit') or _model_rate_state(provider, current)
+                    _record_llm_usage(provider, current, purpose, result.get('usage'), 200,
+                                      quota=None, rate=rate, estimated=estimated_tokens)
                     if text or tool_calls:
                         used_model = current
                         break
@@ -3430,9 +4044,17 @@ class ClipACanvasHandler(SimpleHTTPRequestHandler):
                 except urllib.error.HTTPError as exc:
                     detail = ''
                     try:
-                        detail = exc.read().decode('utf-8', errors='replace')[:600]
+                        detail = exc.read().decode('utf-8', errors='replace')[:8000]
                     except Exception:
                         pass
+                    rate = _record_rate_limits(provider, current, _rate_limits_from_headers(getattr(exc, 'headers', None)))
+                    quota = _quota_details_from_error(detail) if provider == 'gemini' else {}
+                    if provider == 'mistral' and exc.code == 429:
+                        merged = rate or _model_rate_state(provider, current)
+                        limit_req = int(merged.get('x-ratelimit-limit-req-minute') or 0)
+                        if limit_req > 0:
+                            quota = {'limit': limit_req, 'window': 'minute', 'type': 'requests'}
+                    _record_llm_usage(provider, current, purpose, None, exc.code, 0, quota, rate, estimated_tokens)
                     # Some models on the list (e.g. gemma) reject tool schemas;
                     # retry the same model as plain text before any fallback.
                     if use_tools and exc.code == 400 and ('tool' in detail.lower() or 'function' in detail.lower()):
@@ -3440,12 +4062,18 @@ class ClipACanvasHandler(SimpleHTTPRequestHandler):
                         use_tools = False
                         tools_dropped = True
                         continue
+                    detail = detail[:600]
                     exc._clip_detail = detail
                     last_error = exc
                     if exc.code == 429:
                         # Free-tier quota is per model, so remember when this one
-                        # frees up and let AUTO try a sibling model.
-                        _set_model_cooldown(provider, current, _retry_delay_seconds(detail))
+                        # frees up and let AUTO (or a manual pick with quota
+                        # fallback) try a sibling model of the same provider.
+                        delay = _retry_delay_seconds(detail, getattr(exc, 'headers', None)) or 60
+                        _set_model_cooldown(provider, current, delay)
+                        if fallback_on_quota:
+                            quota_search = True
+                        quota_retry = fallback_on_quota
                     if exc.code in (423, 500, 502, 503, 504) and model_retries < 2:
                         # Provider overload, gateway hiccup or a transient lock:
                         # retry the same model with a short backoff before fallback.
@@ -3462,18 +4090,27 @@ class ClipACanvasHandler(SimpleHTTPRequestHandler):
                         print(f"  [SERVER] {provider}/{current} network error ({type(exc).__name__}); retrying in {delay:.1f}s")
                         time.sleep(delay)
                         continue
-                if not allow_fallback:
+                if not allow_fallback and not quota_retry:
                     break
-                try:
-                    candidates = self._mistral_models(api_key) if provider == 'mistral' else self._gemini_models(api_key)
-                    names = [str(cand.get('name', '')) for cand in candidates]
-                except Exception:
-                    break
+                candidates = catalog
+                if not candidates:
+                    try:
+                        candidates = self._catalog_models(provider, api_key)
+                    except Exception:
+                        break
+                names = [str(cand.get('name', '')) for cand in candidates]
+                models_by_name = {str(cand.get('name', '')): cand for cand in candidates}
                 start = names.index(current) + 1 if current in names else 0
                 ordered = names[start:] + names[:start]
                 next_model = None
                 for name in ordered:
                     if name in tried or _model_cooldown_remaining(provider, name) > 0:
+                        continue
+                    if use_tools and not models_by_name.get(name, {}).get('supportsTools', True):
+                        continue
+                    if _headroom_blocked(provider, name, usage_models.get(name) or {}):
+                        continue
+                    if not _model_fits_tokens(provider, name, usage_models.get(name) or {}, estimated_tokens):
                         continue
                     next_model = name
                     break
@@ -3495,13 +4132,25 @@ class ClipACanvasHandler(SimpleHTTPRequestHandler):
             print(f"  [SERVER] LLM provider error ({provider}, {exc.code}): {detail}")
             if exc.code == 429:
                 last_model = tried[-1] if tried else requested_model
-                retry_seconds = _retry_delay_seconds(detail) or _model_cooldown_remaining(provider, last_model)
+                retry_seconds = _retry_delay_seconds(detail, getattr(exc, 'headers', None)) or _model_cooldown_remaining(provider, last_model)
                 print(f"  [SERVER] {provider}/{last_model} quota exhausted for {_human_duration(retry_seconds) if retry_seconds else 'a while'}")
+                last_bucket = (((_llm_usage_today().get(provider) or {}).get('models') or {}).get(last_model) or {})
+                if last_bucket.get('limit'):
+                    quota = {
+                        'limit': int(last_bucket.get('limit') or 0),
+                        'window': str(last_bucket.get('limitWindow') or 'day'),
+                        'type': str(last_bucket.get('limitType') or 'requests'),
+                        'quotaId': str(last_bucket.get('limitId') or ''),
+                    }
+                else:
+                    quota = _quota_details_from_error(detail) if provider == 'gemini' else {}
                 self._send_json({
                     'ok': False,
                     'error': _rate_limit_message(provider, last_model, retry_seconds, len(tried) > 1),
                     'detail': detail,
                     'retryAfterSeconds': retry_seconds,
+                    'rateLimit': _model_rate_state(provider, last_model),
+                    'quotaLimit': quota,
                 }, 429)
                 return
             if exc.code == 423:
@@ -3511,6 +4160,10 @@ class ClipACanvasHandler(SimpleHTTPRequestHandler):
             else:
                 message = f'{provider.capitalize()} API error ({exc.code}).'
             self._send_json({'ok': False, 'error': message, 'detail': detail}, 502)
+            return
+        except _LLMQuotaError as exc:
+            print(f"  [SERVER] LLM quota block ({provider}): {exc}")
+            self._send_json({'ok': False, 'error': str(exc)}, 429)
             return
         except (urllib.error.URLError, TimeoutError, ConnectionError) as exc:
             print(f"  [SERVER] LLM network error ({provider}): {exc}")
@@ -3527,14 +4180,29 @@ class ClipACanvasHandler(SimpleHTTPRequestHandler):
                 self._send_json({'ok': False, 'error': 'LLM request failed.'}, 502)
             return
 
+        used = used_model or requested_model
+        used_bucket = (((_llm_usage_today().get(provider) or {}).get('models') or {}).get(used) or {})
+        used_quota = {}
+        if used_bucket.get('limit'):
+            used_quota = {
+                'limit': int(used_bucket.get('limit') or 0),
+                'window': str(used_bucket.get('limitWindow') or 'day'),
+                'type': str(used_bucket.get('limitType') or 'requests'),
+                'quotaId': str(used_bucket.get('limitId') or ''),
+            }
         self._send_json({
             'ok': True,
             'provider': provider,
-            'model': used_model or requested_model,
+            'model': used,
+            'fallbackFrom': requested_model if used != requested_model else '',
             'text': text,
             'toolCalls': tool_calls,
             'tools': use_tools,
             'toolsDisabled': bool(tools_requested and tools_dropped),
+            'rateLimit': _model_rate_state(provider, used),
+            'quotaLimit': used_quota,
+            'estimatedPromptTokens': estimated_tokens,
+            'inputTokenLimit': _model_input_limit(catalog, used),
         })
 
     def _handle_llm_models(self):
@@ -3577,7 +4245,80 @@ class ClipACanvasHandler(SimpleHTTPRequestHandler):
             self._send_json({'ok': False, 'error': 'Could not load models.'}, 502)
             return
 
+        usage_models = ((_llm_usage_today().get(provider) or {}).get('models') or {})
+        for model in models:
+            model_name = str(model.get('name', ''))
+            model['cooldownSeconds'] = _model_cooldown_remaining(provider, model_name)
+            model['callsToday'] = int(((usage_models or {}).get(model_name) or {}).get('calls') or 0)
+            bucket = (usage_models or {}).get(model_name) or {}
+            model['okToday'] = int(bucket.get('ok') or 0)
+            state = _model_rate_state(provider, model_name)
+            if state:
+                model['rateLimit'] = state
+            info = _model_headroom(provider, model_name, bucket)
+            if info:
+                model['limits'] = info['limits']
+                model['headroom'] = info['remaining']
+                model['limitsSource'] = info['source']
+                if info.get('verifiedAt'):
+                    model['limitsVerifiedAt'] = info['verifiedAt']
+            if bucket.get('serviceTier'):
+                model['serviceTier'] = bucket['serviceTier']
+            output_cap = 16384
+            try:
+                if model.get('outputTokenLimit'):
+                    output_cap = min(output_cap, int(model['outputTokenLimit']))
+            except (TypeError, ValueError):
+                pass
+            model['maxOutputTokens'] = output_cap
+            limit = int(bucket.get('limit') or 0)
+            if limit > 0:
+                window = str(bucket.get('limitWindow') or 'day')
+                model['quotaLimit'] = {
+                    'limit': limit,
+                    'window': window,
+                    'type': str(bucket.get('limitType') or 'requests'),
+                    'quotaId': str(bucket.get('limitId') or ''),
+                    'remaining': max(0, limit - model['okToday']) if window == 'day' else None,
+                }
         self._send_json({'ok': True, 'models': models})
+
+    def _handle_llm_usage(self):
+        if not self._same_origin_request():
+            self.send_error(403, "Origin not allowed")
+            return
+        with _LLM_USAGE_LOCK:
+            providers = _load_llm_usage().get(_usage_today(), {})
+        if not isinstance(providers, dict):
+            providers = {}
+        for (cooldown_provider, cooldown_model), until in list(_MODEL_COOLDOWNS.items()):
+            remaining = max(0, int(until - time.time()))
+            if remaining <= 0:
+                continue
+            provider_bucket = providers.setdefault(cooldown_provider, {
+                'calls': 0, 'ok': 0, 'promptTokens': 0, 'completionTokens': 0,
+                'purposes': {}, 'models': {}
+            })
+            model_bucket = _usage_model_bucket(provider_bucket, cooldown_model)
+            model_bucket['cooldownSeconds'] = remaining
+        for provider_name, provider_bucket in providers.items():
+            models = provider_bucket.get('models') if isinstance(provider_bucket, dict) else None
+            for model_name, model_bucket in (models or {}).items():
+                limit = int(model_bucket.get('limit') or 0)
+                ok_today = int(model_bucket.get('ok') or 0)
+                window = str(model_bucket.get('limitWindow') or 'day')
+                model_bucket['remaining'] = max(0, limit - ok_today) if limit > 0 and window == 'day' else None
+                live = _model_rate_state(provider_name, model_name)
+                if live:
+                    model_bucket['rateLimit'] = live
+                info = _model_headroom(provider_name, model_name, model_bucket)
+                if info:
+                    model_bucket['limits'] = info['limits']
+                    model_bucket['headroom'] = info['remaining']
+                    model_bucket['limitsSource'] = info['source']
+                    if info.get('verifiedAt'):
+                        model_bucket['limitsVerifiedAt'] = info['verifiedAt']
+        self._send_json({'ok': True, 'today': _usage_today(), 'usage': providers})
 
     def _handle_llm_keys_get(self):
         if not self._same_origin_request():
@@ -3698,16 +4439,67 @@ class ClipACanvasHandler(SimpleHTTPRequestHandler):
         self._send_json({'ok': True, 'deleted': _delete_chatlog_session(session_id)})
 
     @staticmethod
-    def _llm_http_post(url, body, headers, timeout=180):
+    def _llm_http_post_raw(url, body, headers, timeout=180):
         request = urllib.request.Request(url, data=json.dumps(body).encode('utf-8'), headers=headers, method='POST')
         with urllib.request.urlopen(request, timeout=timeout) as response:
-            return json.loads(response.read().decode('utf-8'))
+            payload = json.loads(response.read().decode('utf-8'))
+            return payload, response.headers
+
+    @staticmethod
+    def _llm_http_post(url, body, headers, timeout=180):
+        payload, _headers = ClipACanvasHandler._llm_http_post_raw(url, body, headers, timeout=timeout)
+        return payload
 
     @staticmethod
     def _llm_http_get(url, headers, timeout=30):
         request = urllib.request.Request(url, headers=headers, method='GET')
         with urllib.request.urlopen(request, timeout=timeout) as response:
             return json.loads(response.read().decode('utf-8'))
+
+    def _catalog_models(self, provider, api_key):
+        cached = _MODEL_CATALOG.get(provider)
+        if cached and time.time() - cached.get('at', 0) < _MODEL_CATALOG_TTL:
+            return list(cached.get('models') or [])
+        models = self._mistral_models(api_key) if provider == 'mistral' else self._gemini_models(api_key)
+        _MODEL_CATALOG[provider] = {'at': time.time(), 'models': models}
+        return models
+
+    def _capacity_sibling(self, provider, api_key, current, tried, use_tools, need_tokens=0):
+        try:
+            models = self._catalog_models(provider, api_key)
+        except Exception:
+            return None
+        usage_models = ((_llm_usage_today().get(provider) or {}).get('models') or {})
+        candidates = []
+        for model in models:
+            name = str(model.get('name') or '')
+            if not name or name == current or name in tried:
+                continue
+            if use_tools and not model.get('supportsTools', True):
+                continue
+            if _model_cooldown_remaining(provider, name) > 0:
+                continue
+            bucket = usage_models.get(name) or {}
+            if _headroom_blocked(provider, name, bucket):
+                continue
+            if need_tokens:
+                if not _model_fits_tokens(provider, name, bucket, need_tokens):
+                    continue
+                context_limit = int(model.get('inputTokenLimit') or 0)
+                if context_limit and need_tokens + 16384 > context_limit:
+                    continue
+            calls = int(bucket.get('calls') or 0)
+            candidates.append((calls, name))
+        current_tier = _model_tier(provider, current)
+        same_tier = [item for item in candidates if _model_tier(provider, item[1]) == current_tier]
+        if same_tier:
+            candidates = same_tier
+        elif current_tier == 'pro':
+            flash = [item for item in candidates if _model_tier(provider, item[1]) == 'flash']
+            if flash:
+                candidates = flash
+        candidates.sort()
+        return candidates[0][1] if candidates else None
 
     def _gemini_models(self, api_key):
         url = f'https://generativelanguage.googleapis.com/v1beta/models?key={urllib.parse.quote(api_key)}'
@@ -3739,6 +4531,7 @@ class ClipACanvasHandler(SimpleHTTPRequestHandler):
                 'description': str(entry.get('description') or ''),
                 'inputTokenLimit': entry.get('inputTokenLimit'),
                 'outputTokenLimit': entry.get('outputTokenLimit'),
+                'supportsTools': True,
             })
         models.sort(key=_model_sort_key, reverse=True)
         return models
@@ -3794,7 +4587,7 @@ class ClipACanvasHandler(SimpleHTTPRequestHandler):
         if not contents:
             raise RuntimeError('No chat content for Gemini request.')
 
-        body = {'contents': contents}
+        body = {'contents': contents, 'generationConfig': {'maxOutputTokens': 16384}}
         if system_parts:
             body['systemInstruction'] = {'parts': [{'text': '\n\n'.join(system_parts)}]}
         if tools:
@@ -3805,7 +4598,8 @@ class ClipACanvasHandler(SimpleHTTPRequestHandler):
             model_name = model_name[len('models/'):]
 
         url = f'https://generativelanguage.googleapis.com/v1beta/models/{urllib.parse.quote(model_name)}:generateContent?key={urllib.parse.quote(api_key)}'
-        data = self._llm_http_post(url, body, {'Content-Type': 'application/json'}, timeout=150)
+        data, response_headers = self._llm_http_post_raw(url, body, {'Content-Type': 'application/json'}, timeout=150)
+        rate = _record_rate_limits('gemini', model, _rate_limits_from_headers(response_headers))
         try:
             parts = data['candidates'][0]['content']['parts']
         except (KeyError, IndexError, TypeError):
@@ -3830,7 +4624,14 @@ class ClipACanvasHandler(SimpleHTTPRequestHandler):
             text = part.get('text')
             if isinstance(text, str):
                 texts.append(text)
-        return {'text': ''.join(texts).strip(), 'toolCalls': tool_calls}
+        meta = data.get('usageMetadata') if isinstance(data.get('usageMetadata'), dict) else {}
+        usage = {
+            'prompt': int(meta.get('promptTokenCount') or 0),
+            'completion': int(meta.get('candidatesTokenCount') or 0) + int(meta.get('thoughtsTokenCount') or 0),
+            'total': int(meta.get('totalTokenCount') or 0),
+            'serviceTier': str(meta.get('serviceTier') or response_headers.get('X-Gemini-Service-Tier') or ''),
+        }
+        return {'text': ''.join(texts).strip(), 'toolCalls': tool_calls, 'usage': usage, 'rateLimit': rate}
 
     def _mistral_chat(self, api_key, messages, model, tools=False):
         converted = []
@@ -3873,7 +4674,7 @@ class ClipACanvasHandler(SimpleHTTPRequestHandler):
             if text:
                 converted.append({'role': role if role in ('system', 'user') else 'user', 'content': text})
 
-        body = {'model': model, 'messages': converted}
+        body = {'model': model, 'messages': converted, 'max_tokens': 16384}
         if tools:
             body['tools'] = _mistral_tool_declarations()
         headers = {
@@ -3881,7 +4682,8 @@ class ClipACanvasHandler(SimpleHTTPRequestHandler):
             'Accept': 'application/json',
             'Authorization': f'Bearer {api_key}',
         }
-        data = self._llm_http_post('https://api.mistral.ai/v1/chat/completions', body, headers, timeout=150)
+        data, response_headers = self._llm_http_post_raw('https://api.mistral.ai/v1/chat/completions', body, headers, timeout=150)
+        rate = _record_rate_limits('mistral', model, _rate_limits_from_headers(response_headers))
         try:
             message = data['choices'][0]['message']
         except (KeyError, IndexError, TypeError):
@@ -3921,7 +4723,14 @@ class ClipACanvasHandler(SimpleHTTPRequestHandler):
                 'args': args if isinstance(args, dict) else {},
                 'raw': call,
             })
-        return {'text': text, 'toolCalls': tool_calls}
+        meta = data.get('usage') if isinstance(data.get('usage'), dict) else {}
+        usage = {
+            'prompt': int(meta.get('prompt_tokens') or 0),
+            'completion': int(meta.get('completion_tokens') or 0),
+            'total': int(meta.get('total_tokens') or 0),
+            'serviceTier': str(meta.get('service_tier') or ''),
+        }
+        return {'text': text, 'toolCalls': tool_calls, 'usage': usage, 'rateLimit': rate}
 
     def _mistral_models(self, api_key):
         data = self._llm_http_get(
@@ -3938,12 +4747,14 @@ class ClipACanvasHandler(SimpleHTTPRequestHandler):
                 continue
             if any(token in lowered for token in excluded_tokens):
                 continue
+            capabilities = entry.get('capabilities') if isinstance(entry.get('capabilities'), dict) else {}
             models.append({
                 'name': model_id,
                 'displayName': model_id,
                 'description': str(entry.get('description') or ''),
-                'inputTokenLimit': None,
+                'inputTokenLimit': entry.get('max_context_length'),
                 'outputTokenLimit': None,
+                'supportsTools': bool(capabilities.get('function_calling')),
             })
         models.sort(key=_mistral_model_sort_key, reverse=True)
         return models
@@ -4508,9 +5319,10 @@ class ClipACanvasHandler(SimpleHTTPRequestHandler):
         url = str((payload or {}).get('url') or '')
         if not url.startswith('/media/'):
             return self._send_json({'ok': False, 'error': 'Only project media can be analyzed.'}, 400)
+        refresh = (payload or {}).get('refresh') is True
         filename = Path(urllib.parse.unquote(url[len('/media/'):])).name
         try:
-            manifest = analyze_media_file(filename)
+            manifest = analyze_media_file(filename, refresh=refresh)
         except FileNotFoundError:
             return self._send_json({'ok': False, 'error': 'Media file not found.'}, 404)
         except ValueError:
@@ -4520,13 +5332,101 @@ class ClipACanvasHandler(SimpleHTTPRequestHandler):
             return self._send_json({'ok': False, 'error': 'Media analysis failed.'}, 500)
         self._send_json({'ok': True, 'manifest': manifest})
 
+    def _handle_media_search(self):
+        try:
+            length = int(self.headers.get('Content-Length') or 0)
+        except ValueError:
+            length = 0
+        if length <= 0 or length > 65536:
+            return self._send_json({'ok': False, 'error': 'Invalid search request.'}, 400)
+        try:
+            payload = json.loads(self.rfile.read(length).decode('utf-8'))
+        except (ValueError, UnicodeDecodeError):
+            return self._send_json({'ok': False, 'error': 'Invalid JSON.'}, 400)
+        query = str((payload or {}).get('query') or '').strip()
+        if not query or len(query) > 300:
+            return self._send_json({'ok': False, 'error': 'Write a query between 1 and 300 characters.'}, 400)
+        try:
+            limit = int((payload or {}).get('limit') or VISUAL_SEARCH_LIMIT)
+        except (TypeError, ValueError):
+            limit = VISUAL_SEARCH_LIMIT
+        limit = max(1, min(24, limit))
+        try:
+            message = _embedding_request({'kind': 'text', 'texts': [query], 'prompt': 'Retrieval-query'})
+        except Exception as exc:
+            print(f"  [SERVER] footage search failed: {exc}")
+            return self._send_json({
+                'ok': False,
+                'error': f'Local search is unavailable: {str(exc)[:200]}'
+            }, 502)
+        vectors = message.get('vectors') or []
+        query_vector = vectors[0] if vectors and isinstance(vectors[0], list) else []
+        if not query_vector:
+            return self._send_json({'ok': False, 'error': 'Local search returned no vector.'}, 500)
+        results = []
+        for sidecar in _analysis_dir().glob('embeddings-*.json'):
+            try:
+                data = json.loads(sidecar.read_text(encoding='utf-8'))
+            except (OSError, ValueError):
+                continue
+            if not isinstance(data, dict):
+                continue
+            filename = str(data.get('filename') or '')
+            if not MEDIA_NAME_RE.match(filename):
+                continue
+            for frame in data.get('frames') or []:
+                if not isinstance(frame, dict):
+                    continue
+                vector = frame.get('vector') or []
+                if not isinstance(vector, list) or len(vector) != len(query_vector):
+                    continue
+                try:
+                    score = sum(float(a) * float(b) for a, b in zip(query_vector, vector))
+                except (TypeError, ValueError):
+                    continue
+                if score < VISUAL_SEARCH_MIN_SCORE:
+                    continue
+                thumb = str(frame.get('thumb') or '')
+                if not thumb.startswith('/api/media/frames/'):
+                    thumb = ''
+                results.append({
+                    'filename': filename,
+                    'url': f'/media/{filename}',
+                    'time': round(float(frame.get('time') or 0), 3),
+                    'score': round(score, 4),
+                    'thumb': thumb,
+                })
+        results.sort(key=lambda item: -item['score'])
+        # Collapse neighbouring frames from the same moment so a result list is
+        # distinct moments, not the same second repeated.
+        picked = []
+        for item in results:
+            if any(prev['filename'] == item['filename']
+                   and abs(prev['time'] - item['time']) < 1.5
+                   for prev in picked):
+                continue
+            picked.append(item)
+            if len(picked) >= limit:
+                break
+        results = picked
+        self._send_json({
+            'ok': True,
+            'query': query,
+            'model': VISUAL_MODEL,
+            'count': len(results),
+            'results': results,
+        })
+
     def _handle_analysis_frame(self, raw_name):
         name = urllib.parse.unquote(raw_name)
-        match = re.match(r"^([^/]+)/(\d{1,2})\.jpg$", name)
+        match = re.match(r"^([^/]+)/(?:(shot|index)-(\d{1,3})|(\d{1,2}))\.jpg$", name)
         if not match or not MEDIA_NAME_RE.match(match.group(1)):
             return self._safe_text_error('Frame not found.', 404)
         frame_dir = _analysis_dir() / f"frames-{Path(match.group(1)).stem}"
-        frame_path = frame_dir / f"shot-{int(match.group(2)):02d}.jpg"
+        if match.group(2):
+            frame_path = frame_dir / f"{match.group(2)}-{int(match.group(3)):02d}.jpg"
+        else:
+            frame_path = frame_dir / f"shot-{int(match.group(4)):02d}.jpg"
         try:
             data = frame_path.read_bytes()
         except OSError:
@@ -4540,55 +5440,6 @@ class ClipACanvasHandler(SimpleHTTPRequestHandler):
             self.wfile.write(data)
         except (BrokenPipeError, ConnectionResetError):
             return
-
-    def _handle_semantic_providers(self):
-        try:
-            self._send_json({'ok': True, **semantic_provider_registry()})
-        except Exception as exc:
-            print(f"  [SERVER] semantic provider error: {exc}")
-            self._send_json({'ok': False, 'error': 'Could not list content-analysis providers.'}, 500)
-
-    def _handle_media_semantic(self):
-        try:
-            length = int(self.headers.get('Content-Length') or 0)
-        except ValueError:
-            length = 0
-        if length <= 0 or length > 65536:
-            return self._send_json({'ok': False, 'error': 'Invalid analysis request.'}, 400)
-        try:
-            payload = json.loads(self.rfile.read(length).decode('utf-8'))
-        except (ValueError, UnicodeDecodeError):
-            return self._send_json({'ok': False, 'error': 'Invalid JSON.'}, 400)
-        if not isinstance(payload, dict) or payload.get('consent') is not True:
-            return self._send_json({
-                'ok': False,
-                'error': 'Explicit consent is required before uploading media to a hosted provider.'
-            }, 403)
-        provider = str(payload.get('provider') or 'gemini').strip().lower()
-        if provider != 'gemini':
-            return self._send_json({
-                'ok': False,
-                'error': 'Only the Gemini content-analysis provider is available.'
-            }, 400)
-        url = str(payload.get('url') or '')
-        if not url.startswith('/media/'):
-            return self._send_json({'ok': False, 'error': 'Only project media can be analyzed.'}, 400)
-        filename = Path(urllib.parse.unquote(url[len('/media/'):])).name
-        transcribe = payload.get('transcribe') is True
-        try:
-            manifest = semantic_media_file(filename, transcribe=transcribe)
-        except PermissionError as exc:
-            return self._send_json({'ok': False, 'error': str(exc)}, 403)
-        except FileNotFoundError:
-            return self._send_json({'ok': False, 'error': 'Media file not found.'}, 404)
-        except ValueError as exc:
-            return self._send_json({'ok': False, 'error': str(exc)}, 400)
-        except RuntimeError as exc:
-            return self._send_json({'ok': False, 'error': str(exc)[:500]}, 502)
-        except Exception as exc:
-            print(f"  [SERVER] content analysis error: {exc}")
-            return self._send_json({'ok': False, 'error': 'Content analysis failed.'}, 500)
-        self._send_json({'ok': True, 'provider': provider, 'manifest': manifest})
 
     def _handle_tts_providers(self):
         try:
@@ -4623,7 +5474,93 @@ class ClipACanvasHandler(SimpleHTTPRequestHandler):
             return self._send_json({'ok': False, 'error': 'Speech generation failed.'}, 500)
         self._send_json(result)
 
-    def _handle_tts_warm(self):
+    def _handle_stt_status(self):
+        try:
+            self._send_json({'ok': True, **_stt_live_status()})
+        except Exception as exc:
+            print(f"  [SERVER] STT status error: {exc}")
+            self._send_json({'ok': False, 'error': 'Could not read dictation status.'}, 500)
+
+    def _handle_stt_prepare(self):
+        self._discard_request_body()
+        try:
+            with _STT_LOCK:
+                _ensure_stt_worker()
+                response = _stt_request({"op": "prepare"}, timeout=120)
+            self._send_json({
+                'ok': True,
+                'state': str(response.get('state') or 'loading'),
+                'model': _stt_model_id(),
+                'modelReady': _stt_model_ready() or response.get('state') == 'ready',
+            })
+        except queue.Empty:
+            _STT_WORKER.stop()
+            self._send_json({'ok': False, 'error': 'The dictation engine did not respond.'}, 504)
+        except (RuntimeError, OSError) as exc:
+            self._send_json({'ok': False, 'error': str(exc)}, 502)
+
+    def _handle_stt_warm(self):
+        self._discard_request_body()
+        _, _assets, error = _stt_locate()
+        if error:
+            return self._send_json({'ok': False, 'error': error}, 502)
+
+        def boot():
+            try:
+                with _STT_LOCK:
+                    _ensure_stt_worker()
+            except (RuntimeError, OSError) as exc:
+                print(f"  [SpeechToText] warm-up failed: {exc}")
+
+        if not _STT_WORKER.alive():
+            threading.Thread(target=boot, name="speech-to-text-warm", daemon=True).start()
+        self._send_json({'ok': True, 'warming': not _STT_WORKER.alive()})
+
+    def _handle_stt_start(self):
+        self._discard_request_body()
+        try:
+            with _STT_LOCK:
+                _stt_update(phase="preparing", error="",
+                            progress={"stage": "boot", "pct": 0, "detail": "Starting dictation engine"})
+                _ensure_stt_worker()
+                # Open the microphone before touching the model: PortAudio's
+                # stream open blocks while CUDA model loading runs.
+                response = _stt_request({"op": "record_start"}, timeout=60)
+                if not response.get("ok"):
+                    message = str(response.get("error") or "The microphone is unavailable.")
+                    _stt_update(phase="idle", error=message)
+                    return self._send_json({'ok': False, 'error': message}, 502)
+                started = time.time()
+                input_name = str(response.get("input") or "")
+                _stt_update(phase="recording", startedAt=started, error="", peak=0.0, input=input_name)
+
+            def prime_model():
+                time.sleep(0.5)
+                with _STT_LOCK:
+                    if not _STT_WORKER.alive():
+                        return
+                    try:
+                        _stt_request({"op": "prepare"}, timeout=60)
+                    except (queue.Empty, OSError):
+                        pass
+
+            threading.Thread(target=prime_model, name="speech-to-text-prime", daemon=True).start()
+            self._send_json({
+                'ok': True,
+                'recording': True,
+                'startedAt': started,
+                'input': input_name,
+                'maxSeconds': STT_MAX_RECORD_SECONDS,
+            })
+        except queue.Empty:
+            _STT_WORKER.stop()
+            _stt_update(phase="idle", error="The dictation engine did not respond.")
+            self._send_json({'ok': False, 'error': 'The dictation engine did not respond.'}, 504)
+        except (RuntimeError, OSError) as exc:
+            _stt_update(phase="idle", error=str(exc))
+            self._send_json({'ok': False, 'error': str(exc)}, 502)
+
+    def _handle_stt_stop(self):
         try:
             length = int(self.headers.get('Content-Length') or 0)
         except ValueError:
@@ -4636,30 +5573,125 @@ class ClipACanvasHandler(SimpleHTTPRequestHandler):
                 payload = {}
         if not isinstance(payload, dict):
             payload = {}
-        engine = _local_engine(str(payload.get('provider') or ''))
-        if not engine:
-            return self._send_json({'ok': False, 'error': 'Only a local neural runtime can be warmed.'}, 400)
-        if engine['error']:
-            return self._send_json({'ok': False, 'error': engine['error']}, 502)
-        ok, reason, device = _local_probe(engine['name'], engine['python'], engine['probe'])
-        if not ok:
-            return self._send_json({'ok': False, 'error': reason or f"{engine['name']} runtime is unavailable."}, 502)
-        worker = engine['worker']
-        script = _local_worker_path(engine['script'])
-        if not script:
-            return self._send_json({'ok': False, 'error': f"{engine['name']} worker is missing from this build."}, 502)
+        output = _stt_dir() / f"dictation-{uuid.uuid4().hex}.wav"
+        try:
+            with _STT_LOCK:
+                if not _STT_WORKER.alive():
+                    _stt_update(phase="idle")
+                    return self._send_json({'ok': False, 'error': 'Dictation is not recording.'}, 409)
+                _stt_update(phase="transcribing", error="",
+                            progress={"stage": "transcribe", "pct": 0, "detail": "Transcribing"})
+                capture = _stt_request({"op": "record_stop", "out": str(output)}, timeout=60)
+                if not capture.get("ok"):
+                    message = str(capture.get("error") or "Could not stop the recording.")
+                    _stt_update(phase="idle", error=message)
+                    return self._send_json({'ok': False, 'error': message}, 502)
+                duration = float(capture.get("duration") or 0)
+                if duration < 0.35:
+                    _stt_update(phase="idle", progress={"stage": "ready", "pct": 100, "detail": "Ready"})
+                    return self._send_json({'ok': False, 'error': 'That recording was too short to transcribe.'}, 400)
+                result = _stt_request(
+                    {"op": "transcribe", "audio": str(output), "language": "en"},
+                    timeout=1800,
+                )
+                if not result.get("ok"):
+                    message = str(result.get('error') or 'Transcription failed.')
+                    _stt_update(phase="idle", error=message)
+                    return self._send_json({'ok': False, 'error': message}, 502)
+                text = ' '.join(str(result.get('text') or '').split())
+                _stt_update(phase="idle", progress={"stage": "ready", "pct": 100, "detail": "Ready"})
+                if not text or result.get('silent'):
+                    return self._send_json({
+                        'ok': True, 'text': '', 'silent': True,
+                        'duration': round(float(result.get('duration') or duration), 2),
+                    })
+                _stt_update(lastText=text)
+                self._send_json({
+                    'ok': True,
+                    'text': text,
+                    'duration': round(float(result.get('duration') or duration), 2),
+                    'confidence': result.get('confidence'),
+                    'language': 'en',
+                    'model': _stt_model_id(),
+                    'device': _stt_snapshot().get('device') or '',
+                })
+        except queue.Empty:
+            _STT_WORKER.stop()
+            _stt_update(phase="idle", error="Transcription timed out.")
+            self._send_json({'ok': False, 'error': 'Transcription timed out. Try a shorter sentence.'}, 504)
+        except (RuntimeError, OSError) as exc:
+            _stt_update(phase="idle", error=str(exc))
+            self._send_json({'ok': False, 'error': str(exc)}, 502)
+        finally:
+            output.unlink(missing_ok=True)
 
-        def boot():
-            with worker.lock:
-                if worker.alive():
-                    return
+    def _handle_stt_cancel(self):
+        self._discard_request_body()
+        with _STT_LOCK:
+            if _STT_WORKER.alive():
                 try:
-                    worker.start(engine['python'], script, engine['args'])
-                except RuntimeError as exc:
-                    print(f"  [{engine['name']}] warm-up failed: {exc}")
+                    _stt_request({"op": "record_cancel"}, timeout=10)
+                except (queue.Empty, OSError):
+                    pass
+            _stt_update(phase="idle", error="",
+                        progress={"stage": "", "pct": 0, "detail": ""})
+        self._send_json({'ok': True})
 
-        threading.Thread(target=boot, name=f"{engine['name'].lower()}-warm", daemon=True).start()
-        self._send_json({'ok': True, 'warming': True, 'device': device})
+    def _handle_stt_transcribe(self):
+        try:
+            length = int(self.headers.get('Content-Length') or 0)
+        except ValueError:
+            length = 0
+        if length <= 0 or length > STT_MAX_AUDIO_BYTES:
+            return self._send_json({'ok': False, 'error': 'Send an audio file up to 40 MB.'}, 400)
+        raw = self.rfile.read(length)
+        if len(raw) < 64:
+            return self._send_json({'ok': False, 'error': 'The audio payload is empty.'}, 400)
+        output = _stt_dir() / f"upload-{uuid.uuid4().hex}.wav"
+        output.write_bytes(raw)
+        try:
+            with _STT_LOCK:
+                _stt_update(phase="transcribing", error="",
+                            progress={"stage": "transcribe", "pct": 0, "detail": "Transcribing"})
+                _ensure_stt_worker()
+                result = _stt_request(
+                    {"op": "transcribe", "audio": str(output), "language": "en"},
+                    timeout=1800,
+                )
+                _stt_update(phase="idle", progress={"stage": "ready", "pct": 100, "detail": "Ready"})
+                if not result.get("ok"):
+                    raise RuntimeError(str(result.get('error') or 'Transcription failed.'))
+                text = ' '.join(str(result.get('text') or '').split())
+                self._send_json({
+                    'ok': True,
+                    'text': text,
+                    'silent': bool(result.get('silent')),
+                    'duration': float(result.get('duration') or 0),
+                    'confidence': result.get('confidence'),
+                    'language': 'en',
+                    'model': _stt_model_id(),
+                })
+        except queue.Empty:
+            _STT_WORKER.stop()
+            _stt_update(phase="idle", error="Transcription timed out.")
+            self._send_json({'ok': False, 'error': 'Transcription timed out.'}, 504)
+        except (RuntimeError, OSError, ValueError) as exc:
+            _stt_update(phase="idle", error=str(exc))
+            self._send_json({'ok': False, 'error': str(exc)}, 400)
+        finally:
+            output.unlink(missing_ok=True)
+
+
+    def _discard_request_body(self, limit=20000):
+        try:
+            length = int(self.headers.get('Content-Length') or 0)
+        except ValueError:
+            length = 0
+        if 0 < length <= limit:
+            try:
+                self.rfile.read(length)
+            except OSError:
+                pass
 
     def _send_json(self, payload, status=200):
         data = json.dumps(payload).encode('utf-8')
@@ -4733,6 +5765,7 @@ class ClipACanvasHandler(SimpleHTTPRequestHandler):
 
 
 def build_server(host: str = "0.0.0.0", port: int = 8000) -> ClipACanvasServer:
+    _load_model_cooldowns()
     return ClipACanvasServer((host, port), ClipACanvasHandler)
 
 

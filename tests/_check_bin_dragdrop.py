@@ -74,6 +74,8 @@ with tempfile.TemporaryDirectory() as tmp_name:
                     timelineState.activeId = 'box-ref';
                     timelineState.playhead = 0;
                     timelineState.selectedAssetId = null;
+                    timelineView.zoom = 5;
+                    timelineView.start = 0;
                     mediaInspectorTarget = null;
                     hideMediaInspector();
                     saveTimelineState(true);
@@ -209,7 +211,8 @@ with tempfile.TemporaryDirectory() as tmp_name:
             page.evaluate("""() => {
                 timelineState.clips = [0, 1, 2, 3].map(track => ({
                     id: 'box-fill-' + track, name: 'FILL ' + track, code: '', duration: 6,
-                    start: 0, track, explicitDuration: true, type: 'code'
+                    start: 0, track, explicitDuration: true, type: 'video',
+                    mediaName: 'FILL', mediaUrl: ''
                 }));
                 timelineState.layers = 4;
                 timelineState.activeId = 'box-fill-0';
@@ -240,7 +243,8 @@ with tempfile.TemporaryDirectory() as tmp_name:
             page.evaluate("""() => {
                 timelineState.clips = [0, 1].map(track => ({
                     id: 'box-fill-' + track, name: 'FILL ' + track, code: '', duration: 6,
-                    start: 0, track, explicitDuration: true, type: 'code'
+                    start: 0, track, explicitDuration: true, type: 'video',
+                    mediaName: 'FILL', mediaUrl: ''
                 }));
                 timelineState.layers = 2;
                 timelineState.activeId = 'box-fill-0';
@@ -294,7 +298,7 @@ with tempfile.TemporaryDirectory() as tmp_name:
             zoom_hint = page.locator("#etDropHint").inner_text()
             finish_drag()
             clip = clips_of("image")[-1]
-            expect_start(clip, span * 0.5, "image -> zoomed timeline")
+            expect_start(clip, min(TOTAL, span * 0.5), "image -> zoomed timeline")
             assert "DROP AT" in zoom_hint, zoom_hint
             page.evaluate("fitTimelineView()")
             page.wait_for_timeout(250)

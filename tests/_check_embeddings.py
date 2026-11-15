@@ -12,9 +12,9 @@ sys.path.insert(0, str(ROOT))
 sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 os.environ["CLIPACANVAS_KEYS_DIR"] = tempfile.mkdtemp(prefix="cc-embed-")
 os.environ["CLIPACANVAS_EMBEDDING_PYTHON"] = str(
-    Path(os.environ["LOCALAPPDATA"]) / "Programs" / "Python" / "Python311" / "python.exe")
+    Path(os.environ["APPDATA"]) / "ClipACanvas" / "runtimes" / "litert" / "python" / "Scripts" / "python.exe")
 os.environ["CLIPACANVAS_EMBEDDING_ASSETS"] = str(
-    Path(os.environ["APPDATA"]) / "ClipACanvas" / "runtimes" / "embedgemma2" / "assets")
+    Path(os.environ["APPDATA"]) / "ClipACanvas" / "runtimes" / "litert" / "assets")
 os.environ["CLIPACANVAS_EMBEDDING_DEVICE"] = "cpu"
 
 import serve
@@ -48,7 +48,10 @@ for name, manifest in ((IMAGE, image), (VIDEO, video), (STATIC, still)):
     assert visual["status"] == "indexed", visual
     assert visual["provider"] == "embeddinggemma-2"
     assert visual["tags"], visual
-    assert len(visual["frames"]) <= serve.VISUAL_KEYFRAME_LIMIT, visual["frames"]
+    assert len(visual["frames"]) <= serve.VISUAL_FRAME_LIMIT, visual["frames"]
+    assert all(frame["thumb"].startswith("/api/media/frames/") for frame in visual["frames"]), visual["frames"]
+    times = [frame["time"] for frame in visual["frames"]]
+    assert times == sorted(times), times
     assert (media_dir.parent / "analysis" / f"embeddings-{Path(name).stem}.json").exists()
 
 labels = [tag["label"] for tag in image["visual"]["tags"]]
@@ -57,6 +60,7 @@ assert any(label in labels for label in
            ("football", "sport", "field", "grass", "person", "child", "sky")), labels
 assert image["visual"]["motion"]["label"] == "still"
 assert len(image["visual"]["frames"]) == 1, image["visual"]["frames"]
+assert len(video["visual"]["frames"]) >= 2, video["visual"]["frames"]
 
 video_motion = video["visual"]["motion"]
 still_motion = still["visual"]["motion"]

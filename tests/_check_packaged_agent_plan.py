@@ -111,12 +111,12 @@ with tempfile.TemporaryDirectory() as tmp_name:
     env["CLIPACANVAS_KEYS_DIR"] = str(data)
     env["WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS"] = f"--remote-debugging-port={PORT} --remote-allow-origins=*"
     runtime_root = Path(os.environ["APPDATA"]) / "ClipACanvas" / "runtimes"
-    for name in ("styletts2", "kokoro", "piper", "zonos", "embedgemma2"):
+    for name in ("styletts2", "kokoro", "piper", "zonos", "litert"):
         runtime_file = runtime_root / name / "runtime.json"
         if not runtime_file.exists():
             continue
         runtime = json.loads(runtime_file.read_text(encoding="utf-8"))
-        prefix = "EMBEDDING" if name == "embedgemma2" else name.upper()
+        prefix = "EMBEDDING" if name == "litert" else name.upper()
         env[f"CLIPACANVAS_{prefix}_PYTHON"] = runtime.get("python", "")
         if runtime.get("assets"):
             env[f"CLIPACANVAS_{prefix}_ASSETS"] = runtime["assets"]
@@ -201,7 +201,19 @@ with tempfile.TemporaryDirectory() as tmp_name:
             assert analysis.get("ok"), analysis
             assert visual.get("status") == "indexed", visual
             assert visual.get("tags"), visual
+            assert "Local visual index:" in (visual.get("description") or ""), visual
             assert visual.get("motion", {}).get("label") == "still", visual.get("motion")
+            footage = page.evaluate("""async () => {
+                const response = await fetch('/api/media/search', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ query: 'football on grass', limit: 3 })
+                });
+                return response.json();
+            }""")
+            print("packaged footage search:", footage)
+            assert footage.get("ok") and footage.get("count") >= 1, footage
+            assert footage["results"][0]["time"] == 0, footage
+            assert footage["results"][0]["thumb"].startswith("/api/media/frames/"), footage
             sts_voices = page.evaluate("""async () => (await (await fetch('/api/tts/providers')).json())
                 .providers.find(p => p.id === 'styletts2').voices.map(v => ({ id: v.id, gender: v.gender }))""")
             print("styletts2 voices:", sts_voices)

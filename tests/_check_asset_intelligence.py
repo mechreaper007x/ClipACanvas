@@ -74,7 +74,7 @@ with tempfile.TemporaryDirectory() as tmp_name:
             print("inspector analysis:", grid.replace("\n", " | "))
             assert "320×180" in grid and "24.00" in grid and "h264" in grid, grid
             semantic_note = page.locator("#miSemanticNote").inner_text()
-            assert "NOT RUN" in semantic_note, semantic_note
+            assert "LOCAL" in semantic_note, semantic_note
 
             def tool(name, args):
                 return page.evaluate(
@@ -85,8 +85,10 @@ with tempfile.TemporaryDirectory() as tmp_name:
             assert search["ok"] and search["count"] == 1, search
             summary = search["assets"][0]
             assert summary["resolution"] == "320x180" and summary["semanticStatus"] == "not_analyzed", summary
-            assert set(summary) == {"id", "name", "type", "durationSeconds", "resolution", "fps",
-                                    "videoCodec", "audioCodec", "analyzed", "semanticStatus", "description"}
+            assert set(summary) == {"id", "name", "type", "url", "durationSeconds", "resolution", "fps",
+                                    "videoCodec", "audioCodec", "analyzed", "semanticStatus", "description",
+                                    "visualTags", "motion", "shots"}
+            assert summary["url"].startswith("/media/"), summary
 
             analysis = tool("get_asset_analysis", {"assetId": video_id})
             assert analysis["ok"] and analysis["semanticAvailable"] is False, analysis

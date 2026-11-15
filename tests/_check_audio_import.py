@@ -102,6 +102,25 @@ with tempfile.TemporaryDirectory() as tmp_name:
             assert page.locator(".bins-empty").count() == 0
             assert page.locator(".logic-box.media").count() == 0, "import auto-placed media"
 
+            # Empty space in a populated bin stays an import target.
+            page.evaluate("window.__pickerCalls = 0; openMediaPicker = function(){ window.__pickerCalls += 1; };")
+            empty_point = page.evaluate("""() => {
+                const row = document.getElementById('binsRow');
+                const r = row.getBoundingClientRect();
+                const x = r.left + r.width - 10;
+                const y = r.top + r.height - 10;
+                const hit = document.elementFromPoint(x, y);
+                return { x, y, hit: hit && (hit.id || hit.className) };
+            }""")
+            assert empty_point["hit"] == "binsRow", empty_point
+            # Let any click queued by the earlier native picker flush first so
+            # the two mouse clicks are counted as one double-click.
+            page.wait_for_timeout(600)
+            calls_before = page.evaluate("window.__pickerCalls")
+            page.mouse.dblclick(empty_point["x"], empty_point["y"], delay=60)
+            page.wait_for_timeout(150)
+            assert page.evaluate("window.__pickerCalls") > calls_before, "double-clicking empty bin space did not open the picker"
+
             # Selecting the audio asset opens the audio inspector without a picture.
             page.evaluate(f"selectAsset('{audio_asset['id']}')")
             page.wait_for_timeout(400)

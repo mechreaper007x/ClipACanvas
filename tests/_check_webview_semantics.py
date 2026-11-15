@@ -33,6 +33,11 @@ with tempfile.TemporaryDirectory() as tmp_name:
     env = dict(os.environ)
     env["CLIPACANVAS_KEYS_DIR"] = str(tmp / "appdata")
     env["CLIPACANVAS_NO_BROWSER"] = "1"
+    env["CLIPACANVAS_EMBEDDING_PYTHON"] = str(
+        Path(os.environ["APPDATA"]) / "ClipACanvas" / "runtimes" / "litert" / "python" / "Scripts" / "python.exe")
+    env["CLIPACANVAS_EMBEDDING_ASSETS"] = str(
+        Path(os.environ["APPDATA"]) / "ClipACanvas" / "runtimes" / "litert" / "assets")
+    env["CLIPACANVAS_EMBEDDING_DEVICE"] = "cpu"
     env["WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS"] = f"--remote-debugging-port={DEBUG_PORT}"
     proc = subprocess.Popen([sys.executable, str(ROOT / "desktop_app.py")],
                             cwd=str(ROOT), env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
@@ -57,6 +62,7 @@ with tempfile.TemporaryDirectory() as tmp_name:
             assert page is not None, "desktop page not found"
             page.wait_for_function("() => typeof timelineState !== 'undefined' && typeof projectOps === 'object'", timeout=45000)
             page.wait_for_timeout(800)
+            page.evaluate("() => { if (typeof hideProjectHome === 'function') hideProjectHome(); }")
             errors = []
             page.on("console", lambda msg: errors.append(msg.text) if msg.type == "error" else None)
             page.on("pageerror", lambda err: errors.append(str(err)))
@@ -66,8 +72,9 @@ with tempfile.TemporaryDirectory() as tmp_name:
             page.wait_for_function(
                 "() => timelineState.assets.length === 1"
                 " && timelineState.assets[0].analysis?.technical"
-                " && (timelineState.assets[0].analysis.shots || []).length >= 3",
-                timeout=60000,
+                " && (timelineState.assets[0].analysis.shots || []).length >= 3"
+                " && timelineState.assets[0].analysis?.visual?.status === 'indexed'",
+                timeout=420000,
             )
             asset = page.evaluate("""() => {
                 const a = timelineState.assets[0];
@@ -76,11 +83,15 @@ with tempfile.TemporaryDirectory() as tmp_name:
             print("webview shots:", [(shot["start"], shot["end"]) for shot in asset["shots"]])
             assert len(asset["shots"]) >= 3
 
-            page.locator(f'.dock-bin[data-asset-id="{asset["id"]}"]').click()
+            page.evaluate("""(id) => document.querySelector(`.dock-bin[data-asset-id="${id}"]`)?.click()""", asset["id"])
             page.wait_for_timeout(400)
             assert page.locator("#miShots").is_visible()
             assert page.locator("#miShots img").count() >= 3
-            assert "NOT ANALYZED" in page.locator("#miContentStatus").inner_text()
+            content_status = page.locator("#miContentStatus").inner_text()
+            print("webview content status:", content_status)
+            assert "LOCAL" in content_status and "EMBEDDINGGEMMA 2" in content_status, content_status
+            assert page.locator("#miTags span").count() >= 1
+            assert page.locator("#miConsentRow").count() == 0
             frame = page.locator("#miShots img").first.get_attribute("src")
             status = page.evaluate("""async (url) => {
                 const response = await fetch(url);
@@ -94,18 +105,10 @@ with tempfile.TemporaryDirectory() as tmp_name:
             page.wait_for_timeout(300)
             assert "USER NOTE" in page.locator("#miSemanticNote").inner_text()
 
-            # No API key: consent UI never opens; the reason is visible.
-            page.click("#miAnalyzeToggle")
-            page.wait_for_function(
-                "() => document.getElementById('miAnalyzeHint').textContent.includes('Gemini API key')",
-                timeout=15000,
-            )
-            assert page.locator("#miConsentRow").is_hidden()
-
             page.screenshot(path=str(OUT / "webview-asset-semantics.png"))
             page.reload(wait_until="load")
             page.wait_for_timeout(1700)
-            page.locator(f'.dock-bin[data-asset-id="{asset["id"]}"]').click()
+            page.evaluate("""(id) => document.querySelector(`.dock-bin[data-asset-id="${id}"]`)?.click()""", asset["id"])
             page.wait_for_timeout(400)
             restored = page.evaluate("""() => {
                 const a = timelineState.assets[0];
